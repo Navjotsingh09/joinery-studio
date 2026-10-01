@@ -1,0 +1,11 @@
+import {JoineryItem,Project,ViewMode} from "@/types/model";
+export const clamp=(n:number,min:number,max:number)=>Math.max(min,Math.min(max,n));
+export const snap=(n:number,step:number)=>Math.round(n/step)*step;
+export type Rect={left:number;top:number;width:number;height:number};
+export function viewSize(p:Project,v:Exclude<ViewMode,"3d">){if(v==="front")return {w:p.roomWidth,h:p.roomHeight};if(v==="top")return {w:p.roomWidth,h:p.roomDepth};return {w:p.roomDepth,h:p.roomHeight}}
+export function itemRect(i:JoineryItem,p:Project,v:Exclude<ViewMode,"3d">):Rect{if(v==="front")return{left:i.x,top:p.roomHeight-i.y-i.height,width:i.width,height:i.height};if(v==="top")return{left:i.x,top:p.roomDepth-i.z-i.depth,width:i.width,height:i.depth};return{left:i.z,top:p.roomHeight-i.y-i.height,width:i.depth,height:i.height}}
+export function labelFor(i:JoineryItem,v:Exclude<ViewMode,"3d">){if(v==="front")return i.width+" × "+i.height+" mm";if(v==="top")return i.width+" × "+i.depth+" mm";return i.depth+" × "+i.height+" mm"}
+export function validate(p:Project){const issues:string[]=[],c=p.rules.wallClearance,g=p.rules.componentGap;p.items.forEach(i=>{if(i.width<=0||i.height<=0||i.depth<=0)issues.push(i.name+": dimensions must be positive.");if(i.x<c||i.x+i.width>p.roomWidth-c)issues.push(i.name+": violates left/right wall clearance.");if(i.y<0||i.y+i.height>p.roomHeight)issues.push(i.name+": outside room height.");if(i.z<0||i.z+i.depth>p.roomDepth)issues.push(i.name+": outside room depth.")});for(let a=0;a<p.items.length;a++)for(let b=a+1;b<p.items.length;b++){const A=p.items[a],B=p.items[b];const hit=A.x<B.x+B.width+g&&A.x+A.width+g>B.x&&A.y<B.y+B.height+g&&A.y+A.height+g>B.y&&A.z<B.z+B.depth+g&&A.z+A.depth+g>B.z;if(hit)issues.push(A.name+" clashes with "+B.name+".")}return [...new Set(issues)]}
+export function svgPoint(svg:SVGSVGElement,clientX:number,clientY:number){const pt=svg.createSVGPoint();pt.x=clientX;pt.y=clientY;const ctm=svg.getScreenCTM();if(!ctm)throw new Error("SVG CTM unavailable");return pt.matrixTransform(ctm.inverse())}
+export function luminance(hex:string){const h=hex.replace("#","");const vals=[0,2,4].map(i=>parseInt(h.slice(i,i+2),16)/255).map(v=>v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4));return .2126*vals[0]+.7152*vals[1]+.0722*vals[2]}
+export const contrastText=(hex:string)=>luminance(hex)<.35?"#ffffff":"#111111";
