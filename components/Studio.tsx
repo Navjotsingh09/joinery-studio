@@ -60,6 +60,7 @@ export default function Studio(){
   const [rightOpen,setRightOpen]=useState(true);
   const [projectOpen,setProjectOpen]=useState(false);
   const [showLauncher,setShowLauncher]=useState(true);
+  const [presentationMode,setPresentationMode]=useState(false);
   const file=useRef<HTMLInputElement>(null);
   const issues=useMemo(()=>validate(p),[p]);
   const designKind=useMemo(()=>inferDesignKind(p.items),[p.items]);
@@ -204,13 +205,14 @@ export default function Studio(){
     />;
   }
 
-  return <main className={"studio "+(!leftOpen?"libraryClosed ":"")+(!rightOpen||!item?"inspectorClosed ":"")} onClick={()=>setMenu(null)}>
+  return <main className={"studio "+(presentationMode?"presentationMode ":"")+(!leftOpen?"libraryClosed ":"")+(!rightOpen||!item?"inspectorClosed ":"")} onClick={()=>setMenu(null)}>
     <header className="topbar">
       <button className="studioBrand" onClick={()=>setShowLauncher(true)} title="Design home"><span className="studioBrandMark">JS</span><span><b>Joinery Studio</b><small>{designKind[0].toUpperCase()+designKind.slice(1)} design</small></span></button>
       <button className="projectButton projectPill" onClick={e=>{e.stopPropagation();setProjectOpen(v=>!v)}}>
         <span><b>{p.name}</b><small>{p.reference} · Rev {p.revision}</small></span><Icon name="settings" size={15}/>
       </button>
       <div className="topActions">
+        <button className={"presentationToggle "+(presentationMode?"active":"")} title="Client presentation view" onClick={()=>{const next=!presentationMode;setPresentationMode(next);if(next){s.setView("3d");setLeftOpen(false);setRightOpen(false)}else{setLeftOpen(true)}}}><Icon name="box" size={16}/><span>{presentationMode?"Exit presentation":"Present"}</span></button>
         <button className="iconBtn topIcon" title="Undo" onClick={s.undo}><Icon name="undo" size={17}/></button>
         <button className="iconBtn topIcon" title="Redo" onClick={s.redo}><Icon name="redo" size={17}/></button>
         <div className="viewSwitcher">{(["front","top","side","3d"] as const).map(v=><button key={v} className={s.view===v?"active":""} onClick={()=>s.setView(v)}>{v==="3d"?"3D":v[0].toUpperCase()+v.slice(1)}</button>)}</div>
