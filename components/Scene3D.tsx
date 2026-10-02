@@ -200,14 +200,180 @@ function OpenShelving({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:st
   </group>;
 }
 
+
+function Countertop({w,d,y,colour="#e8e4dc"}:{w:number;d:number;y:number;colour?:string}){
+  return <Panel position={[0,y,0]} size={[w+.025,.028,d+.025]} colour={colour} front/>;
+}
+
+function Sink({w,d,y}:{w:number;d:number;y:number}){
+  const sw=Math.min(.55,w*.7),sd=Math.min(.42,d*.68);
+  return <group position={[0,y,d*.03]}>
+    <mesh receiveShadow castShadow><boxGeometry args={[sw,.035,sd]}/><meshStandardMaterial color="#8f9699" roughness={.18} metalness={.72}/></mesh>
+    <mesh position={[0,.023,0]}><boxGeometry args={[sw-.045,.022,sd-.045]}/><meshStandardMaterial color="#40474b" roughness={.3} metalness={.45}/></mesh>
+    <mesh position={[sw*.28,.13,-sd*.2]} castShadow><cylinderGeometry args={[.012,.012,.24,18]}/><meshStandardMaterial color="#5b6063" metalness={.75} roughness={.22}/></mesh>
+    <mesh position={[sw*.28,.245,-sd*.1]} rotation={[Math.PI/2,0,0]} castShadow><cylinderGeometry args={[.012,.012,.18,18]}/><meshStandardMaterial color="#5b6063" metalness={.75} roughness={.22}/></mesh>
+  </group>;
+}
+
+function Hob({w,d,y}:{w:number;d:number;y:number}){
+  const hw=Math.min(.6,w*.72),hd=Math.min(.52,d*.72);
+  return <group position={[0,y,.015]}>
+    <mesh castShadow><boxGeometry args={[hw,.018,hd]}/><meshStandardMaterial color="#121416" roughness={.12} metalness={.18}/></mesh>
+    {[-.22,.22].flatMap((x,xi)=>[-.17,.17].map((z,zi)=><mesh key={xi+"-"+zi} position={[x*hw,0.011,z*hd]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[Math.min(hw,hd)*.12,.006,10,28]}/><meshStandardMaterial color="#3b3f42" metalness={.45} roughness={.25}/></mesh>))}
+  </group>;
+}
+
+function ApplianceGlass({position,size}:{position:[number,number,number];size:[number,number,number]}){
+  return <mesh position={position} castShadow><boxGeometry args={size}/><meshStandardMaterial color="#141618" roughness={.12} metalness={.12}/></mesh>;
+}
+
+function SlidingWardrobe({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
+  const bodyD=d-mm(BOARD),track=.028,gap=.012,count=Math.max(2,i.doors);
+  return <group>
+    <Carcass w={w} h={h} d={bodyD} colour={c} shelves={Math.max(2,i.shelves)}/>
+    <Panel position={[0,-h/2+.018,d/2-.015]} size={[w,.036,.055]} colour="#797b7d"/>
+    <Panel position={[0,h/2-.018,d/2-.015]} size={[w,.036,.055]} colour="#797b7d"/>
+    {Array.from({length:count},(_,n)=>{
+      const pw=(w-gap*(count+1))/count;
+      const x=-w/2+gap+pw/2+n*(pw+gap);
+      const z=d/2+.008+(n%2)*track;
+      return <group key={n}>
+        <Panel position={[x,0,z]} size={[pw,h-.045,.022]} colour={n===1&&count===3?"#cfd1d2":c} front/>
+        <Metal position={[x+(n<count/2?pw*.43:-pw*.43),0,z+.018]} size={[.009,Math.min(.5,h*.28),.01]}/>
+      </group>;
+    })}
+  </group>;
+}
+
+function DressingTable({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
+  const bodyH=Math.min(.34,h*.45),bodyY=-h/2+bodyH/2+.12;
+  return <group>
+    <Panel position={[0,h/2-.018,0]} size={[w,.036,d]} colour={c} front/>
+    <group position={[0,bodyY,0]}><Carcass w={w} h={bodyH} d={d-.02} colour={c}/><DrawerFronts i={{...i,doors:Math.max(2,i.doors)}} w={w} h={bodyH} d={d-.02} colour={c}/></group>
+    <Panel position={[-w/2+.04,-h/2+.12,0]} size={[.05,.24,d*.82]} colour={boardColour(c,-.04)}/>
+    <Panel position={[w/2-.04,-h/2+.12,0]} size={[.05,.24,d*.82]} colour={boardColour(c,-.04)}/>
+  </group>;
+}
+
+function BedsideCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
+  return <group><Carcass w={w} h={h} d={d-.02} colour={c}/><DrawerFronts i={{...i,doors:Math.max(2,i.doors)}} w={w} h={h} d={d-.02} colour={c}/><Panel position={[0,h/2+.014,0]} size={[w+.015,.028,d+.015]} colour={boardColour(c,.04)} front/></group>;
+}
+
+function BedWall({w,h,d,c}:{w:number;h:number;d:number;c:string}){
+  const cols=6,rows=3,g=.012,pw=(w-g*(cols+1))/cols,ph=(h-g*(rows+1))/rows;
+  return <group>{Array.from({length:cols*rows},(_,n)=>{
+    const col=n%cols,row=Math.floor(n/cols),x=-w/2+g+pw/2+col*(pw+g),y=-h/2+g+ph/2+row*(ph+g);
+    return <mesh key={n} position={[x,y,d/2]} castShadow><boxGeometry args={[pw,ph,Math.max(.04,d)]}/><meshStandardMaterial color={boardColour(c,row%2?.03:-.015)} roughness={.88}/></mesh>
+  })}</group>;
+}
+
+function KitchenIsland({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
+  const plinth=.09,bodyH=h-plinth-.035,bodyY=-h/2+plinth+bodyH/2;
+  return <group>
+    <Plinth w={w} d={d} h={plinth} colour={c}/>
+    <group position={[0,bodyY,0]}><Carcass w={w} h={bodyH} d={d-.04} colour={c}/><DrawerFronts i={{...i,doors:Math.max(3,i.doors)}} w={w} h={bodyH} d={d-.04} colour={c}/></group>
+    <Countertop w={w+.06} d={d+.08} y={h/2-.014} colour="#ddd7cc"/>
+  </group>;
+}
+
+function SinkBase({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
+  return <group><BaseCabinet i={i} w={w} h={h} d={d} c={c}/><Sink w={w} d={d} y={h/2+.015}/></group>;
+}
+
+function HobBase({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
+  return <group><BaseCabinet i={i} w={w} h={h} d={d} c={c}/><Hob w={w} d={d} y={h/2+.015}/></group>;
+}
+
+function OvenTower({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
+  return <group><TallCabinet i={i} w={w} h={h} d={d} c={c}/><ApplianceGlass position={[0,.08,d/2+.015]} size={[w-.09,.62,.035]}/><Metal position={[0,.34,d/2+.043]} size={[w-.18,.018,.02]}/></group>;
+}
+
+function FridgeHousing({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
+  return <group><TallCabinet i={{...i,doors:2}} w={w} h={h} d={d} c={c}/><lineSegments position={[0,0,d/2+.03]}><edgesGeometry args={[new THREE.BoxGeometry(w-.06,h-.08,.01)]}/><lineBasicMaterial color="#6f6f6f"/></lineSegments></group>;
+}
+
+function StairFlight({width,run,rise,count=13,position=[0,0,0],axis="z",reverse=false,colour}:{width:number;run:number;rise:number;count?:number;position?:[number,number,number];axis?:"x"|"z";reverse?:boolean;colour:string}){
+  const tread=run/count,stepRise=rise/count;
+  return <group position={position}>{Array.from({length:count},(_,n)=>{
+    const level=n+1,stepH=stepRise*level;
+    const along=-run/2+tread/2+n*tread;
+    const a=reverse?-along:along;
+    const pos:[number,number,number]=axis==="z"?[0,-rise/2+stepH/2,a]:[a,-rise/2+stepH/2,0];
+    const size:[number,number,number]=axis==="z"?[width,stepH,tread+.006]:[tread+.006,stepH,width];
+    return <Panel key={n} position={pos} size={size} colour={colour} front/>
+  })}
+  </group>;
+}
+
+function RailPosts({width,run,rise,axis="z",side=1,position=[0,0,0]}:{width:number;run:number;rise:number;axis?:"x"|"z";side?:number;position?:[number,number,number]}){
+  const count=6;
+  return <group position={position}>{Array.from({length:count},(_,n)=>{
+    const t=n/(count-1),along=-run/2+t*run,y=-rise/2+t*rise+.46;
+    const pos:[number,number,number]=axis==="z"?[side*(width/2-.035),y,along]:[along,y,side*(width/2-.035)];
+    return <Metal key={n} position={pos} size={[.026,.92,.026]}/>
+  })}</group>;
+}
+
+function StraightStaircase({w,h,d,c}:{w:number;h:number;d:number;c:string}){
+  const count=Math.max(11,Math.round(h/.18)),rise=h*.96,run=d*.94;
+  return <group>
+    <StairFlight width={w} run={run} rise={rise} count={count} colour={c}/>
+    <RailPosts width={w} run={run} rise={rise} side={1}/>
+    <RailPosts width={w} run={run} rise={rise} side={-1}/>
+    <Panel position={[0,rise/2+.015,-run/2-.035]} size={[w,.04,.11]} colour={boardColour(c,-.12)}/>
+  </group>;
+}
+
+function LStaircase({w,h,d,c}:{w:number;h:number;d:number;c:string}){
+  const flightW=Math.min(w*.46,1.0),half=h*.48,run1=d*.58,run2=w*.52;
+  return <group>
+    <StairFlight width={flightW} run={run1} rise={half} count={7} position={[-w*.25,-h*.24,d*.19]} colour={c}/>
+    <Panel position={[-w*.25,0,-d*.13]} size={[flightW,.08,flightW]} colour={c} front/>
+    <StairFlight width={flightW} run={run2} rise={half} count={7} axis="x" position={[w*.08,h*.24,-d*.13]} colour={c}/>
+    <RailPosts width={flightW} run={run1} rise={half} side={1} position={[-w*.25,-h*.24,d*.19]}/>
+  </group>;
+}
+
+function UStaircase({w,h,d,c}:{w:number;h:number;d:number;c:string}){
+  const fw=Math.min(.92,w*.42),gap=.14,half=h*.48,run=d*.72;
+  return <group>
+    <StairFlight width={fw} run={run} rise={half} count={7} position={[-fw/2-gap/2,-h*.24,0]} colour={c}/>
+    <StairFlight width={fw} run={run} rise={half} count={7} reverse position={[fw/2+gap/2,h*.24,0]} colour={c}/>
+    <Panel position={[0,0,-run/2+.04]} size={[fw*2+gap,.08,fw]} colour={c} front/>
+    <RailPosts width={fw} run={run} rise={half} side={-1} position={[-fw/2-gap/2,-h*.24,0]}/>
+    <RailPosts width={fw} run={run} rise={half} side={1} position={[fw/2+gap/2,h*.24,0]}/>
+  </group>;
+}
+
+function UnderStairStorage({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
+  const sections=Math.max(3,i.doors),gap=.012,sw=(w-gap*(sections+1))/sections;
+  return <group>{Array.from({length:sections},(_,n)=>{
+    const sh=Math.max(.35,h*(.38+.62*(n+1)/sections)),x=-w/2+gap+sw/2+n*(sw+gap);
+    return <group key={n} position={[x,-h/2+sh/2,0]}><Carcass w={sw} h={sh} d={d} colour={c} shelves={n%2}/><DoorFronts i={{...i,doors:1}} w={sw} h={sh} d={d} colour={c}/></group>
+  })}</group>;
+}
+
 function CabinetGeometry({i}:{i:JoineryItem}){
   const c=material(i.materialId).colour,w=mm(i.width),h=mm(i.height),d=mm(i.depth);
   if(i.type==="Wardrobe")return <Wardrobe i={i} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Sliding wardrobe")return <SlidingWardrobe i={i} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Dressing table")return <DressingTable i={i} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Bedside cabinet")return <BedsideCabinet i={i} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Bed wall")return <BedWall w={w} h={h} d={d} c={c}/>;
   if(i.type==="Base cabinet")return <BaseCabinet i={i} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Sink base")return <SinkBase i={i} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Hob base")return <HobBase i={i} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Oven tower")return <OvenTower i={i} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Fridge housing")return <FridgeHousing i={i} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Kitchen island")return <KitchenIsland i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Wall cabinet")return <WallCabinet i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Tall cabinet")return <TallCabinet i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Drawer unit")return <DrawerUnit i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Media unit")return <MediaUnit i={i} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Straight staircase")return <StraightStaircase w={w} h={h} d={d} c={c}/>;
+  if(i.type==="L staircase")return <LStaircase w={w} h={h} d={d} c={c}/>;
+  if(i.type==="U staircase")return <UStaircase w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Under-stair storage")return <UnderStairStorage i={i} w={w} h={h} d={d} c={c}/>;
   return <OpenShelving i={i} w={w} h={h} d={d} c={c}/>;
 }
 
