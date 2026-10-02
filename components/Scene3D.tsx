@@ -19,10 +19,35 @@ function boardColour(hex:string,amount=0){
   return "#"+c.getHexString();
 }
 
+const textureCache=new Map<string,THREE.CanvasTexture>();
+function woodTexture(colour:string){
+  const wood=["#b98e5d","#c7a477","#d7bd8b","#c5aa82"].includes(colour.toLowerCase());
+  if(!wood||typeof document==="undefined")return null;
+  const cached=textureCache.get(colour);if(cached)return cached;
+  const canvas=document.createElement("canvas");canvas.width=128;canvas.height=256;
+  const ctx=canvas.getContext("2d");if(!ctx)return null;
+  ctx.fillStyle=colour;ctx.fillRect(0,0,128,256);
+  for(let y=4;y<256;y+=7){
+    ctx.beginPath();
+    for(let x=0;x<=128;x+=4){
+      const wave=Math.sin((x+y)*.055)*2.2+Math.sin(x*.17+y*.013)*1.1;
+      if(x===0)ctx.moveTo(x,y+wave);else ctx.lineTo(x,y+wave);
+    }
+    ctx.strokeStyle="rgba(74,48,28,.12)";ctx.lineWidth=.75;ctx.stroke();
+  }
+  for(let y=17;y<256;y+=41){
+    const grad=ctx.createLinearGradient(0,y,128,y+10);
+    grad.addColorStop(0,"rgba(255,255,255,.02)");grad.addColorStop(.5,"rgba(60,38,20,.07)");grad.addColorStop(1,"rgba(255,255,255,.02)");
+    ctx.fillStyle=grad;ctx.fillRect(0,y,128,7);
+  }
+  const tex=new THREE.CanvasTexture(canvas);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(1,2.4);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=4;textureCache.set(colour,tex);return tex;
+}
+
 function Panel({position,size,colour,front=false}:{position:[number,number,number];size:[number,number,number];colour:string;front?:boolean}){
+  const tex=woodTexture(colour);
   return <mesh position={position} castShadow receiveShadow>
     <boxGeometry args={size}/>
-    <meshStandardMaterial color={front?boardColour(colour,.025):colour} roughness={front?.52:.7} metalness={0}/>
+    <meshStandardMaterial map={tex??undefined} color={tex?"#ffffff":front?boardColour(colour,.025):colour} roughness={front?.48:.68} metalness={0}/>
   </mesh>
 }
 
