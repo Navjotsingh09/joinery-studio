@@ -5,7 +5,7 @@ import {newItem} from "@/lib/defaults";
 import {MATERIALS,material} from "@/lib/materials";
 import {Drawing2D} from "./Drawing2D";
 import {Scene3D} from "./Scene3D";
-import {validate,findFreePlacement,clampItemToRoom,canPlace} from "@/lib/geometry";
+import {validate,findFreePlacement,clampItemToRoom,canPlace,footprint,normalizeRotation} from "@/lib/geometry";
 import {exportPdf} from "@/lib/pdf";
 import {hasSupabase} from "@/lib/supabase";
 import * as cloud from "@/lib/cloud";
@@ -69,12 +69,13 @@ export default function Studio(){
   const [projectOpen,setProjectOpen]=useState(false);
   const [showLauncher,setShowLauncher]=useState(true);
   const [presentationMode,setPresentationMode]=useState(false);
+  const [transformMode,setTransformMode]=useState<"translate"|"rotate">("translate");
   const file=useRef<HTMLInputElement>(null);
   const issues=useMemo(()=>validate(p),[p]);
   const designKind=useMemo(()=>inferDesignKind(p.items),[p.items]);
   const componentGroups=COMPONENT_GROUPS_BY_KIND[designKind];
 
-  useEffect(()=>{if(item)setRightOpen(true)},[item?.id]);
+  useEffect(()=>{if(item){setRightOpen(true);setTransformMode("translate")}},[item?.id]);
 
   useEffect(()=>{
     if(!hasSupabase())return;
@@ -120,6 +121,7 @@ export default function Studio(){
       else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"){e.preventDefault();e.shiftKey?s.redo():s.undo()}
       else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="y"){e.preventDefault();s.redo()}
       else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="d"&&item){e.preventDefault();s.duplicateItem(item.id)}
+      else if(e.key.toLowerCase()==="r"&&item){e.preventDefault();rotateSelected(e.shiftKey?-90:90)}
       else if((e.key==="Delete"||e.key==="Backspace")&&item){e.preventDefault();if(confirm("Delete "+item.name+"?"))s.deleteItem(item.id)}
       else if(item&&e.key.startsWith("Arrow")){
         e.preventDefault();
@@ -143,6 +145,19 @@ export default function Studio(){
     if(!canPlace(p,i)){setNotice("No clear space remains. Reposition the new component.");i=clampItemToRoom(i,p)}
     s.addItem(i);
   };
+
+  const rotateItem=(id:string,nextRotation:number)=>{
+    const current=p.items.find(x=>x.id===id);if(!current||current.locked)return;
+    const oldBox=footprint(current),rotation=normalizeRotation(nextRotation);
+    const candidateBase={...current,rotation};
+    const newBox=footprint(candidateBase);
+    const cx=current.x+oldBox.width/2,cz=current.z+oldBox.depth/2;
+    const candidate=clampItemToRoom({...candidateBase,x:cx-newBox.width/2,z:cz-newBox.depth/2},p);
+    if(canPlace(p,candidate,id)){s.updateItem(id,candidate);setNotice("")}
+    else setNotice("Rotation blocked: the component would hit a wall or another object.");
+  };
+
+  const rotateSelected=(delta=90)=>{if(item)rotateItem(item.id,(item.rotation??0)+delta)};
 
   const patch=(k:string,v:any)=>{
     if(!item)return;
@@ -265,11 +280,11 @@ export default function Studio(){
     </aside>
 
     <section className="workspace">
-      <div className="stage">{s.view==="3d"?<Scene3D project={p} selected={s.selectedId} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onMoveStart={s.checkpoint}/>:<Drawing2D project={p} view={s.view} selected={s.selectedId} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onResize={(id,patch)=>s.moveItem(id,patch)} onMoveStart={s.checkpoint} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onContext={(e,id)=>{s.select(id);setMenu({x:e.clientX,y:e.clientY,id})}}/>}</div>
+      <div className="stage">{s.view==="3d"?<Scene3D project={p} selected={s.selectedId} transformMode={transformMode} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onRotate={(id,rotation)=>rotateItem(id,rotation)} onMoveStart={s.checkpoint}/>:<Drawing2D project={p} view={s.view} selected={s.selectedId} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onResize={(id,patch)=>s.moveItem(id,patch)} onMoveStart={s.checkpoint} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onContext={(e,id)=>{s.select(id);setMenu({x:e.clientX,y:e.clientY,id})}}/>}</div>
 
       {item&&<div className="selectionBar" onClick={e=>e.stopPropagation()}>
         <span className="selectionName">{item.name}</span>
-        <button className="activeTool"><Icon name="move" size={15}/> Move</button>
+        <button className={transformMode==="translate"?"activeTool":""} onClick={()=>setTransformMode("translate")}><Icon name="move" size={15}/> Move</button><button className={transformMode==="rotate"?"activeTool":""} onClick={()=>setTransformMode("rotate")}><Icon name="rotate" size={15}/> Rotate</button><button title="Rotate 90° left" onClick={()=>rotateSelected(-90)}>−90°</button><button title="Rotate 90° right" onClick={()=>rotateSelected(90)}>+90°</button>
         <button onClick={()=>s.duplicateItem(item.id)}><Icon name="copy" size={15}/> Copy</button>
         <button onClick={()=>s.updateItem(item.id,{locked:!item.locked})}>{item.locked?<Icon name="unlock" size={15}/>:<Icon name="lock" size={15}/>} {item.locked?"Unlock":"Lock"}</button>
         <button className="dangerTool" onClick={()=>confirm("Delete "+item.name+"?")&&s.deleteItem(item.id)}><Icon name="trash" size={15}/> Delete</button>
@@ -281,7 +296,7 @@ export default function Studio(){
     {item&&<aside className="inspector">
       <div className="inspectorHeader"><div><small>{item.type}</small><input value={item.name} onChange={e=>patch("name",e.target.value)}/></div><button className="iconBtn" onClick={()=>setRightOpen(false)}><Icon name="x" size={16}/></button></div>
       <div className="inspectorBody">
-        <section className="inspectorGroup"><h4>Position</h4><div className="fieldGrid3">{(["x","y","z"] as const).map(k=><label key={k}>{k.toUpperCase()}<input type="number" value={item[k]} onChange={e=>patch(k,+e.target.value)}/></label>)}</div></section>
+        <section className="inspectorGroup"><h4>Position</h4><div className="fieldGrid3">{(["x","y","z"] as const).map(k=><label key={k}>{k.toUpperCase()}<input type="number" value={item[k]} onChange={e=>patch(k,+e.target.value)}/></label>)}</div><label className="rotationField">Rotation<select value={normalizeRotation(item.rotation??0)} onChange={e=>rotateItem(item.id,+e.target.value)}>{[0,90,180,270].map(v=><option key={v} value={v}>{v}°</option>)}</select></label></section>
         <section className="inspectorGroup"><h4>Size</h4><div className="fieldGrid3">{(["width","height","depth"] as const).map((k,n)=><label key={k}>{["W","H","D"][n]}<input type="number" value={item[k]} onChange={e=>patch(k,+e.target.value)}/></label>)}</div></section>
         <section className="inspectorGroup"><h4>Configuration</h4><div className="fieldGrid2"><label>Shelves<input type="number" min="0" value={item.shelves} onChange={e=>patch("shelves",Math.max(0,+e.target.value))}/></label><label>Doors<input type="number" min="0" value={item.doors} onChange={e=>patch("doors",Math.max(0,+e.target.value))}/></label></div><label>Hardware<select value={item.hardware} onChange={e=>patch("hardware",e.target.value)}>{["None","Handleless","Bar handle","Knob","Push-to-open","Client specified"].map(x=><option key={x}>{x}</option>)}</select></label><label className="checkRow"><input type="checkbox" checked={item.locked} onChange={e=>patch("locked",e.target.checked)}/>Lock position</label></section>
         <section className="inspectorGroup"><h4>Material</h4><label>Board<select value={item.materialId} onChange={e=>patch("materialId",e.target.value)}>{MATERIALS.map(m=><option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}</select></label><div className="materialPreview"><i style={{background:material(item.materialId).colour}}/><span><b>{material(item.materialId).code}</b>{material(item.materialId).name}</span></div><label>Finish<input value={item.finish} onChange={e=>patch("finish",e.target.value)}/></label><label>Edge<select value={item.edgeBanding} onChange={e=>patch("edgeBanding",e.target.value)}>{["Matching 1mm","Matching 2mm","Contrast edge","None / raw"].map(x=><option key={x}>{x}</option>)}</select></label></section>
