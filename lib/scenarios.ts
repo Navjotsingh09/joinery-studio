@@ -109,8 +109,25 @@ export function inferDesignKind(items:JoineryItem[]):DesignKind{
   return "bedroom";
 }
 
+export const COMPONENT_GROUPS_BY_KIND:Record<DesignKind,{title:string;items:string[]}[]>={
+  kitchen:[
+    {title:"Cabinetry",items:["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Kitchen island","Shelving"]},
+    {title:"Appliances & services",items:["Sink base","Hob base","Oven tower","Fridge housing","Dishwasher","Washing machine","Microwave","Extractor hood"]},
+    {title:"Room",items:["Door opening","Window"]}
+  ],
+  bedroom:[
+    {title:"Fitted furniture",items:["Wardrobe","Sliding wardrobe","Drawer unit","Wall cabinet","Shelving","Media unit"]},
+    {title:"Furniture",items:["Bed","Dressing table","Bedside cabinet","Bed wall"]},
+    {title:"Room",items:["Door opening","Window"]}
+  ],
+  stairs:[
+    {title:"Stair systems",items:["Straight staircase","L staircase","U staircase","Under-stair storage"]},
+    {title:"Balustrades",items:["Glass balustrade","Timber balustrade"]},
+    {title:"Room",items:["Door opening","Window","Shelving"]}
+  ]
+};
 export const COMPONENTS_BY_KIND:Record<DesignKind,string[]>={
-  kitchen:["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Sink base","Hob base","Oven tower","Fridge housing","Kitchen island","Shelving"],
-  bedroom:["Wardrobe","Sliding wardrobe","Bed","Drawer unit","Dressing table","Bedside cabinet","Bed wall","Wall cabinet","Shelving","Media unit"],
-  stairs:["Straight staircase","L staircase","U staircase","Under-stair storage","Shelving"]
+  kitchen:COMPONENT_GROUPS_BY_KIND.kitchen.flatMap(g=>g.items),
+  bedroom:COMPONENT_GROUPS_BY_KIND.bedroom.flatMap(g=>g.items),
+  stairs:COMPONENT_GROUPS_BY_KIND.stairs.flatMap(g=>g.items)
 };
