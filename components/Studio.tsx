@@ -26,7 +26,7 @@ export default function Studio(){
   const issues=useMemo(()=>validate(p),[p]);
 
   useEffect(()=>{if(hasSupabase())cloud.currentUser().then(u=>setUser(u?.email??null)).catch(()=>setUser(null))},[]);
-  const cloudSave=async()=>{if(!hasSupabase()||!user)return;setBusy(true);try{await cloud.saveCloud(p);setNotice("Saved to cloud.")}catch(e:any){setNotice("Cloud save failed: "+(e?.message??"Unknown error"))}finally{setBusy(false)}};
+  const cloudSave=async()=>{if(!hasSupabase()||!user)return;setBusy(true);try{await cloud.saveAllCloud(s.projects);setNotice("All projects saved to cloud.")}catch(e:any){setNotice("Cloud save failed: "+(e?.message??"Unknown error"))}finally{setBusy(false)}};
   useEffect(()=>{if(!hasSupabase()||!user)return;const t=window.setTimeout(()=>{cloud.saveCloud(p).catch(()=>{})},1600);return()=>window.clearTimeout(t)},[user,p]);
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{
