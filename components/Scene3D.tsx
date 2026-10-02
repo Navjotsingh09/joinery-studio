@@ -370,7 +370,8 @@ function CabinetGeometry({i}:{i:JoineryItem}){
   if(i.type==="Sliding wardrobe")return <SlidingWardrobe i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Dressing table")return <DressingTable i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Bedside cabinet")return <BedsideCabinet i={i} w={w} h={h} d={d} c={c}/>;
-  if(i.type==="Bed wall")return <BedWall w={w} h={h} d={d} c={c}/>;\n  if(i.type==="Bed")return <Bed w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Bed wall")return <BedWall w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Bed")return <Bed w={w} h={h} d={d} c={c}/>;
   if(i.type==="Base cabinet")return <BaseCabinet i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Sink base")return <SinkBase i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Hob base")return <HobBase i={i} w={w} h={h} d={d} c={c}/>;
