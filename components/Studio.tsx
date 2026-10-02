@@ -146,14 +146,14 @@ export default function Studio(){
     s.addItem(i);
   };
 
-  const rotateItem=(id:string,nextRotation:number)=>{
+  const rotateItem=(id:string,nextRotation:number,transient=false)=>{
     const current=p.items.find(x=>x.id===id);if(!current||current.locked)return;
     const oldBox=footprint(current),rotation=normalizeRotation(nextRotation);
     const candidateBase={...current,rotation};
     const newBox=footprint(candidateBase);
     const cx=current.x+oldBox.width/2,cz=current.z+oldBox.depth/2;
     const candidate=clampItemToRoom({...candidateBase,x:cx-newBox.width/2,z:cz-newBox.depth/2},p);
-    if(canPlace(p,candidate,id)){s.updateItem(id,candidate);setNotice("")}
+    if(canPlace(p,candidate,id)){transient?s.moveItem(id,candidate):s.updateItem(id,candidate);setNotice("")}
     else setNotice("Rotation blocked: the component would hit a wall or another object.");
   };
 
@@ -280,7 +280,7 @@ export default function Studio(){
     </aside>
 
     <section className="workspace">
-      <div className="stage">{s.view==="3d"?<Scene3D project={p} selected={s.selectedId} transformMode={transformMode} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onRotate={(id,rotation)=>rotateItem(id,rotation)} onMoveStart={s.checkpoint}/>:<Drawing2D project={p} view={s.view} selected={s.selectedId} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onResize={(id,patch)=>s.moveItem(id,patch)} onMoveStart={s.checkpoint} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onContext={(e,id)=>{s.select(id);setMenu({x:e.clientX,y:e.clientY,id})}}/>}</div>
+      <div className="stage">{s.view==="3d"?<Scene3D project={p} selected={s.selectedId} transformMode={transformMode} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint}/>:<Drawing2D project={p} view={s.view} selected={s.selectedId} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onResize={(id,patch)=>s.moveItem(id,patch)} onMoveStart={s.checkpoint} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onContext={(e,id)=>{s.select(id);setMenu({x:e.clientX,y:e.clientY,id})}}/>}</div>
 
       {item&&<div className="selectionBar" onClick={e=>e.stopPropagation()}>
         <span className="selectionName">{item.name}</span>
