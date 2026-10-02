@@ -2,7 +2,7 @@
 import {useMemo,useState} from "react";
 import {createScenarioPlan,DESIGN_KINDS,DesignKind,ScenarioPlan} from "@/lib/scenarios";
 
-export function ScenarioStart({onCreate}:{onCreate:(plan:ScenarioPlan)=>void}){
+export function ScenarioStart({onCreate,onContinue,continueName}:{onCreate:(plan:ScenarioPlan)=>void;onContinue?:()=>void;continueName?:string}){
   const [kind,setKind]=useState<DesignKind|null>(null);
   const [scenario,setScenario]=useState<string|null>(null);
   const [room,setRoom]=useState({width:4200,height:2400,depth:3200});
@@ -20,7 +20,7 @@ export function ScenarioStart({onCreate}:{onCreate:(plan:ScenarioPlan)=>void}){
       <div className="brand large"><b>JOINERY</b><span>STUDIO</span></div>
       <p className="eyebrow">{scenario?"ROOM SETUP":kind?"CHOOSE A LAYOUT":"NEW DESIGN"}</p>
       <h1>{scenario?"Set the real room size":kind?"How should the "+choice?.title.toLowerCase()+" start?":"What do you want to design?"}</h1>
-      <p>{scenario?"Enter the room dimensions in millimetres. We will build a realistic starter layout that you can edit immediately.":kind?"Choose a starting scenario. You can change every cabinet, material and dimension afterwards.":"Start from a real-world scenario instead of an empty generic canvas."}</p>
+      <p>{scenario?"Enter the room dimensions in millimetres. We will build a realistic starter layout that you can edit immediately.":kind?"Choose a starting scenario. You can change every cabinet, material and dimension afterwards.":"Start from a real-world scenario instead of an empty generic canvas."}</p>\n      {!kind&&onContinue&&<button className="continueDesign" onClick={onContinue}>Continue {continueName||"current design"} →</button>}
     </div>
 
     {!kind&&<div className="designKindGrid">
