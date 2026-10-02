@@ -3,7 +3,7 @@ import {create} from "zustand";import {persist} from "zustand/middleware";
 import {Project,JoineryItem,ViewMode,ProjectSnapshot,Revision} from "@/types/model";
 import {newProject} from "./defaults";import {findFreePlacement,canPlace} from "./geometry";
 type Core={projects:Project[];activeId:string;selectedId:string|null;view:ViewMode};
-type State=Core&{past:Core[];future:Core[];setView:(v:ViewMode)=>void;setActive:(id:string)=>void;select:(id:string|null)=>void;addProject:()=>void;deleteProject:()=>void;replaceAll:(p:Project[])=>void;updateProject:(patch:Partial<Project>)=>void;addItem:(i:JoineryItem)=>void;updateItem:(id:string,patch:Partial<JoineryItem>)=>void;moveItem:(id:string,patch:Partial<JoineryItem>)=>void;checkpoint:()=>void;deleteItem:(id:string)=>void;duplicateItem:(id:string)=>void;saveRevision:()=>void;restoreRevision:(id:string)=>void;undo:()=>void;redo:()=>void};
+type State=Core&{past:Core[];future:Core[];setView:(v:ViewMode)=>void;setActive:(id:string)=>void;select:(id:string|null)=>void;addProject:()=>void;deleteProject:()=>void;replaceAll:(p:Project[])=>void;configureActive:(patch:Partial<Project>&{items:JoineryItem[]})=>void;updateProject:(patch:Partial<Project>)=>void;addItem:(i:JoineryItem)=>void;updateItem:(id:string,patch:Partial<JoineryItem>)=>void;moveItem:(id:string,patch:Partial<JoineryItem>)=>void;checkpoint:()=>void;deleteItem:(id:string)=>void;duplicateItem:(id:string)=>void;saveRevision:()=>void;restoreRevision:(id:string)=>void;undo:()=>void;redo:()=>void};
 const first=newProject("Showroom concept"),core=(s:State):Core=>({projects:structuredClone(s.projects),activeId:s.activeId,selectedId:s.selectedId,view:s.view});
 const mutate=(set:any,fn:(s:State)=>Partial<State>)=>set((s:State)=>({...fn(s),past:[...s.past.slice(-39),core(s)],future:[]}));
 const snapshot=(p:Project):ProjectSnapshot=>({name:p.name,customer:p.customer,reference:p.reference,status:p.status,roomWidth:p.roomWidth,roomHeight:p.roomHeight,roomDepth:p.roomDepth,rules:structuredClone(p.rules),items:structuredClone(p.items)});
@@ -12,6 +12,7 @@ setView:view=>set({view}),setActive:activeId=>set({activeId,selectedId:null}),se
 addProject:()=>mutate(set,s=>{const p=newProject();return{projects:[...s.projects,p],activeId:p.id,selectedId:null}}),
 deleteProject:()=>mutate(set,s=>{if(s.projects.length===1){const p=newProject("New project");return{projects:[p],activeId:p.id,selectedId:null}}const ps=s.projects.filter(p=>p.id!==s.activeId);return{projects:ps,activeId:ps[0].id,selectedId:null}}),
 replaceAll:projects=>{const ps=projects.length?projects:[newProject("New project")];set({projects:ps,activeId:ps[0].id,selectedId:null,past:[],future:[]})},
+configureActive:patch=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,...patch,items:structuredClone(patch.items),updatedAt:new Date().toISOString()}:p),selectedId:null,view:"3d"})),
 updateProject:patch=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,...patch,updatedAt:new Date().toISOString()}:p)})),
 addItem:i=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,items:[...p.items,i],updatedAt:new Date().toISOString()}:p),selectedId:i.id})),
 updateItem:(id,patch)=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,items:p.items.map(i=>i.id===id?{...i,...patch}:i),updatedAt:new Date().toISOString()}:p)})),
