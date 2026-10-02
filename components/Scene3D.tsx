@@ -233,7 +233,6 @@ function Dishwasher({w,h,d}:{w:number;h:number;d:number}){
     <mesh castShadow receiveShadow><boxGeometry args={[w,h,d]}/><meshStandardMaterial color="#c5c8c9" metalness={.42} roughness={.36}/></mesh>
     <ApplianceGlass position={[0,h*.23,d/2+.012]} size={[w-.08,.13,.024]}/>
     <Metal position={[0,h*.37,d/2+.028]} size={[w-.14,.018,.018]}/>
-    <circleGeometry args={[.01,16]}/>
   </group>;
 }
 
@@ -505,7 +504,7 @@ function ItemNode({i,project,selected,mode,onSelect,onMove,onRotate,onMoveStart}
     {selected&&<mesh><boxGeometry args={[mm(i.width)+.035,mm(i.height)+.035,mm(i.depth)+.035]}/><meshBasicMaterial color="#c8102e" wireframe transparent opacity={.55}/></mesh>}
   </group>;
   if(!selected||i.locked)return node;
-  return <TransformControls mode={mode} translationSnap={Math.max(1,project.rules.snap)/1000} rotationSnap={Math.PI/2} showX={mode==="translate"} showY showZ={mode==="translate"} onMouseDown={()=>onMoveStart?.()} onObjectChange={sync}>{node}</TransformControls>;
+  return <TransformControls mode={mode} translationSnap={Math.max(1,project.rules.snap)/1000} rotationSnap={Math.PI/2} showX={mode==="translate"} showY={mode==="rotate"||isWallMounted(i)} showZ={mode==="translate"} onMouseDown={()=>onMoveStart?.()} onObjectChange={sync}>{node}</TransformControls>;
 }
 
 
