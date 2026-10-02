@@ -23,7 +23,7 @@ function Cabinet({i,project}:{i:JoineryItem;project:Project}){
     <Panel position={[0,0,-d/2+tm/2]} size={[innerW,innerH,tm]} colour={c}/>
     {shelves.map((sy,n)=><Panel key={n} position={[0,sy,0]} size={[innerW,tm,Math.max(.01,d-tm)]} colour={c}/>)}
     {i.type==="Media unit"&&doors>0?Array.from({length:doors},(_,n)=>{const dh=innerH/doors;return <group key={"dr"+n}><Panel position={[0,-innerH/2+dh*(n+.5),d/2+tm*.35]} size={[innerW,Math.max(.01,dh-.003),tm*.7]} colour={c}/>{i.hardware!=="Handleless"&&i.hardware!=="None"&&<mesh position={[0,-innerH/2+dh*(n+.5),d/2+tm*1.2]}><boxGeometry args={[Math.min(.18,innerW*.3),.012,.012]}/><meshStandardMaterial color="#303030"/></mesh>}</group>}):Array.from({length:doors},(_,n)=>{const dw=innerW/doors;return <group key={"d"+n}><Panel position={[-innerW/2+dw*(n+.5),0,d/2+tm*.35]} size={[Math.max(.01,dw-.003),innerH,tm*.7]} colour={c}/>{i.hardware!=="Handleless"&&i.hardware!=="None"&&<mesh position={[-innerW/2+dw*(n+.5),0,d/2+tm*1.2]}><boxGeometry args={[.012,Math.min(.18,innerH*.25),.012]}/><meshStandardMaterial color="#303030"/></mesh>}</group>})}
-    {i.type!=="Wall cabinet"&&<Panel position={[0,-h/2+.04,d*.12]} size={[innerW,.08,Math.max(.01,d*.72)]} colour={c}/>}
+    {i.type!=="Wall cabinet"&&i.type!=="Shelving"&&<Panel position={[0,-h/2+.04,d*.12]} size={[innerW,.08,Math.max(.01,d*.72)]} colour={c}/>}
   </group>
 }
 export function Scene3D({project,selected,onSelect}:{project:Project;selected?:string|null;onSelect?:(id:string|null)=>void}){
@@ -31,7 +31,7 @@ export function Scene3D({project,selected,onSelect}:{project:Project;selected?:s
   return <div className="three"><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(4,rw*1.25),Math.max(3,rh*1.1),Math.max(4,rd*1.5)],fov:42}} shadows>
     <ambientLight intensity={1.25}/><directionalLight castShadow position={[4,8,5]} intensity={2.2}/>
     <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.0125,0]} receiveShadow><boxGeometry args={[rw,rd,.025]}/><meshStandardMaterial color="#ece9e4" roughness={.95}/></mesh>
-    <Grid args={[Math.max(rw,rd)*1.4,Math.max(rw,rd)*1.4]} cellSize={.1} sectionSize={1} fadeDistance={20}/>
+    <Grid position={[0,.001,0]} args={[Math.max(rw,rd)*1.4,Math.max(rw,rd)*1.4]} cellSize={.1} sectionSize={1} fadeDistance={20}/>
     <mesh position={[0,rh/2,-rd/2]} receiveShadow><boxGeometry args={[rw,rh,.025]}/><meshStandardMaterial color="#f2f2f0" roughness={.9}/></mesh>
     <mesh position={[-rw/2,rh/2,0]} receiveShadow><boxGeometry args={[.025,rh,rd]}/><meshStandardMaterial color="#f7f7f5" roughness={.9}/></mesh>
     {project.items.map(i=><group key={i.id} onClick={e=>{e.stopPropagation();onSelect?.(i.id)}}><Cabinet i={i} project={project}/>{selected===i.id&&<mesh position={[(i.x+i.width/2-project.roomWidth/2)/1000,(i.y+i.height/2)/1000,(i.z+i.depth/2-project.roomDepth/2)/1000]}><boxGeometry args={[i.width/1000+.025,i.height/1000+.025,i.depth/1000+.025]}/><meshBasicMaterial color="#c8102e" wireframe transparent opacity={.85}/></mesh>}</group>)}
