@@ -61,7 +61,7 @@ export default function Studio(){
   };
   const exportJson=()=>{const b=new Blob([JSON.stringify(s.projects,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="joinery-studio-projects.json";a.click();URL.revokeObjectURL(a.href)};
   const importJson=async(e:React.ChangeEvent<HTMLInputElement>)=>{const f=e.target.files?.[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!isProjectBackup(d))throw new Error();if(confirm("Replace local projects with this backup?"))s.replaceAll(d)}catch{alert("Invalid Joinery Studio JSON file.")}e.target.value=""};
-  const sync=async()=>{try{await cloud.saveCloud(p);alert("Saved to Supabase.")}catch(e:any){alert(e.message)}};
+  const sync=cloudSave;
   const login=async(signup=false)=>{setBusy(true);setNotice("");try{const r=signup?await cloud.signUp(auth.email,auth.password):await cloud.signIn(auth.email,auth.password);if(r.error){setNotice(r.error.message);return}if(signup&&!r.data.session){setUser(null);setNotice("Account created. Check your email to confirm the account, then sign in.");return}setUser(r.data.user?.email??auth.email);const ps=await cloud.loadCloud();if(ps.length){s.replaceAll(ps);setNotice("Cloud projects loaded.")}else setNotice("Signed in. No cloud projects yet.")}catch(e:any){setNotice(e?.message??"Authentication failed.")}finally{setBusy(false)}};
 
   return <main className="shell" onClick={()=>setMenu(null)}>
