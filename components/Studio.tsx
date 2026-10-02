@@ -14,6 +14,7 @@ import {isProjectBackup} from "@/lib/backup";
 import {mergeProjects} from "@/lib/projectMerge";
 import {COMPONENTS_BY_KIND,inferDesignKind,ScenarioPlan} from "@/lib/scenarios";
 import {ScenarioStart} from "./ScenarioStart";
+import {Icon} from "./Icon";
 
 function ComponentIcon({type}:{type:string}){const cls=type.toLowerCase().replaceAll(" ","-");return <span className={"cabIcon "+cls}><i/><i/><i/><i/></span>}
 
@@ -179,38 +180,38 @@ export default function Studio(){
 
   return <main className={"studio "+(!leftOpen?"libraryClosed ":"")+(!rightOpen||!item?"inspectorClosed ":"")} onClick={()=>setMenu(null)}>
     <header className="topbar">
-      <button className="brand brandButton" onClick={()=>setShowLauncher(true)}><b>JOINERY</b><span>STUDIO</span></button>
-      <button className="projectButton" onClick={e=>{e.stopPropagation();setProjectOpen(v=>!v)}}>
-        <span>{p.name}</span><small>{p.reference} · Rev {p.revision}</small>
+      <button className="studioBrand" onClick={()=>setShowLauncher(true)} title="Design home"><span className="studioBrandMark">JS</span><span><b>Joinery Studio</b><small>${designKind[0].toUpperCase()+designKind.slice(1)} design</small></span></button>
+      <button className="projectButton projectPill" onClick={e=>{e.stopPropagation();setProjectOpen(v=>!v)}}>
+        <span><b>{p.name}</b><small>{p.reference} · Rev {p.revision}</small></span><Icon name="settings" size={15}/>
       </button>
       <div className="topActions">
-        <button className="iconBtn" title="Undo" onClick={s.undo}>↶</button>
-        <button className="iconBtn" title="Redo" onClick={s.redo}>↷</button>
+        <button className="iconBtn topIcon" title="Undo" onClick={s.undo}><Icon name="undo" size={17}/></button>
+        <button className="iconBtn topIcon" title="Redo" onClick={s.redo}><Icon name="redo" size={17}/></button>
         <div className="viewSwitcher">{(["front","top","side","3d"] as const).map(v=><button key={v} className={s.view===v?"active":""} onClick={()=>s.setView(v)}>{v==="3d"?"3D":v[0].toUpperCase()+v.slice(1)}</button>)}</div>
-        <details className="topMenu"><summary>Export</summary><div>
+        <details className="topMenu"><summary><Icon name="download" size={15}/> Export</summary><div>
           <button onClick={()=>exportPdf(p)}>PDF drawing pack</button>
           <button onClick={exportJson}>Export JSON</button>
           <button onClick={()=>file.current?.click()}>Import JSON</button>
         </div></details>
         <input ref={file} hidden type="file" accept=".json" onChange={importJson}/>
         {hasSupabase()&&user&&<button className="quietBtn" disabled={busy} onClick={cloudSave}>{busy?"Saving…":"Save"}</button>}
-        <button disabled={issues.length>0} className="primary compactPrimary" onClick={s.saveRevision}>Save revision</button>
+        <button disabled={issues.length>0} className="primary compactPrimary saveRevisionBtn" onClick={s.saveRevision}><Icon name="save" size={15}/> Save revision</button>
       </div>
     </header>
 
     <nav className="toolRail">
-      <button className={tab==="components"&&leftOpen?"active":""} title="Add" onClick={()=>{setTab("components");setLeftOpen(true)}}><span>＋</span><small>Add</small></button>
-      <button className={tab==="items"&&leftOpen?"active":""} title="Items" onClick={()=>{setTab("items");setLeftOpen(true)}}><span>▦</span><small>Items</small></button>
-      <button className={tab==="materials"&&leftOpen?"active":""} title="Materials" onClick={()=>{setTab("materials");setLeftOpen(true)}}><span>◩</span><small>Material</small></button>
-      <button className={tab==="revisions"&&leftOpen?"active":""} title="History" onClick={()=>{setTab("revisions");setLeftOpen(true)}}><span>↺</span><small>History</small></button>
+      <button className={tab==="components"&&leftOpen?"active":""} title="Add" onClick={()=>{setTab("components");setLeftOpen(true)}}><Icon name="plus" size={19}/><small>Add</small></button>
+      <button className={tab==="items"&&leftOpen?"active":""} title="Items" onClick={()=>{setTab("items");setLeftOpen(true)}}><Icon name="layers" size={18}/><small>Items</small></button>
+      <button className={tab==="materials"&&leftOpen?"active":""} title="Materials" onClick={()=>{setTab("materials");setLeftOpen(true)}}><Icon name="swatch" size={18}/><small>Material</small></button>
+      <button className={tab==="revisions"&&leftOpen?"active":""} title="History" onClick={()=>{setTab("revisions");setLeftOpen(true)}}><Icon name="history" size={18}/><small>History</small></button>
       <div className="railSpacer"/>
-      <button title={leftOpen?"Hide library":"Show library"} onClick={()=>setLeftOpen(v=>!v)}><span>{leftOpen?"‹":"›"}</span></button>
+      <button title={leftOpen?"Hide library":"Show library"} onClick={()=>setLeftOpen(v=>!v)}>{leftOpen?<Icon name="chevron-left" size={18}/>:<Icon name="chevron-right" size={18}/>}</button>
     </nav>
 
     <aside className="libraryPanel">
       <div className="panelHead">
         <div><b>{tab==="components"?"Add joinery":tab==="items"?"Items":tab==="materials"?"Materials":"History"}</b><small>{tab==="components"?"Drag to canvas":tab==="items"?p.items.length+" objects":tab==="materials"?(item?"Apply to selection":"Select an object"):"Saved snapshots"}</small></div>
-        <button className="iconBtn" onClick={()=>setLeftOpen(false)}>×</button>
+        <button className="iconBtn" onClick={()=>setLeftOpen(false)}><Icon name="x" size={16}/></button>
       </div>
       <div className="panelBody">
         {tab==="components"&&<>
@@ -228,17 +229,17 @@ export default function Studio(){
 
       {item&&<div className="selectionBar" onClick={e=>e.stopPropagation()}>
         <span className="selectionName">{item.name}</span>
-        <button className="activeTool">✥ Move</button>
-        <button onClick={()=>s.duplicateItem(item.id)}>⧉ Copy</button>
-        <button onClick={()=>s.updateItem(item.id,{locked:!item.locked})}>{item.locked?"Unlock":"Lock"}</button>
-        <button className="dangerTool" onClick={()=>confirm("Delete "+item.name+"?")&&s.deleteItem(item.id)}>Delete</button>
+        <button className="activeTool"><Icon name="move" size={15}/> Move</button>
+        <button onClick={()=>s.duplicateItem(item.id)}><Icon name="copy" size={15}/> Copy</button>
+        <button onClick={()=>s.updateItem(item.id,{locked:!item.locked})}>{item.locked?<Icon name="unlock" size={15}/>:<Icon name="lock" size={15}/>} {item.locked?"Unlock":"Lock"}</button>
+        <button className="dangerTool" onClick={()=>confirm("Delete "+item.name+"?")&&s.deleteItem(item.id)}><Icon name="trash" size={15}/> Delete</button>
       </div>}
 
-      <div className="statusChip"><span className={issues.length?"statusDot warn":"statusDot live"}/><span>{issues.length?issues.length+" issue"+(issues.length>1?"s":""):"Design valid"}</span><span className="dotSep">·</span><span>{user?(cloudReady?"Cloud synced":"Cloud connecting"):"Local"}</span></div>
+      <div className="statusChip"><span className={issues.length?"statusDot warn":"statusDot live"}/><span>{issues.length?issues.length+" issue"+(issues.length>1?"s":""):"Design valid"}</span><span className="dotSep">·</span><span className="statusMode">{designKind[0].toUpperCase()+designKind.slice(1)}</span><span className="dotSep">·</span><span>{user?(cloudReady?"Cloud synced":"Cloud connecting"):"Local"}</span></div>
     </section>
 
     {item&&<aside className="inspector">
-      <div className="inspectorHeader"><div><small>{item.type}</small><input value={item.name} onChange={e=>patch("name",e.target.value)}/></div><button className="iconBtn" onClick={()=>setRightOpen(false)}>×</button></div>
+      <div className="inspectorHeader"><div><small>{item.type}</small><input value={item.name} onChange={e=>patch("name",e.target.value)}/></div><button className="iconBtn" onClick={()=>setRightOpen(false)}><Icon name="x" size={16}/></button></div>
       <div className="inspectorBody">
         <section className="inspectorGroup"><h4>Position</h4><div className="fieldGrid3">{(["x","y","z"] as const).map(k=><label key={k}>{k.toUpperCase()}<input type="number" value={item[k]} onChange={e=>patch(k,+e.target.value)}/></label>)}</div></section>
         <section className="inspectorGroup"><h4>Size</h4><div className="fieldGrid3">{(["width","height","depth"] as const).map((k,n)=><label key={k}>{["W","H","D"][n]}<input type="number" value={item[k]} onChange={e=>patch(k,+e.target.value)}/></label>)}</div></section>
