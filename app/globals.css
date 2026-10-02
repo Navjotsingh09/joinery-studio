@@ -110,3 +110,8 @@ label{display:block;font-size:10px;font-weight:700;color:#66615b}label input,lab
 .cabIcon.straight-staircase:before,.cabIcon.l-staircase:before,.cabIcon.u-staircase:before{inset:6px;background:repeating-linear-gradient(to top,#77716a 0 2px,transparent 2px 6px);clip-path:polygon(0 100%,100% 0,100% 100%);border:0}
 .cabIcon.under-stair-storage:before{inset:6px;clip-path:polygon(0 100%,100% 20%,100% 100%);background:#eee9e1}.cabIcon.under-stair-storage:after{content:"";position:absolute;left:18px;top:11px;bottom:6px;width:1px;background:#77716a}
 @media(max-width:850px){.designKindGrid{grid-template-columns:1fr}.scenarioGrid{grid-template-columns:1fr}.roomSetupCard{grid-template-columns:1fr}.roomSketch{min-height:260px}.scenarioStart{padding:28px 18px 40px}}
+
+.brandButton{border:0!important;background:transparent!important;padding:0!important;border-radius:0!important}
+.brandButton:hover{background:transparent!important}
+.continueDesign{margin:18px auto 0;display:inline-flex;align-items:center;justify-content:center;border:1px solid #cfc8be;background:#fff;padding:9px 14px;font-weight:800;box-shadow:0 5px 14px #0000000a}
+.continueDesign:hover{border-color:#aaa196;background:#faf8f4}
