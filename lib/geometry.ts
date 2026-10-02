@@ -5,7 +5,7 @@ export type Rect={left:number;top:number;width:number;height:number};
 export function viewSize(p:Project,v:Exclude<ViewMode,"3d">){if(v==="front")return {w:p.roomWidth,h:p.roomHeight};if(v==="top")return {w:p.roomWidth,h:p.roomDepth};return {w:p.roomDepth,h:p.roomHeight}}
 export function itemRect(i:JoineryItem,p:Project,v:Exclude<ViewMode,"3d">):Rect{if(v==="front")return{left:i.x,top:p.roomHeight-i.y-i.height,width:i.width,height:i.height};if(v==="top")return{left:i.x,top:p.roomDepth-i.z-i.depth,width:i.width,height:i.depth};return{left:i.z,top:p.roomHeight-i.y-i.height,width:i.depth,height:i.height}}
 export function labelFor(i:JoineryItem,v:Exclude<ViewMode,"3d">){if(v==="front")return i.width+" × "+i.height+" mm";if(v==="top")return i.width+" × "+i.depth+" mm";return i.depth+" × "+i.height+" mm"}
-export const isWallMounted=(i:JoineryItem)=>i.type==="Wall cabinet";
+export const isWallMounted=(i:JoineryItem)=>["Wall cabinet","Microwave","Extractor hood","Window"].includes(i.type);
 export function clampItemToRoom(i:JoineryItem,p:Project):JoineryItem{const step=Math.max(1,p.rules.snap),c=Math.max(0,p.rules.wallClearance);return{...i,x:clamp(snap(i.x,step),c,Math.max(c,p.roomWidth-c-i.width)),y:isWallMounted(i)?clamp(snap(i.y,step),0,Math.max(0,p.roomHeight-i.height)):0,z:clamp(snap(i.z,step),0,Math.max(0,p.roomDepth-i.depth))}}
 export function allowedOverlap(a:JoineryItem,b:JoineryItem){
   const pair=[a.type,b.type];
