@@ -22,7 +22,7 @@ function Cabinet({i,project}:{i:JoineryItem;project:Project}){
     <Panel position={[0,-h/2+tm/2,0]} size={[innerW,tm,d]} colour={c}/>
     <Panel position={[0,0,-d/2+tm/2]} size={[innerW,innerH,tm]} colour={c}/>
     {shelves.map((sy,n)=><Panel key={n} position={[0,sy,0]} size={[innerW,tm,Math.max(.01,d-tm)]} colour={c}/>)}
-    {Array.from({length:doors},(_,n)=>{const dw=innerW/doors;return <Panel key={"d"+n} position={[-innerW/2+dw*(n+.5),0,d/2+tm*.35]} size={[Math.max(.01,dw-.003),innerH,tm*.7]} colour={c}/>})}
+    {i.type==="Media unit"&&doors>0?Array.from({length:doors},(_,n)=>{const dh=innerH/doors;return <group key={"dr"+n}><Panel position={[0,-innerH/2+dh*(n+.5),d/2+tm*.35]} size={[innerW,Math.max(.01,dh-.003),tm*.7]} colour={c}/>{i.hardware!=="Handleless"&&i.hardware!=="None"&&<mesh position={[0,-innerH/2+dh*(n+.5),d/2+tm*1.2]}><boxGeometry args={[Math.min(.18,innerW*.3),.012,.012]}/><meshStandardMaterial color="#303030"/></mesh>}</group>}):Array.from({length:doors},(_,n)=>{const dw=innerW/doors;return <group key={"d"+n}><Panel position={[-innerW/2+dw*(n+.5),0,d/2+tm*.35]} size={[Math.max(.01,dw-.003),innerH,tm*.7]} colour={c}/>{i.hardware!=="Handleless"&&i.hardware!=="None"&&<mesh position={[-innerW/2+dw*(n+.5),0,d/2+tm*1.2]}><boxGeometry args={[.012,Math.min(.18,innerH*.25),.012]}/><meshStandardMaterial color="#303030"/></mesh>}</group>})}
     {i.type!=="Wall cabinet"&&<Panel position={[0,-h/2+.04,d*.12]} size={[innerW,.08,Math.max(.01,d*.72)]} colour={c}/>}
   </group>
 }
