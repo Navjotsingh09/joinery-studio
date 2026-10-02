@@ -12,7 +12,7 @@ import * as cloud from "@/lib/cloud";
 import {ProjectStatus} from "@/types/model";
 import {isProjectBackup} from "@/lib/backup";
 import {mergeProjects} from "@/lib/projectMerge";
-import {COMPONENTS_BY_KIND,inferDesignKind,ScenarioPlan} from "@/lib/scenarios";
+import {COMPONENT_GROUPS_BY_KIND,inferDesignKind,ScenarioPlan} from "@/lib/scenarios";
 import {ScenarioStart} from "./ScenarioStart";
 import {Icon} from "./Icon";
 
@@ -39,7 +39,15 @@ function componentDescription(type:string){
     "Straight staircase":"Single straight stair flight",
     "L staircase":"Quarter-turn staircase",
     "U staircase":"Half-turn staircase",
-    "Under-stair storage":"Fitted storage below stair flight"
+    "Under-stair storage":"Fitted storage below stair flight",
+    "Dishwasher":"Integrated 600 mm dishwasher appliance",
+    "Washing machine":"Freestanding laundry appliance",
+    "Microwave":"Wall-mounted microwave appliance",
+    "Extractor hood":"Wall-mounted cooker extraction hood",
+    "Door opening":"Measured door opening and clearance zone",
+    "Window":"Measured window opening",
+    "Glass balustrade":"Clear glass guarding with metal posts",
+    "Timber balustrade":"Timber handrail and spindle system"
   };
   return descriptions[type]??"Editable joinery component";
 }
@@ -64,7 +72,7 @@ export default function Studio(){
   const file=useRef<HTMLInputElement>(null);
   const issues=useMemo(()=>validate(p),[p]);
   const designKind=useMemo(()=>inferDesignKind(p.items),[p.items]);
-  const components=COMPONENTS_BY_KIND[designKind];
+  const componentGroups=COMPONENT_GROUPS_BY_KIND[designKind];
 
   useEffect(()=>{if(item)setRightOpen(true)},[item?.id]);
 
@@ -244,7 +252,11 @@ export default function Studio(){
       <div className="panelBody">
         {tab==="components"&&<>
           <input className="searchInput" placeholder="Search components" value={search} onChange={e=>setSearch(e.target.value)}/>
-          <section className="cards">{components.filter(x=>x.toLowerCase().includes(search.toLowerCase())).map(x=><button key={x} draggable onDragStart={e=>{e.dataTransfer.setData("application/x-joinery-component",x);e.dataTransfer.setData("text/plain",x);e.dataTransfer.effectAllowed="copy"}} onClick={()=>add(x)}><ComponentIcon type={x}/><span><b>{x}</b><small>{componentDescription(x)}</small><em>Drag to place</em></span></button>)}</section>
+          <section className="componentGroups">{componentGroups.map(group=>{
+            const matches=group.items.filter(x=>x.toLowerCase().includes(search.toLowerCase()));
+            if(!matches.length)return null;
+            return <div className="componentGroup" key={group.title}><div className="componentGroupTitle"><span>{group.title}</span><small>{matches.length}</small></div><div className="cards">{matches.map(x=><button key={x} draggable onDragStart={e=>{e.dataTransfer.setData("application/x-joinery-component",x);e.dataTransfer.setData("text/plain",x);e.dataTransfer.effectAllowed="copy"}} onClick={()=>add(x)}><ComponentIcon type={x}/><span><b>{x}</b><small>{componentDescription(x)}</small><em>Drag to place</em></span></button>)}</div></div>
+          })}</section>
         </>}
         {tab==="items"&&<section className="itemManager">{p.items.map(i=><button key={i.id} className={s.selectedId===i.id?"activeItem":""} onClick={()=>s.select(i.id)}><ComponentIcon type={i.type}/><span><b>{i.name}</b><small>{i.width} × {i.height} × {i.depth} mm</small></span><span className="itemState">{i.locked?"●":""}</span></button>)}{!p.items.length&&<small className="muted">No joinery yet.</small>}</section>}
         {tab==="materials"&&<section className="materials">{MATERIALS.map(m=><button key={m.id} className={item?.materialId===m.id?"selectedMaterial":""} disabled={!item} onClick={()=>item&&patch("materialId",m.id)}><i style={{background:m.colour}}/><span><b>{m.code}</b>{m.name}<small>{m.category} · {m.thickness} mm</small></span></button>)}</section>}
