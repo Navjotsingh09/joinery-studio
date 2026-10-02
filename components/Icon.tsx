@@ -1,7 +1,7 @@
 "use client";
 import type {ReactNode} from "react";
 
-export type IconName="home"|"plus"|"layers"|"swatch"|"history"|"undo"|"redo"|"download"|"save"|"chevron-left"|"chevron-right"|"x"|"move"|"copy"|"lock"|"unlock"|"trash"|"grid"|"box"|"settings"|"search"|"check"|"warning"|"cloud";
+export type IconName="home"|"plus"|"layers"|"swatch"|"history"|"undo"|"redo"|"download"|"save"|"chevron-left"|"chevron-right"|"x"|"move"|"copy"|"lock"|"unlock"|"trash"|"grid"|"box"|"settings"|"search"|"check"|"warning"|"cloud"|"rotate";
 
 const paths:Record<IconName,ReactNode>={
   home:<><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.8V21h14V9.8"/><path d="M9 21v-7h6v7"/></>,
@@ -27,7 +27,8 @@ const paths:Record<IconName,ReactNode>={
   search:<><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></>,
   check:<path d="m5 12 4 4L19 6"/>,
   warning:<><path d="M12 3 2 21h20L12 3Z"/><path d="M12 9v5"/><path d="M12 18h.01"/></>,
-  cloud:<><path d="M7 18h10a4 4 0 0 0 .7-7.9A6 6 0 0 0 6.3 8.6 4.8 4.8 0 0 0 7 18Z"/></>
+  cloud:<><path d="M7 18h10a4 4 0 0 0 .7-7.9A6 6 0 0 0 6.3 8.6 4.8 4.8 0 0 0 7 18Z"/></>,
+  rotate:<><path d="M20 7v5h-5"/><path d="M19 12a7 7 0 1 0-2.05 4.95"/></>
 };
 
 export function Icon({name,size=18,className=""}:{name:IconName;size?:number;className?:string}){
