@@ -224,3 +224,6 @@ label{display:block;font-size:10px;font-weight:700;color:#66615b}label input,lab
 .selectionBar button[title*="90"]{font-variant-numeric:tabular-nums;font-weight:900;min-width:48px}
 .rotationBadge{pointer-events:none}
 .rotationText{fill:#c8102e;font-size:9px;font-weight:900}
+
+.rotateHandle{cursor:grab}
+.rotateHandle:active{cursor:grabbing}
