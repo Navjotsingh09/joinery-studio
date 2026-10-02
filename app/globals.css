@@ -17,3 +17,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid #c8102e22;border-color
 .swatch{border-radius:3px}
 .contextMenu{border-radius:5px;overflow:hidden}
 .contextMenu button:hover{background:#f3f1ed}
+
+.materials>div{cursor:pointer;border-left:3px solid transparent;padding-left:6px}
+.materials>div:hover{background:#faf9f7}
+.materials>div.selectedMaterial{border-left-color:var(--red);background:#fff7f8}
