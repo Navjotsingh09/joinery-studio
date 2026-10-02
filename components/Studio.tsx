@@ -40,7 +40,7 @@ export default function Studio(){
       else if(item&&e.key.startsWith("Arrow")){e.preventDefault();const st=e.shiftKey?100:p.rules.snap,dx=e.key==="ArrowLeft"?-st:e.key==="ArrowRight"?st:0,d=e.key==="ArrowDown"?-st:e.key==="ArrowUp"?st:0;const q=clampItemToRoom({...item,x:item.x+dx,y:s.view==="top"?item.y:item.y+d,z:s.view==="top"?item.z+d:item.z},p);if(canPlace(p,q,item.id))s.updateItem(item.id,{x:q.x,y:q.y,z:q.z})}
     };
     window.addEventListener("keydown",key); return()=>window.removeEventListener("keydown",key)
-  },[s,item,p]);
+  },[s,item,p,user]);
 
   const add=(type:string)=>{const i=findFreePlacement(p,newItem(type));if(!canPlace(p,i)){setNotice("No collision-free space remains for that component.");return}s.addItem(i)};
   const patch=(k:string,v:any)=>{
