@@ -37,7 +37,7 @@ export default function Studio(){
       else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="y"){e.preventDefault();s.redo()}
       else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="d"&&item){e.preventDefault();s.duplicateItem(item.id)}
       else if((e.key==="Delete"||e.key==="Backspace")&&item){e.preventDefault();if(confirm("Delete "+item.name+"?"))s.deleteItem(item.id)}
-      else if(item&&e.key.startsWith("Arrow")){e.preventDefault();const st=e.shiftKey?100:p.rules.snap,dx=e.key==="ArrowLeft"?-st:e.key==="ArrowRight"?st:0,dy=e.key==="ArrowDown"?-st:e.key==="ArrowUp"?st:0;const q=clampItemToRoom({...item,x:item.x+dx,y:item.y+dy},p);if(canPlace(p,q,item.id))s.updateItem(item.id,{x:q.x,y:q.y,z:q.z})}
+      else if(item&&e.key.startsWith("Arrow")){e.preventDefault();const st=e.shiftKey?100:p.rules.snap,dx=e.key==="ArrowLeft"?-st:e.key==="ArrowRight"?st:0,d=e.key==="ArrowDown"?-st:e.key==="ArrowUp"?st:0;const q=clampItemToRoom({...item,x:item.x+dx,y:s.view==="top"?item.y:item.y+d,z:s.view==="top"?item.z+d:item.z},p);if(canPlace(p,q,item.id))s.updateItem(item.id,{x:q.x,y:q.y,z:q.z})}
     };
     window.addEventListener("keydown",key); return()=>window.removeEventListener("keydown",key)
   },[s,item,p]);
