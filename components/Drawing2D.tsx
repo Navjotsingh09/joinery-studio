@@ -1,7 +1,7 @@
 "use client";
 import {useRef,useState} from "react";
 import {Project,ViewMode} from "@/types/model";
-import {itemRect,labelFor,viewSize,clamp,snap,svgPoint,contrastText} from "@/lib/geometry";
+import {itemRect,labelFor,viewSize,svgPoint,contrastText,clampItemToRoom,canPlace} from "@/lib/geometry";
 import {material} from "@/lib/materials";
 
 export function Drawing2D({project,view,selected,onSelect,onMove,onContext}:{project:Project;view:Exclude<ViewMode,"3d">;selected:string|null;onSelect:(id:string|null)=>void;onMove:(id:string,x:number,y:number,z:number)=>void;onContext:(e:React.MouseEvent,id:string)=>void}){
@@ -25,10 +25,13 @@ export function Drawing2D({project,view,selected,onSelect,onMove,onContext}:{pro
     const i=project.items.find(x=>x.id===drag.id);
     if(!i)return;
     const q=svgPoint(ref.current,e.clientX,e.clientY);
-    const dx=(q.x-drag.start.x)/scale, dy=(q.y-drag.start.y)/scale, step=project.rules.snap;
-    if(view==="front") onMove(i.id,clamp(snap(drag.ox+dx,step),0,project.roomWidth-i.width),clamp(snap(drag.oy-dy,step),0,project.roomHeight-i.height),i.z);
-    if(view==="top") onMove(i.id,clamp(snap(drag.ox+dx,step),0,project.roomWidth-i.width),i.y,clamp(snap(drag.oz-dy,step),0,project.roomDepth-i.depth));
-    if(view==="side") onMove(i.id,i.x,clamp(snap(drag.oy-dy,step),0,project.roomHeight-i.height),clamp(snap(drag.oz+dx,step),0,project.roomDepth-i.depth));
+    const dx=(q.x-drag.start.x)/scale,dy=(q.y-drag.start.y)/scale;
+    let candidate={...i};
+    if(view==="front")candidate={...candidate,x:drag.ox+dx,y:drag.oy-dy};
+    if(view==="top")candidate={...candidate,x:drag.ox+dx,z:drag.oz-dy};
+    if(view==="side")candidate={...candidate,y:drag.oy-dy,z:drag.oz+dx};
+    candidate=clampItemToRoom(candidate,project);
+    if(canPlace(project,candidate,i.id))onMove(i.id,candidate.x,candidate.y,candidate.z);
   };
 
   return <svg ref={ref} className="drawing" viewBox={"0 0 "+W+" "+H} onPointerMove={move} onPointerUp={()=>setDrag(null)} onPointerCancel={()=>setDrag(null)} onPointerDown={()=>onSelect(null)}>
@@ -47,6 +50,7 @@ export function Drawing2D({project,view,selected,onSelect,onMove,onContext}:{pro
           {view==="front"&&Array.from({length:Math.max(0,i.doors-1)}).map((_,n)=><line key={"d"+n} y1="0" y2={rh} x1={rw*(n+1)/i.doors} x2={rw*(n+1)/i.doors} stroke={tc} opacity=".7"/>)}
           <text x={rw/2} y={Math.max(15,rh/2)} textAnchor="middle" className="itemLabel" fill={tc}>{i.name}</text>
           <text x={rw/2} y={Math.max(30,rh/2+16)} textAnchor="middle" className="itemSub" fill={tc}>{labelFor(i,view)}</text>
+          {sel&&<><line x1="0" y1={rh+9} x2={rw} y2={rh+9} stroke="#c8102e"/><text x={rw/2} y={rh+24} textAnchor="middle" className="dim" fill="#c8102e">{view==="side"?i.depth:i.width} mm</text></>}
         </g>
       })}
     </g>
