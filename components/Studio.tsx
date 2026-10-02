@@ -17,6 +17,32 @@ import {ScenarioStart} from "./ScenarioStart";
 import {Icon} from "./Icon";
 
 function ComponentIcon({type}:{type:string}){const cls=type.toLowerCase().replaceAll(" ","-");return <span className={"cabIcon "+cls}><i/><i/><i/><i/></span>}
+function componentDescription(type:string){
+  const descriptions:Record<string,string>={
+    "Base cabinet":"Floor cabinet with plinth and worktop line",
+    "Drawer unit":"Stacked drawer cabinet",
+    "Wall cabinet":"Wall-mounted storage cabinet",
+    "Tall cabinet":"Full-height storage housing",
+    "Sink base":"Base cabinet prepared around a sink",
+    "Hob base":"Cooking cabinet with hob",
+    "Oven tower":"Tall appliance housing",
+    "Fridge housing":"Integrated fridge surround",
+    "Kitchen island":"Freestanding island cabinetry",
+    "Wardrobe":"Hinged fitted wardrobe",
+    "Sliding wardrobe":"Sliding-door wardrobe system",
+    "Bed":"Full-size bed context object",
+    "Dressing table":"Drawer desk and vanity unit",
+    "Bedside cabinet":"Compact bedside storage",
+    "Bed wall":"Upholstered or panelled headboard wall",
+    "Media unit":"Low fitted media storage",
+    "Shelving":"Open fitted shelving",
+    "Straight staircase":"Single straight stair flight",
+    "L staircase":"Quarter-turn staircase",
+    "U staircase":"Half-turn staircase",
+    "Under-stair storage":"Fitted storage below stair flight"
+  };
+  return descriptions[type]??"Editable joinery component";
+}
 
 export default function Studio(){
   const s=useStudio();
@@ -180,7 +206,7 @@ export default function Studio(){
 
   return <main className={"studio "+(!leftOpen?"libraryClosed ":"")+(!rightOpen||!item?"inspectorClosed ":"")} onClick={()=>setMenu(null)}>
     <header className="topbar">
-      <button className="studioBrand" onClick={()=>setShowLauncher(true)} title="Design home"><span className="studioBrandMark">JS</span><span><b>Joinery Studio</b><small>${designKind[0].toUpperCase()+designKind.slice(1)} design</small></span></button>
+      <button className="studioBrand" onClick={()=>setShowLauncher(true)} title="Design home"><span className="studioBrandMark">JS</span><span><b>Joinery Studio</b><small>{designKind[0].toUpperCase()+designKind.slice(1)} design</small></span></button>
       <button className="projectButton projectPill" onClick={e=>{e.stopPropagation();setProjectOpen(v=>!v)}}>
         <span><b>{p.name}</b><small>{p.reference} · Rev {p.revision}</small></span><Icon name="settings" size={15}/>
       </button>
@@ -216,7 +242,7 @@ export default function Studio(){
       <div className="panelBody">
         {tab==="components"&&<>
           <input className="searchInput" placeholder="Search components" value={search} onChange={e=>setSearch(e.target.value)}/>
-          <section className="cards">{components.filter(x=>x.toLowerCase().includes(search.toLowerCase())).map(x=><button key={x} draggable onDragStart={e=>{e.dataTransfer.setData("application/x-joinery-component",x);e.dataTransfer.setData("text/plain",x);e.dataTransfer.effectAllowed="copy"}} onClick={()=>add(x)}><ComponentIcon type={x}/><span><b>{x}</b><small>Drag or click to add</small></span></button>)}</section>
+          <section className="cards">{components.filter(x=>x.toLowerCase().includes(search.toLowerCase())).map(x=><button key={x} draggable onDragStart={e=>{e.dataTransfer.setData("application/x-joinery-component",x);e.dataTransfer.setData("text/plain",x);e.dataTransfer.effectAllowed="copy"}} onClick={()=>add(x)}><ComponentIcon type={x}/><span><b>{x}</b><small>{componentDescription(x)}</small><em>Drag to place</em></span></button>)}</section>
         </>}
         {tab==="items"&&<section className="itemManager">{p.items.map(i=><button key={i.id} className={s.selectedId===i.id?"activeItem":""} onClick={()=>s.select(i.id)}><ComponentIcon type={i.type}/><span><b>{i.name}</b><small>{i.width} × {i.height} × {i.depth} mm</small></span><span className="itemState">{i.locked?"●":""}</span></button>)}{!p.items.length&&<small className="muted">No joinery yet.</small>}</section>}
         {tab==="materials"&&<section className="materials">{MATERIALS.map(m=><button key={m.id} className={item?.materialId===m.id?"selectedMaterial":""} disabled={!item} onClick={()=>item&&patch("materialId",m.id)}><i style={{background:m.colour}}/><span><b>{m.code}</b>{m.name}<small>{m.category} · {m.thickness} mm</small></span></button>)}</section>}
