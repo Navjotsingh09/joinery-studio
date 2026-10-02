@@ -79,11 +79,17 @@ export function Drawing2D({
       onMove(i.id,candidate.x,candidate.y,candidate.z);
       return;
     }
-    const min=100;
+    const min=100,rotation=normalizeRotation(i.rotation??0),quarter=rotation===90||rotation===270;
     let candidate={...i};
-    if(view==="front")candidate={...candidate,width:Math.max(min,i.width+dx),height:Math.max(min,i.height+dy)};
-    if(view==="top")candidate={...candidate,width:Math.max(min,i.width+dx),depth:Math.max(min,i.depth+dy)};
-    if(view==="side")candidate={...candidate,depth:Math.max(min,i.depth+dx),height:Math.max(min,i.height+dy)};
+    if(view==="front"){
+      candidate=quarter?{...candidate,depth:Math.max(min,i.depth+dx),height:Math.max(min,i.height+dy)}:{...candidate,width:Math.max(min,i.width+dx),height:Math.max(min,i.height+dy)};
+    }
+    if(view==="top"){
+      candidate=quarter?{...candidate,depth:Math.max(min,i.depth+dx),width:Math.max(min,i.width+dy)}:{...candidate,width:Math.max(min,i.width+dx),depth:Math.max(min,i.depth+dy)};
+    }
+    if(view==="side"){
+      candidate=quarter?{...candidate,width:Math.max(min,i.width+dx),height:Math.max(min,i.height+dy)}:{...candidate,depth:Math.max(min,i.depth+dx),height:Math.max(min,i.height+dy)};
+    }
     candidate=clampItemToRoom(candidate,project);
     onResize(i.id,{width:candidate.width,height:candidate.height,depth:candidate.depth,x:candidate.x,y:candidate.y,z:candidate.z});
   };
