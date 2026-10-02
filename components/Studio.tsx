@@ -14,7 +14,7 @@ import {isProjectBackup} from "@/lib/backup";
 import {mergeProjects} from "@/lib/projectMerge";
 
 const COMPONENTS=["Wardrobe","Base cabinet","Wall cabinet","Tall cabinet","Drawer unit","Shelving","Media unit"];
-const glyph=(type:string)=>type==="Shelving"?"☷":type==="Media unit"?"▤":type==="Drawer unit"?"▦":type==="Wall cabinet"?"▱":type==="Base cabinet"?"▭":"▥";
+function ComponentIcon({type}:{type:string}){const cls=type.toLowerCase().replaceAll(" ","-");return <span className={"cabIcon "+cls}><i/><i/><i/><i/></span>}
 
 export default function Studio(){
   const s=useStudio();
@@ -181,9 +181,9 @@ export default function Studio(){
       <div className="panelBody">
         {tab==="components"&&<>
           <input className="searchInput" placeholder="Search components" value={search} onChange={e=>setSearch(e.target.value)}/>
-          <section className="cards">{COMPONENTS.filter(x=>x.toLowerCase().includes(search.toLowerCase())).map(x=><button key={x} draggable onDragStart={e=>{e.dataTransfer.setData("application/x-joinery-component",x);e.dataTransfer.setData("text/plain",x);e.dataTransfer.effectAllowed="copy"}} onClick={()=>add(x)}><span className="componentGlyph">{glyph(x)}</span><span><b>{x}</b><small>Drag or click to add</small></span></button>)}</section>
+          <section className="cards">{COMPONENTS.filter(x=>x.toLowerCase().includes(search.toLowerCase())).map(x=><button key={x} draggable onDragStart={e=>{e.dataTransfer.setData("application/x-joinery-component",x);e.dataTransfer.setData("text/plain",x);e.dataTransfer.effectAllowed="copy"}} onClick={()=>add(x)}><ComponentIcon type={x}/><span><b>{x}</b><small>Drag or click to add</small></span></button>)}</section>
         </>}
-        {tab==="items"&&<section className="itemManager">{p.items.map(i=><button key={i.id} className={s.selectedId===i.id?"activeItem":""} onClick={()=>s.select(i.id)}><span className="itemIcon">{glyph(i.type)}</span><span><b>{i.name}</b><small>{i.width} × {i.height} × {i.depth} mm</small></span><span className="itemState">{i.locked?"●":""}</span></button>)}{!p.items.length&&<small className="muted">No joinery yet.</small>}</section>}
+        {tab==="items"&&<section className="itemManager">{p.items.map(i=><button key={i.id} className={s.selectedId===i.id?"activeItem":""} onClick={()=>s.select(i.id)}><ComponentIcon type={i.type}/><span><b>{i.name}</b><small>{i.width} × {i.height} × {i.depth} mm</small></span><span className="itemState">{i.locked?"●":""}</span></button>)}{!p.items.length&&<small className="muted">No joinery yet.</small>}</section>}
         {tab==="materials"&&<section className="materials">{MATERIALS.map(m=><button key={m.id} className={item?.materialId===m.id?"selectedMaterial":""} disabled={!item} onClick={()=>item&&patch("materialId",m.id)}><i style={{background:m.colour}}/><span><b>{m.code}</b>{m.name}<small>{m.category} · {m.thickness} mm</small></span></button>)}</section>}
         {tab==="revisions"&&<section className="revisionList">{[...p.revisions].reverse().map(r=><div key={r.id}><span><b>Revision {r.revision}</b><small>{new Date(r.createdAt).toLocaleString()}</small></span><button onClick={()=>confirm("Restore revision "+r.revision+"?")&&s.restoreRevision(r.id)}>Restore</button></div>)}{!p.revisions.length&&<small className="muted">No saved revisions yet.</small>}</section>}
       </div>
