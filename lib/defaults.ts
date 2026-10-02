@@ -22,6 +22,14 @@ const PRESETS:Record<string,Preset>={
 "Straight staircase":{width:950,height:2400,depth:3200,shelves:0,doors:0,y:0},
 "L staircase":{width:2000,height:2400,depth:3000,shelves:0,doors:0,y:0},
 "U staircase":{width:2100,height:2400,depth:2400,shelves:0,doors:0,y:0},
-"Under-stair storage":{width:900,height:1500,depth:600,shelves:2,doors:3,y:0}};
-export function newItem(type="Wardrobe"):JoineryItem{const p=PRESETS[type]??PRESETS.Wardrobe;return{id:crypto.randomUUID(),name:type,type,x:100,y:p.y,z:0,width:p.width,height:p.height,depth:p.depth,shelves:p.shelves,doors:p.doors,materialId:"h1180",finish:"ST9 Matt",notes:"",locked:false,hardware:["Shelving","Straight staircase","L staircase","U staircase","Bed wall","Bed"].includes(type)?"None":type==="Drawer unit"||type==="Dressing table"?"Bar handle":type==="Under-stair storage"?"Push-to-open":"Handleless",edgeBanding:"Matching 1mm"}}
+"Under-stair storage":{width:900,height:1500,depth:600,shelves:2,doors:3,y:0},
+"Dishwasher":{width:600,height:820,depth:570,shelves:0,doors:0,y:0},
+"Washing machine":{width:600,height:850,depth:600,shelves:0,doors:0,y:0},
+"Microwave":{width:600,height:400,depth:430,shelves:0,doors:0,y:1450},
+"Extractor hood":{width:800,height:700,depth:450,shelves:0,doors:0,y:1450},
+"Door opening":{width:900,height:2100,depth:100,shelves:0,doors:0,y:0},
+"Window":{width:1200,height:1000,depth:100,shelves:0,doors:0,y:900},
+"Glass balustrade":{width:1800,height:1000,depth:70,shelves:0,doors:0,y:0},
+"Timber balustrade":{width:1800,height:1000,depth:90,shelves:0,doors:0,y:0}};
+export function newItem(type="Wardrobe"):JoineryItem{const p=PRESETS[type]??PRESETS.Wardrobe;return{id:crypto.randomUUID(),name:type,type,x:100,y:p.y,z:0,width:p.width,height:p.height,depth:p.depth,shelves:p.shelves,doors:p.doors,materialId:"h1180",finish:"ST9 Matt",notes:"",locked:false,hardware:["Shelving","Straight staircase","L staircase","U staircase","Bed wall","Bed","Dishwasher","Washing machine","Microwave","Extractor hood","Door opening","Window","Glass balustrade","Timber balustrade"].includes(type)?"None":type==="Drawer unit"||type==="Dressing table"?"Bar handle":type==="Under-stair storage"?"Push-to-open":"Handleless",edgeBanding:"Matching 1mm"}}
 export function newProject(name="New project"):Project{return{id:crypto.randomUUID(),name,customer:"",reference:"JS-"+String(Date.now()).slice(-5),status:"Draft",revision:1,roomWidth:3600,roomHeight:2400,roomDepth:3000,rules:{wallClearance:20,componentGap:2,snap:50},items:[],revisions:[],createdAt:now(),updatedAt:now()}}
