@@ -280,7 +280,7 @@ export default function Studio(){
     </aside>
 
     <section className="workspace">
-      <div className="stage">{s.view==="3d"?<Scene3D project={p} selected={s.selectedId} transformMode={transformMode} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint}/>:<Drawing2D project={p} view={s.view} selected={s.selectedId} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onResize={(id,patch)=>s.moveItem(id,patch)} onMoveStart={s.checkpoint} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onContext={(e,id)=>{s.select(id);setMenu({x:e.clientX,y:e.clientY,id})}}/>}</div>
+      <div className="stage">{s.view==="3d"?<Scene3D project={p} selected={s.selectedId} transformMode={transformMode} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint}/>:<Drawing2D project={p} view={s.view} selected={s.selectedId} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onResize={(id,patch)=>s.moveItem(id,patch)} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onContext={(e,id)=>{s.select(id);setMenu({x:e.clientX,y:e.clientY,id})}}/>}</div>
 
       {item&&<div className="selectionBar" onClick={e=>e.stopPropagation()}>
         <span className="selectionName">{item.name}</span>
