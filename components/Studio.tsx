@@ -43,7 +43,21 @@ export default function Studio(){
   },[s,item,p]);
 
   const add=(type:string)=>{const i=findFreePlacement(p,newItem(type));if(!canPlace(p,i)){setNotice("No collision-free space remains for that component.");return}s.addItem(i)};
-  const patch=(k:string,v:any)=>item&&s.updateItem(item.id,{[k]:v});
+  const patch=(k:string,v:any)=>{
+    if(!item)return;
+    if(!["x","y","z","width","height","depth"].includes(k)){s.updateItem(item.id,{[k]:v});return}
+    const n=Number(v)||0;
+    let candidate={...item};
+    if(k==="x")candidate.x=n;
+    if(k==="y")candidate.y=n;
+    if(k==="z")candidate.z=n;
+    if(k==="width")candidate.width=Math.max(1,n);
+    if(k==="height")candidate.height=Math.max(1,n);
+    if(k==="depth")candidate.depth=Math.max(1,n);
+    candidate=clampItemToRoom(candidate,p);
+    if(canPlace(p,candidate,item.id))s.updateItem(item.id,candidate);
+    else setNotice("That edit would leave the room or clash with another component.");
+  };
   const exportJson=()=>{const b=new Blob([JSON.stringify(s.projects,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="joinery-studio-projects.json";a.click();URL.revokeObjectURL(a.href)};
   const importJson=async(e:React.ChangeEvent<HTMLInputElement>)=>{const f=e.target.files?.[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!Array.isArray(d))throw new Error();if(confirm("Replace local projects with this backup?"))s.replaceAll(d)}catch{alert("Invalid Joinery Studio JSON file.")}e.target.value=""};
   const sync=async()=>{try{await cloud.saveCloud(p);alert("Saved to Supabase.")}catch(e:any){alert(e.message)}};
