@@ -3,7 +3,7 @@ import {create} from "zustand";import {persist} from "zustand/middleware";
 import {Project,JoineryItem,ViewMode,ProjectSnapshot,Revision} from "@/types/model";
 import {newProject} from "./defaults";import {findFreePlacement} from "./geometry";
 type Core={projects:Project[];activeId:string;selectedId:string|null;view:ViewMode};
-type State=Core&{past:Core[];future:Core[];setView:(v:ViewMode)=>void;setActive:(id:string)=>void;select:(id:string|null)=>void;addProject:()=>void;deleteProject:()=>void;replaceAll:(p:Project[])=>void;updateProject:(patch:Partial<Project>)=>void;addItem:(i:JoineryItem)=>void;updateItem:(id:string,patch:Partial<JoineryItem>)=>void;deleteItem:(id:string)=>void;duplicateItem:(id:string)=>void;saveRevision:()=>void;restoreRevision:(id:string)=>void;undo:()=>void;redo:()=>void};
+type State=Core&{past:Core[];future:Core[];setView:(v:ViewMode)=>void;setActive:(id:string)=>void;select:(id:string|null)=>void;addProject:()=>void;deleteProject:()=>void;replaceAll:(p:Project[])=>void;updateProject:(patch:Partial<Project>)=>void;addItem:(i:JoineryItem)=>void;updateItem:(id:string,patch:Partial<JoineryItem>)=>void;moveItem:(id:string,patch:Partial<JoineryItem>)=>void;checkpoint:()=>void;deleteItem:(id:string)=>void;duplicateItem:(id:string)=>void;saveRevision:()=>void;restoreRevision:(id:string)=>void;undo:()=>void;redo:()=>void};
 const first=newProject("Showroom concept"),core=(s:State):Core=>({projects:structuredClone(s.projects),activeId:s.activeId,selectedId:s.selectedId,view:s.view});
 const mutate=(set:any,fn:(s:State)=>Partial<State>)=>set((s:State)=>({...fn(s),past:[...s.past.slice(-39),core(s)],future:[]}));
 const snapshot=(p:Project):ProjectSnapshot=>({name:p.name,customer:p.customer,reference:p.reference,status:p.status,roomWidth:p.roomWidth,roomHeight:p.roomHeight,roomDepth:p.roomDepth,rules:structuredClone(p.rules),items:structuredClone(p.items)});
@@ -15,6 +15,8 @@ replaceAll:projects=>{const ps=projects.length?projects:[newProject("New project
 updateProject:patch=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,...patch,updatedAt:new Date().toISOString()}:p)})),
 addItem:i=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,items:[...p.items,i],updatedAt:new Date().toISOString()}:p),selectedId:i.id})),
 updateItem:(id,patch)=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,items:p.items.map(i=>i.id===id?{...i,...patch}:i),updatedAt:new Date().toISOString()}:p)})),
+moveItem:(id,patch)=>set((s:State)=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,items:p.items.map(i=>i.id===id?{...i,...patch}:i),updatedAt:new Date().toISOString()}:p)})),
+checkpoint:()=>set((s:State)=>({past:[...s.past.slice(-39),core(s)],future:[]})),
 deleteItem:id=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,items:p.items.filter(i=>i.id!==id),updatedAt:new Date().toISOString()}:p),selectedId:null})),
 duplicateItem:id=>{const p=get().projects.find(x=>x.id===get().activeId),i=p?.items.find(x=>x.id===id);if(i&&p)get().addItem(findFreePlacement(p,{...i,id:crypto.randomUUID(),name:i.name+" copy",x:i.x+Math.max(50,p.rules.snap)}))},
 saveRevision:()=>mutate(set,s=>({projects:s.projects.map(p=>{if(p.id!==s.activeId)return p;const n=p.revision+1,r:Revision={id:crypto.randomUUID(),revision:n,createdAt:new Date().toISOString(),snapshot:snapshot(p)};return{...p,revision:n,revisions:[...p.revisions,r],updatedAt:new Date().toISOString()}})})),
