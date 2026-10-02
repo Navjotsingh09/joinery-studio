@@ -51,7 +51,7 @@ export function Drawing2D({project,view,selected,onSelect,onMove,onMoveStart,onC
           {view==="front"&&i.type!=="Media unit"&&Array.from({length:Math.max(0,i.doors-1)}).map((_,n)=><line key={"d"+n} y1="0" y2={rh} x1={rw*(n+1)/i.doors} x2={rw*(n+1)/i.doors} stroke={tc} opacity=".7"/>)}{view==="front"&&i.type==="Media unit"&&Array.from({length:Math.max(0,i.doors-1)}).map((_,n)=><line key={"dr"+n} x1="0" x2={rw} y1={rh*(n+1)/i.doors} y2={rh*(n+1)/i.doors} stroke={tc} opacity=".7"/>)}
           <text x={rw/2} y={Math.max(15,rh/2)} textAnchor="middle" className="itemLabel" fill={tc}>{i.name}</text>
           <text x={rw/2} y={Math.max(30,rh/2+16)} textAnchor="middle" className="itemSub" fill={tc}>{labelFor(i,view)}</text>
-          {sel&&<><line x1="0" y1={rh+9} x2={rw} y2={rh+9} stroke="#c8102e"/><text x={rw/2} y={rh+24} textAnchor="middle" className="dim" fill="#c8102e">{view==="side"?i.depth:i.width} mm</text><line x1={rw+9} y1="0" x2={rw+9} y2={rh} stroke="#c8102e"/><text x={rw+23} y={rh/2} textAnchor="middle" className="dim" fill="#c8102e" transform={"rotate(-90 "+(rw+23)+" "+(rh/2)+")"}>{view==="top"?i.depth:i.height} mm</text></>}
+          {sel&&<><line x1="0" y1={rh+9} x2={rw} y2={rh+9} stroke="#c8102e"/><text x={rw/2} y={rh+24} textAnchor="middle" className="dim" fill="#c8102e">{view==="side"?i.depth:i.width} mm</text><line x1={rw+9} y1="0" x2={rw+9} y2={rh} stroke="#c8102e"/><text x={rw+23} y={rh/2} textAnchor="middle" className="dim" fill="#c8102e" transform={"rotate(-90 "+(rw+23)+" "+(rh/2)+")"}>{view==="top"?i.depth:i.height} mm</text><text x="4" y="-8" className="dim" fill="#c8102e">{view==="front"?"X "+i.x+" · Y "+i.y:view==="top"?"X "+i.x+" · Z "+i.z:"Z "+i.z+" · Y "+i.y}</text></>}
         </g>
       })}
     </g>
