@@ -6,13 +6,13 @@ import {material} from "@/lib/materials";
 
 type DragState={
   id:string;
-  mode:"move"|"resize";
+  mode:"move"|"resize"|"rotate";
   start:{x:number;y:number};
   original:JoineryItem;
 };
 
 export function Drawing2D({
-  project,view,selected,onSelect,onMove,onResize,onMoveStart,onContext,onDropType
+  project,view,selected,onSelect,onMove,onResize,onRotate,onMoveStart,onContext,onDropType
 }:{
   project:Project;
   view:Exclude<ViewMode,"3d">;
@@ -20,6 +20,7 @@ export function Drawing2D({
   onSelect:(id:string|null)=>void;
   onMove:(id:string,x:number,y:number,z:number)=>void;
   onResize:(id:string,patch:Partial<JoineryItem>)=>void;
+  onRotate:(id:string,rotation:number)=>void;
   onMoveStart:()=>void;
   onContext:(e:React.MouseEvent,id:string)=>void;
   onDropType:(type:string,x:number,y:number,z:number)=>void;
@@ -32,7 +33,7 @@ export function Drawing2D({
   const tx=pad+(W-pad*2-size.w*scale)/2,ty=pad+(H-pad*2-size.h*scale)/2;
   const issueNames=new Set(validate(project).flatMap(msg=>project.items.filter(i=>msg.includes(i.name)).map(i=>i.id)));
 
-  const begin=(e:React.PointerEvent,id:string,mode:"move"|"resize")=>{
+  const begin=(e:React.PointerEvent,id:string,mode:"move"|"resize"|"rotate")=>{
     e.preventDefault();e.stopPropagation();
     const i=project.items.find(x=>x.id===id);
     if(!i||i.locked||!ref.current)return;
@@ -47,6 +48,15 @@ export function Drawing2D({
     const q=svgPoint(ref.current,e.clientX,e.clientY);
     const dx=(q.x-drag.start.x)/scale,dy=(q.y-drag.start.y)/scale;
     const i=drag.original;
+    if(drag.mode==="rotate"){
+      const originalRect=itemRect(i,project,view);
+      const center={x:tx+(originalRect.left+originalRect.width/2)*scale,y:ty+(originalRect.top+originalRect.height/2)*scale};
+      const a0=Math.atan2(drag.start.y-center.y,drag.start.x-center.x);
+      const a1=Math.atan2(q.y-center.y,q.x-center.x);
+      const delta=(a1-a0)*180/Math.PI;
+      onRotate(i.id,normalizeRotation((i.rotation??0)+delta));
+      return;
+    }
     if(drag.mode==="move"){
       let candidate={...i};
       if(view==="front")candidate={...candidate,x:i.x+dx,y:i.y-dy};
@@ -162,7 +172,10 @@ export function Drawing2D({
             <line x1="0" y1={rh+11} x2={rw} y2={rh+11} stroke="#c8102e"/><text x={rw/2} y={rh+27} textAnchor="middle" className="dim selectionDim">{view==="side"?i.depth:i.width} mm</text>
             <line x1={rw+11} y1="0" x2={rw+11} y2={rh} stroke="#c8102e"/><text x={rw+27} y={rh/2} textAnchor="middle" className="dim selectionDim" transform={"rotate(-90 "+(rw+27)+" "+(rh/2)+")"}>{view==="top"?i.depth:i.height} mm</text>
             <text x="4" y="-10" className="dim selectionDim">{view==="front"?"X "+i.x+" · Y "+i.y:view==="top"?"X "+i.x+" · Z "+i.z:"Z "+i.z+" · Y "+i.y}</text><g className="rotationBadge" transform={"translate("+(rw-6)+",-18)"}><rect x="-42" y="-13" width="42" height="18" rx="5" fill="#fff" stroke="#c8102e"/><text x="-21" y="0" textAnchor="middle" className="rotationText">{rotation}°</text></g>
-            {!i.locked&&<g className="resizeHandle" transform={"translate("+rw+","+rh+")"} onPointerDown={e=>begin(e,i.id,"resize")}><circle r="10" fill="#fff" stroke="#c8102e" strokeWidth="3"/><circle r="3" fill="#c8102e"/></g>}
+            {!i.locked&&<>
+              <g className="resizeHandle" transform={"translate("+rw+","+rh+")"} onPointerDown={e=>begin(e,i.id,"resize")}><circle r="10" fill="#fff" stroke="#c8102e" strokeWidth="3"/><circle r="3" fill="#c8102e"/></g>
+              <g className="rotateHandle" transform={"translate("+(rw/2)+",-34)"} onPointerDown={e=>begin(e,i.id,"rotate")}><line x1="0" y1="12" x2="0" y2="24" stroke="#c8102e" strokeWidth="2"/><circle r="11" fill="#fff" stroke="#c8102e" strokeWidth="2.5"/><path d="M -4 -2 A 5 5 0 1 1 3 4 M 3 4 L 3 0 M 3 4 L -1 4" fill="none" stroke="#c8102e" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></g>
+            </>}
           </>}
         </g>
       })}
