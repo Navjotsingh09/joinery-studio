@@ -1,19 +1,23 @@
 "use client";
-import {create} from "zustand";import {persist} from "zustand/middleware";import {Project,JoineryItem,ViewMode,ProjectSnapshot,Revision} from "@/types/model";import {newProject} from "./defaults";
+import {create} from "zustand";import {persist} from "zustand/middleware";
+import {Project,JoineryItem,ViewMode,ProjectSnapshot,Revision} from "@/types/model";
+import {newProject} from "./defaults";import {findFreePlacement} from "./geometry";
 type Core={projects:Project[];activeId:string;selectedId:string|null;view:ViewMode};
 type State=Core&{past:Core[];future:Core[];setView:(v:ViewMode)=>void;setActive:(id:string)=>void;select:(id:string|null)=>void;addProject:()=>void;deleteProject:()=>void;replaceAll:(p:Project[])=>void;updateProject:(patch:Partial<Project>)=>void;addItem:(i:JoineryItem)=>void;updateItem:(id:string,patch:Partial<JoineryItem>)=>void;deleteItem:(id:string)=>void;duplicateItem:(id:string)=>void;saveRevision:()=>void;restoreRevision:(id:string)=>void;undo:()=>void;redo:()=>void};
-const first=newProject("Showroom concept");const core=(s:State):Core=>({projects:structuredClone(s.projects),activeId:s.activeId,selectedId:s.selectedId,view:s.view});const mutate=(set:any,fn:(s:State)=>Partial<State>)=>set((s:State)=>({...fn(s),past:[...s.past.slice(-39),core(s)],future:[]}));const snapshot=(p:Project):ProjectSnapshot=>({name:p.name,customer:p.customer,reference:p.reference,status:p.status,roomWidth:p.roomWidth,roomHeight:p.roomHeight,roomDepth:p.roomDepth,rules:structuredClone(p.rules),items:structuredClone(p.items)});
+const first=newProject("Showroom concept"),core=(s:State):Core=>({projects:structuredClone(s.projects),activeId:s.activeId,selectedId:s.selectedId,view:s.view});
+const mutate=(set:any,fn:(s:State)=>Partial<State>)=>set((s:State)=>({...fn(s),past:[...s.past.slice(-39),core(s)],future:[]}));
+const snapshot=(p:Project):ProjectSnapshot=>({name:p.name,customer:p.customer,reference:p.reference,status:p.status,roomWidth:p.roomWidth,roomHeight:p.roomHeight,roomDepth:p.roomDepth,rules:structuredClone(p.rules),items:structuredClone(p.items)});
 export const useStudio=create<State>()(persist((set,get)=>({projects:[first],activeId:first.id,selectedId:null,view:"front",past:[],future:[],
 setView:view=>set({view}),setActive:activeId=>set({activeId,selectedId:null}),select:selectedId=>set({selectedId}),
 addProject:()=>mutate(set,s=>{const p=newProject();return{projects:[...s.projects,p],activeId:p.id,selectedId:null}}),
-deleteProject:()=>mutate(set,s=>{if(s.projects.length===1)return{};const ps=s.projects.filter(p=>p.id!==s.activeId);return{projects:ps,activeId:ps[0].id,selectedId:null}}),
-replaceAll:projects=>set({projects,activeId:projects[0]?.id??newProject().id,selectedId:null,past:[],future:[]}),
+deleteProject:()=>mutate(set,s=>{if(s.projects.length===1){const p=newProject("New project");return{projects:[p],activeId:p.id,selectedId:null}}const ps=s.projects.filter(p=>p.id!==s.activeId);return{projects:ps,activeId:ps[0].id,selectedId:null}}),
+replaceAll:projects=>{const ps=projects.length?projects:[newProject("New project")];set({projects:ps,activeId:ps[0].id,selectedId:null,past:[],future:[]})},
 updateProject:patch=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,...patch,updatedAt:new Date().toISOString()}:p)})),
-addItem:i=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,items:[...p.items,i]}:p),selectedId:i.id})),
-updateItem:(id,patch)=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,items:p.items.map(i=>i.id===id?{...i,...patch}:i)}:p)})),
-deleteItem:id=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,items:p.items.filter(i=>i.id!==id)}:p),selectedId:null})),
-duplicateItem:id=>{const p=get().projects.find(x=>x.id===get().activeId),i=p?.items.find(x=>x.id===id);if(i)get().addItem({...i,id:crypto.randomUUID(),name:i.name+" copy",x:i.x+50})},
-saveRevision:()=>mutate(set,s=>({projects:s.projects.map(p=>{if(p.id!==s.activeId)return p;const n=p.revision+1;const r:Revision={id:crypto.randomUUID(),revision:n,createdAt:new Date().toISOString(),snapshot:snapshot(p)};return{...p,revision:n,revisions:[...p.revisions,r]}})})),
+addItem:i=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,items:[...p.items,i],updatedAt:new Date().toISOString()}:p),selectedId:i.id})),
+updateItem:(id,patch)=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,items:p.items.map(i=>i.id===id?{...i,...patch}:i),updatedAt:new Date().toISOString()}:p)})),
+deleteItem:id=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,items:p.items.filter(i=>i.id!==id),updatedAt:new Date().toISOString()}:p),selectedId:null})),
+duplicateItem:id=>{const p=get().projects.find(x=>x.id===get().activeId),i=p?.items.find(x=>x.id===id);if(i&&p)get().addItem(findFreePlacement(p,{...i,id:crypto.randomUUID(),name:i.name+" copy",x:i.x+Math.max(50,p.rules.snap)}))},
+saveRevision:()=>mutate(set,s=>({projects:s.projects.map(p=>{if(p.id!==s.activeId)return p;const n=p.revision+1,r:Revision={id:crypto.randomUUID(),revision:n,createdAt:new Date().toISOString(),snapshot:snapshot(p)};return{...p,revision:n,revisions:[...p.revisions,r],updatedAt:new Date().toISOString()}})})),
 restoreRevision:id=>mutate(set,s=>({projects:s.projects.map(p=>{if(p.id!==s.activeId)return p;const r=p.revisions.find(x=>x.id===id);return r?{...p,...structuredClone(r.snapshot),updatedAt:new Date().toISOString()}:p}),selectedId:null})),
 undo:()=>set(s=>{const prev=s.past.at(-1);if(!prev)return s;return{...prev,past:s.past.slice(0,-1),future:[core(s),...s.future].slice(0,40)}}),
 redo:()=>set(s=>{const next=s.future[0];if(!next)return s;return{...next,past:[...s.past,core(s)].slice(-40),future:s.future.slice(1)}})
