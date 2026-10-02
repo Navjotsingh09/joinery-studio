@@ -65,7 +65,8 @@ function bedroom(kind:string,w:number,h:number,d:number):JoineryItem[]{
   if(kind==="bed-wall"){
     const bedW=Math.min(1800,w*.46),side=450,total=bedW+side*2,start=Math.max(0,(w-total)/2);
     return [
-      item("Bed wall","Upholstered bed wall",{x:start+side,y:0,z:0,width:bedW,height:1200,depth:120,doors:0,shelves:0,materialId:"u705",hardware:"None"}),\n      item("Bed","King bed",{x:start+side,y:0,z:160,width:bedW,height:560,depth:2100,doors:0,shelves:0,materialId:"u705",hardware:"None"}),
+      item("Bed wall","Upholstered bed wall",{x:start+side,y:0,z:0,width:bedW,height:1200,depth:120,doors:0,shelves:0,materialId:"u705",hardware:"None"}),
+      item("Bed","King bed",{x:start+side,y:0,z:160,width:bedW,height:560,depth:2100,doors:0,shelves:0,materialId:"u705",hardware:"None"}),
       item("Bedside cabinet","Left bedside",{x:start,y:0,z:80,width:side,height:520,depth:420,doors:2,shelves:0,materialId:"h1180",hardware:"Handleless"}),
       item("Bedside cabinet","Right bedside",{x:start+side+bedW,y:0,z:80,width:side,height:520,depth:420,doors:2,shelves:0,materialId:"h1180",hardware:"Handleless"}),
       item("Wall cabinet","Over-bed cabinet",{x:start+side,y:Math.min(1750,h-650),z:0,width:bedW,height:550,depth:350,doors:3,shelves:1,materialId:"w1000",hardware:"Handleless"})
