@@ -1,6 +1,6 @@
 "use client";
 import {Canvas} from "@react-three/fiber";
-import {OrbitControls,Grid} from "@react-three/drei";
+import {OrbitControls,Grid,GizmoHelper,GizmoViewport} from "@react-three/drei";
 import {Project,JoineryItem} from "@/types/model";
 import {material} from "@/lib/materials";
 
@@ -35,6 +35,6 @@ export function Scene3D({project,selected,onSelect}:{project:Project;selected?:s
     <mesh position={[0,rh/2,-rd/2]} receiveShadow><boxGeometry args={[rw,rh,.025]}/><meshStandardMaterial color="#f2f2f0" roughness={.9}/></mesh>
     <mesh position={[-rw/2,rh/2,0]} receiveShadow><boxGeometry args={[.025,rh,rd]}/><meshStandardMaterial color="#f7f7f5" roughness={.9}/></mesh>
     {project.items.map(i=><group key={i.id} onClick={e=>{e.stopPropagation();onSelect?.(i.id)}}><Cabinet i={i} project={project}/>{selected===i.id&&<mesh position={[(i.x+i.width/2-project.roomWidth/2)/1000,(i.y+i.height/2)/1000,(i.z+i.depth/2-project.roomDepth/2)/1000]}><boxGeometry args={[i.width/1000+.025,i.height/1000+.025,i.depth/1000+.025]}/><meshBasicMaterial color="#c8102e" wireframe transparent opacity={.85}/></mesh>}</group>)}
-    <OrbitControls makeDefault target={[0,Math.min(1.2,rh/2),0]} enableDamping dampingFactor={.08} enablePan enableZoom minDistance={1} maxDistance={Math.max(8,roomMax*4)}/>
+    <OrbitControls makeDefault target={[0,Math.min(1.2,rh/2),0]} enableDamping dampingFactor={.08} enablePan enableZoom minDistance={1} maxDistance={Math.max(8,roomMax*4)}/><GizmoHelper alignment="bottom-right" margin={[72,72]}><GizmoViewport axisColors={["#c8102e","#2f8f5b","#315fa8"]} labelColor="#222"/></GizmoHelper>
   </Canvas></div>
 }
