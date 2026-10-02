@@ -5,7 +5,7 @@ import {OrbitControls,Grid,GizmoHelper,GizmoViewport,TransformControls,ContactSh
 import * as THREE from "three";
 import {Project,JoineryItem} from "@/types/model";
 import {material} from "@/lib/materials";
-import {clampItemToRoom,isWallMounted} from "@/lib/geometry";
+import {clampItemToRoom,isWallMounted,footprint,normalizeRotation} from "@/lib/geometry";
 
 const mm=(v:number)=>v/1000;
 const BOARD=18;
@@ -480,25 +480,32 @@ function CabinetGeometry({i}:{i:JoineryItem}){
   return <OpenShelving i={i} w={w} h={h} d={d} c={c}/>;
 }
 
-function ItemNode({i,project,selected,onSelect,onMove,onMoveStart}:{i:JoineryItem;project:Project;selected:boolean;onSelect?:(id:string|null)=>void;onMove?:(id:string,x:number,y:number,z:number)=>void;onMoveStart?:()=>void}){
+function ItemNode({i,project,selected,mode,onSelect,onMove,onRotate,onMoveStart}:{i:JoineryItem;project:Project;selected:boolean;mode:"translate"|"rotate";onSelect?:(id:string|null)=>void;onMove?:(id:string,x:number,y:number,z:number)=>void;onRotate?:(id:string,rotation:number)=>void;onMoveStart?:()=>void}){
   const group=useRef<THREE.Group>(null);
+  const fp=footprint(i),rotation=normalizeRotation(i.rotation??0);
   const position:[number,number,number]=[
-    mm(i.x+i.width/2-project.roomWidth/2),
+    mm(i.x+fp.width/2-project.roomWidth/2),
     mm(i.y+i.height/2),
-    mm(i.z+i.depth/2-project.roomDepth/2)
+    mm(i.z+fp.depth/2-project.roomDepth/2)
   ];
   const sync=()=>{
     const g=group.current;if(!g)return;
-    const raw={...i,x:(g.position.x+mm(project.roomWidth)/2)*1000-i.width/2,y:g.position.y*1000-i.height/2,z:(g.position.z+mm(project.roomDepth)/2)*1000-i.depth/2};
+    if(mode==="rotate"){
+      const next=normalizeRotation(THREE.MathUtils.radToDeg(g.rotation.y));
+      onRotate?.(i.id,next);
+      return;
+    }
+    const current={...i,rotation},box=footprint(current);
+    const raw={...current,x:(g.position.x+mm(project.roomWidth)/2)*1000-box.width/2,y:g.position.y*1000-i.height/2,z:(g.position.z+mm(project.roomDepth)/2)*1000-box.depth/2};
     const q=clampItemToRoom(raw,project);
     onMove?.(i.id,q.x,q.y,q.z);
   };
-  const node=<group ref={group} position={position} onClick={e=>{e.stopPropagation();onSelect?.(i.id)}}>
+  const node=<group ref={group} position={position} rotation={[0,THREE.MathUtils.degToRad(rotation),0]} onClick={e=>{e.stopPropagation();onSelect?.(i.id)}}>
     <CabinetGeometry i={i}/>
     {selected&&<mesh><boxGeometry args={[mm(i.width)+.035,mm(i.height)+.035,mm(i.depth)+.035]}/><meshBasicMaterial color="#c8102e" wireframe transparent opacity={.55}/></mesh>}
   </group>;
   if(!selected||i.locked)return node;
-  return <TransformControls mode="translate" translationSnap={Math.max(1,project.rules.snap)/1000} showX showY={isWallMounted(i)} showZ onMouseDown={()=>onMoveStart?.()} onObjectChange={sync}>{node}</TransformControls>;
+  return <TransformControls mode={mode} translationSnap={Math.max(1,project.rules.snap)/1000} rotationSnap={Math.PI/2} showX={mode==="translate"} showY showZ={mode==="translate"} onMouseDown={()=>onMoveStart?.()} onObjectChange={sync}>{node}</TransformControls>;
 }
 
 
@@ -520,7 +527,7 @@ function CameraRig({preset,rw,rh,rd}:{preset:CameraPreset;rw:number;rh:number;rd
   return null;
 }
 
-export function Scene3D({project,selected,onSelect,onMove,onMoveStart}:{project:Project;selected?:string|null;onSelect?:(id:string|null)=>void;onMove?:(id:string,x:number,y:number,z:number)=>void;onMoveStart?:()=>void}){
+export function Scene3D({project,selected,transformMode="translate",onSelect,onMove,onRotate,onMoveStart}:{project:Project;selected?:string|null;transformMode?:"translate"|"rotate";onSelect?:(id:string|null)=>void;onMove?:(id:string,x:number,y:number,z:number)=>void;onRotate?:(id:string,rotation:number)=>void;onMoveStart?:()=>void}){
   const rw=mm(project.roomWidth),rh=mm(project.roomHeight),rd=mm(project.roomDepth),roomMax=Math.max(rw,rh,rd);
   const [preset,setPreset]=useState<CameraPreset>("iso"),[showGrid,setShowGrid]=useState(true),[showWalls,setShowWalls]=useState(true);
   return <div className="three"><div className="sceneToolbar"><div className="cameraPresets">{(["iso","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={preset===v?"active":""} onClick={()=>setPreset(v)}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles"><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button><button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button></div></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(2.2,rh*.78),Math.max(4.3,rd*1.35)],fov:38}} shadows gl={{antialias:true}}>
@@ -532,7 +539,7 @@ export function Scene3D({project,selected,onSelect,onMove,onMoveStart}:{project:
     <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.012,0]} receiveShadow><boxGeometry args={[rw,rd,.024]}/><meshStandardMaterial color="#d8d3cb" roughness={.9}/></mesh>
 {showGrid&&<Grid position={[0,.002,0]} args={[Math.max(rw,rd)*1.25,Math.max(rw,rd)*1.25]} cellSize={.1} sectionSize={.5} cellColor="#cbc6bf" sectionColor="#aaa49b" fadeDistance={15} fadeStrength={1.5}/>}
 {showWalls&&<><mesh position={[0,rh/2,-rd/2]} receiveShadow><boxGeometry args={[rw,rh,.035]}/><meshStandardMaterial color="#f7f6f3" roughness={.96}/></mesh><mesh position={[-rw/2,rh/2,0]} receiveShadow><boxGeometry args={[.035,rh,rd]}/><meshStandardMaterial color="#f4f3f0" roughness={.96}/></mesh></>}
-    {project.items.map(i=><ItemNode key={i.id} i={i} project={project} selected={selected===i.id} onSelect={onSelect} onMove={onMove} onMoveStart={onMoveStart}/>)}
+    {project.items.map(i=><ItemNode key={i.id} i={i} project={project} selected={selected===i.id} mode={transformMode} onSelect={onSelect} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>)}
     <ContactShadows position={[0,.003,0]} opacity={.32} scale={Math.max(5,roomMax*1.8)} blur={2.6} far={Math.max(5,roomMax*1.8)}/>
     <OrbitControls makeDefault target={[0,Math.min(1.15,rh*.48),0]} enableDamping dampingFactor={.08} enablePan enableZoom minDistance={1} maxDistance={Math.max(8,roomMax*4)}/>
     <GizmoHelper alignment="bottom-right" margin={[70,70]}><GizmoViewport axisColors={["#c8102e","#2f8f5b","#315fa8"]} labelColor="#222"/></GizmoHelper>
