@@ -23,13 +23,14 @@ export default function Studio(){
   const [auth,setAuth]=useState({email:"",password:""});
   const [user,setUser]=useState<string|null>(null);
   const [busy,setBusy]=useState(false);
+  const [cloudReady,setCloudReady]=useState(false);
   const [notice,setNotice]=useState("");
   const file=useRef<HTMLInputElement>(null);
   const issues=useMemo(()=>validate(p),[p]);
 
   useEffect(()=>{if(!hasSupabase())return;cloud.currentUser().then(u=>setUser(u?.email??null)).catch(()=>setUser(null));return cloud.onAuthChange(setUser)},[]);
   const cloudSave=async()=>{if(!hasSupabase()||!user)return;setBusy(true);try{await cloud.saveAllCloud(s.projects);setNotice("All projects saved to cloud.")}catch(e:any){setNotice("Cloud save failed: "+(e?.message??"Unknown error"))}finally{setBusy(false)}};
-  useEffect(()=>{if(!hasSupabase()||!user)return;const t=window.setTimeout(()=>{cloud.saveCloud(p).catch(()=>{})},1600);return()=>window.clearTimeout(t)},[user,p]);
+  useEffect(()=>{if(!hasSupabase()||!user||!cloudReady)return;const t=window.setTimeout(()=>{cloud.saveCloud(p).catch(()=>{})},1600);return()=>window.clearTimeout(t)},[user,cloudReady,p]);
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{
       const tag=(e.target as HTMLElement)?.tagName;
