@@ -12,8 +12,9 @@ import * as cloud from "@/lib/cloud";
 import {ProjectStatus} from "@/types/model";
 import {isProjectBackup} from "@/lib/backup";
 import {mergeProjects} from "@/lib/projectMerge";
+import {COMPONENTS_BY_KIND,inferDesignKind,ScenarioPlan} from "@/lib/scenarios";
+import {ScenarioStart} from "./ScenarioStart";
 
-const COMPONENTS=["Wardrobe","Base cabinet","Wall cabinet","Tall cabinet","Drawer unit","Shelving","Media unit"];
 function ComponentIcon({type}:{type:string}){const cls=type.toLowerCase().replaceAll(" ","-");return <span className={"cabIcon "+cls}><i/><i/><i/><i/></span>}
 
 export default function Studio(){
@@ -33,6 +34,8 @@ export default function Studio(){
   const [projectOpen,setProjectOpen]=useState(false);
   const file=useRef<HTMLInputElement>(null);
   const issues=useMemo(()=>validate(p),[p]);
+  const designKind=useMemo(()=>inferDesignKind(p.items),[p.items]);
+  const components=COMPONENTS_BY_KIND[designKind];
 
   useEffect(()=>{if(item)setRightOpen(true)},[item?.id]);
 
@@ -143,6 +146,20 @@ export default function Studio(){
     finally{setBusy(false)}
   };
 
+  if(!p.items.length){
+    return <ScenarioStart onCreate={(plan:ScenarioPlan)=>{
+      s.configureActive({
+        name:plan.name,
+        roomWidth:plan.roomWidth,
+        roomHeight:plan.roomHeight,
+        roomDepth:plan.roomDepth,
+        rules:plan.rules,
+        items:plan.items
+      });
+      setLeftOpen(true);setRightOpen(false);setTab("components");
+    }}/>;
+  }
+
   return <main className={"studio "+(!leftOpen?"libraryClosed ":"")+(!rightOpen||!item?"inspectorClosed ":"")} onClick={()=>setMenu(null)}>
     <header className="topbar">
       <div className="brand"><b>JOINERY</b><span>STUDIO</span></div>
@@ -181,7 +198,7 @@ export default function Studio(){
       <div className="panelBody">
         {tab==="components"&&<>
           <input className="searchInput" placeholder="Search components" value={search} onChange={e=>setSearch(e.target.value)}/>
-          <section className="cards">{COMPONENTS.filter(x=>x.toLowerCase().includes(search.toLowerCase())).map(x=><button key={x} draggable onDragStart={e=>{e.dataTransfer.setData("application/x-joinery-component",x);e.dataTransfer.setData("text/plain",x);e.dataTransfer.effectAllowed="copy"}} onClick={()=>add(x)}><ComponentIcon type={x}/><span><b>{x}</b><small>Drag or click to add</small></span></button>)}</section>
+          <section className="cards">{components.filter(x=>x.toLowerCase().includes(search.toLowerCase())).map(x=><button key={x} draggable onDragStart={e=>{e.dataTransfer.setData("application/x-joinery-component",x);e.dataTransfer.setData("text/plain",x);e.dataTransfer.effectAllowed="copy"}} onClick={()=>add(x)}><ComponentIcon type={x}/><span><b>{x}</b><small>Drag or click to add</small></span></button>)}</section>
         </>}
         {tab==="items"&&<section className="itemManager">{p.items.map(i=><button key={i.id} className={s.selectedId===i.id?"activeItem":""} onClick={()=>s.select(i.id)}><ComponentIcon type={i.type}/><span><b>{i.name}</b><small>{i.width} × {i.height} × {i.depth} mm</small></span><span className="itemState">{i.locked?"●":""}</span></button>)}{!p.items.length&&<small className="muted">No joinery yet.</small>}</section>}
         {tab==="materials"&&<section className="materials">{MATERIALS.map(m=><button key={m.id} className={item?.materialId===m.id?"selectedMaterial":""} disabled={!item} onClick={()=>item&&patch("materialId",m.id)}><i style={{background:m.colour}}/><span><b>{m.code}</b>{m.name}<small>{m.category} · {m.thickness} mm</small></span></button>)}</section>}
