@@ -13,6 +13,9 @@ import {ProjectStatus} from "@/types/model";
 import {isProjectBackup} from "@/lib/backup";
 import {mergeProjects} from "@/lib/projectMerge";
 
+const COMPONENTS=["Wardrobe","Base cabinet","Wall cabinet","Tall cabinet","Shelving","Media unit"];
+const glyph=(type:string)=>type==="Shelving"?"☷":type==="Media unit"?"▤":type==="Wall cabinet"?"▱":type==="Base cabinet"?"▭":"▥";
+
 export default function Studio(){
   const s=useStudio();
   const p=s.projects.find(x=>x.id===s.activeId)??s.projects[0];
@@ -25,8 +28,12 @@ export default function Studio(){
   const [busy,setBusy]=useState(false);
   const [cloudReady,setCloudReady]=useState(false);
   const [notice,setNotice]=useState("");
+  const [leftOpen,setLeftOpen]=useState(true);
+  const [rightOpen,setRightOpen]=useState(true);
   const file=useRef<HTMLInputElement>(null);
   const issues=useMemo(()=>validate(p),[p]);
+
+  useEffect(()=>{if(item)setRightOpen(true)},[item?.id]);
 
   useEffect(()=>{
     if(!hasSupabase())return;
@@ -49,8 +56,21 @@ export default function Studio(){
     const off=cloud.onAuthChange(email=>{void initialise(email)});
     return()=>{active=false;off()};
   },[]);
-  const cloudSave=async()=>{if(!hasSupabase()||!user)return;setBusy(true);try{await cloud.saveAllCloud(s.projects);setNotice("All projects saved to cloud.")}catch(e:any){setNotice("Cloud save failed: "+(e?.message??"Unknown error"))}finally{setBusy(false)}};
-  useEffect(()=>{if(!hasSupabase()||!user||!cloudReady)return;const t=window.setTimeout(()=>{cloud.saveCloud(p).catch(()=>{})},1600);return()=>window.clearTimeout(t)},[user,cloudReady,p]);
+
+  const cloudSave=async()=>{
+    if(!hasSupabase()||!user)return;
+    setBusy(true);
+    try{await cloud.saveAllCloud(s.projects);setNotice("All projects saved to cloud.")}
+    catch(e:any){setNotice("Cloud save failed: "+(e?.message??"Unknown error"))}
+    finally{setBusy(false)}
+  };
+
+  useEffect(()=>{
+    if(!hasSupabase()||!user||!cloudReady)return;
+    const t=window.setTimeout(()=>{cloud.saveCloud(p).catch(()=>{})},1600);
+    return()=>window.clearTimeout(t)
+  },[user,cloudReady,p]);
+
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{
       const tag=(e.target as HTMLElement)?.tagName;
@@ -60,7 +80,13 @@ export default function Studio(){
       else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="y"){e.preventDefault();s.redo()}
       else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="d"&&item){e.preventDefault();s.duplicateItem(item.id)}
       else if((e.key==="Delete"||e.key==="Backspace")&&item){e.preventDefault();if(confirm("Delete "+item.name+"?"))s.deleteItem(item.id)}
-      else if(item&&e.key.startsWith("Arrow")){e.preventDefault();const st=e.shiftKey?100:p.rules.snap,dx=e.key==="ArrowLeft"?-st:e.key==="ArrowRight"?st:0,d=e.key==="ArrowDown"?-st:e.key==="ArrowUp"?st:0;const q=clampItemToRoom({...item,x:item.x+dx,y:s.view==="top"?item.y:item.y+d,z:s.view==="top"?item.z+d:item.z},p);if(canPlace(p,q,item.id))s.updateItem(item.id,{x:q.x,y:q.y,z:q.z})}
+      else if(item&&e.key.startsWith("Arrow")){
+        e.preventDefault();
+        const st=e.shiftKey?100:p.rules.snap,dx=e.key==="ArrowLeft"?-st:e.key==="ArrowRight"?st:0,d=e.key==="ArrowDown"?-st:e.key==="ArrowUp"?st:0;
+        const q=clampItemToRoom({...item,x:item.x+dx,y:s.view==="top"?item.y:item.y+d,z:s.view==="top"?item.z+d:item.z},p);
+        if(canPlace(p,q,item.id))s.updateItem(item.id,{x:q.x,y:q.y,z:q.z});
+      }
+      else if(e.key==="Escape")s.select(null);
     };
     window.addEventListener("keydown",key); return()=>window.removeEventListener("keydown",key)
   },[s,item,p,user]);
@@ -69,47 +95,167 @@ export default function Studio(){
     let i=newItem(type);
     if(at){
       i=clampItemToRoom({...i,x:at.x-i.width/2,y:Math.max(0,at.y-i.height/2),z:at.z-i.depth/2},p);
-      if(!canPlace(p,i))setNotice("Placed with a clash — move it or adjust dimensions until the warning clears.");
+      if(!canPlace(p,i))setNotice("Placed with a clash — move it until the warning clears.");
       s.addItem(i);return;
     }
     i=findFreePlacement(p,i);
-    if(!canPlace(p,i)){setNotice("No clear space remains. The component was added near the room origin so you can reposition it.");i=clampItemToRoom(i,p)}
-    s.addItem(i)
+    if(!canPlace(p,i)){setNotice("No clear space remains. Reposition the new component.");i=clampItemToRoom(i,p)}
+    s.addItem(i);
   };
+
   const patch=(k:string,v:any)=>{
     if(!item)return;
     if(!["x","y","z","width","height","depth"].includes(k)){s.updateItem(item.id,{[k]:v});return}
     const n=Number(v)||0;
     let candidate={...item};
-    if(k==="x")candidate.x=n;
-    if(k==="y")candidate.y=n;
-    if(k==="z")candidate.z=n;
-    if(k==="width")candidate.width=Math.max(1,n);
-    if(k==="height")candidate.height=Math.max(1,n);
-    if(k==="depth")candidate.depth=Math.max(1,n);
+    if(k==="x")candidate.x=n;if(k==="y")candidate.y=n;if(k==="z")candidate.z=n;
+    if(k==="width")candidate.width=Math.max(1,n);if(k==="height")candidate.height=Math.max(1,n);if(k==="depth")candidate.depth=Math.max(1,n);
     candidate=clampItemToRoom(candidate,p);
     if(canPlace(p,candidate,item.id))s.updateItem(item.id,candidate);
     else setNotice("That edit would leave the room or clash with another component.");
   };
-  const exportJson=()=>{const b=new Blob([JSON.stringify(s.projects,null,2)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="joinery-studio-projects.json";a.click();URL.revokeObjectURL(a.href)};
-  const importJson=async(e:React.ChangeEvent<HTMLInputElement>)=>{const f=e.target.files?.[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!isProjectBackup(d))throw new Error();if(confirm("Replace local projects with this backup?"))s.replaceAll(d)}catch{alert("Invalid Joinery Studio JSON file.")}e.target.value=""};
-  const sync=cloudSave;
-  const login=async(signup=false)=>{setBusy(true);setNotice("");try{const r=signup?await cloud.signUp(auth.email,auth.password):await cloud.signIn(auth.email,auth.password);if(r.error){setNotice(r.error.message);return}if(signup&&!r.data.session){setUser(null);setCloudReady(false);setNotice("Account created. Check your email to confirm the account, then sign in.");return}setUser(r.data.user?.email??auth.email);const ps=await cloud.loadCloud();if(ps.length){s.replaceAll(mergeProjects(useStudio.getState().projects,ps));setNotice("Cloud and local projects merged.")}else setNotice("Signed in. No cloud projects yet.");setCloudReady(true)}catch(e:any){setNotice(e?.message??"Authentication failed.")}finally{setBusy(false)}};
 
-  return <main className="shell" onClick={()=>setMenu(null)}>
-    <header><div><b>JOINERY</b><span>STUDIO</span></div><div className="projectMeta"><strong>{p.name}</strong><small>{p.reference} · Rev {p.revision}</small></div><div className="actions"><button onClick={s.undo}>Undo</button><button onClick={s.redo}>Redo</button><button onClick={exportJson}>JSON ↓</button><button onClick={()=>file.current?.click()}>JSON ↑</button><input ref={file} hidden type="file" accept=".json" onChange={importJson}/><button onClick={()=>exportPdf(p)}>PDF</button>{hasSupabase()&&user&&<button disabled={busy} onClick={sync}>{busy?"Saving…":"Cloud save"}</button>}<button disabled={issues.length>0} className="primary" onClick={s.saveRevision}>Save revision</button></div></header>
+  const exportJson=()=>{
+    const b=new Blob([JSON.stringify(s.projects,null,2)],{type:"application/json"}),a=document.createElement("a");
+    a.href=URL.createObjectURL(b);a.download="joinery-studio-projects.json";a.click();URL.revokeObjectURL(a.href)
+  };
+
+  const importJson=async(e:React.ChangeEvent<HTMLInputElement>)=>{
+    const f=e.target.files?.[0];if(!f)return;
+    try{const d=JSON.parse(await f.text());if(!isProjectBackup(d))throw new Error();if(confirm("Replace local projects with this backup?"))s.replaceAll(d)}
+    catch{alert("Invalid Joinery Studio JSON file.")}
+    e.target.value=""
+  };
+
+  const login=async(signup=false)=>{
+    setBusy(true);setNotice("");
+    try{
+      const r=signup?await cloud.signUp(auth.email,auth.password):await cloud.signIn(auth.email,auth.password);
+      if(r.error){setNotice(r.error.message);return}
+      if(signup&&!r.data.session){setUser(null);setCloudReady(false);setNotice("Account created. Confirm your email, then sign in.");return}
+      setUser(r.data.user?.email??auth.email);
+      const ps=await cloud.loadCloud();
+      if(ps.length){s.replaceAll(mergeProjects(useStudio.getState().projects,ps));setNotice("Cloud and local projects merged.")}
+      else setNotice("Signed in. No cloud projects yet.");
+      setCloudReady(true);
+    }catch(e:any){setNotice(e?.message??"Authentication failed.")}
+    finally{setBusy(false)}
+  };
+
+  return <main className={"shell "+(!leftOpen?"leftClosed ":"")+(!rightOpen||!item?"rightClosed ":"")} onClick={()=>setMenu(null)}>
+    <header className="topbar">
+      <button className="iconBtn" title="Toggle library" onClick={()=>setLeftOpen(v=>!v)}>☰</button>
+      <div className="brand"><b>JOINERY</b><span>STUDIO</span></div>
+      <div className="projectMeta"><strong>{p.name}</strong><small>{p.reference} · Rev {p.revision}</small></div>
+      <div className="headerTools">
+        <button className="iconBtn" title="Undo" onClick={s.undo}>↶</button>
+        <button className="iconBtn" title="Redo" onClick={s.redo}>↷</button>
+        <details className="topMenu"><summary>•••</summary><div>
+          <button onClick={exportJson}>Export JSON</button>
+          <button onClick={()=>file.current?.click()}>Import JSON</button>
+          <button onClick={()=>exportPdf(p)}>Export PDF</button>
+        </div></details>
+        <input ref={file} hidden type="file" accept=".json" onChange={importJson}/>
+        {hasSupabase()&&user&&<button className="quietBtn" disabled={busy} onClick={cloudSave}>{busy?"Saving…":"Save"}</button>}
+        <button disabled={issues.length>0} className="primary compactPrimary" onClick={s.saveRevision}>Save revision</button>
+        <button className="iconBtn" title="Toggle inspector" onClick={()=>setRightOpen(v=>!v)}>◧</button>
+      </div>
+    </header>
+
     <aside className="left">
-      <section><label>Project</label><select value={p.id} onChange={async e=>{if(hasSupabase()&&user){try{await cloud.saveCloud(p)}catch{}}s.setActive(e.target.value)} }>{s.projects.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select><div className="row"><button onClick={async()=>{if(hasSupabase()&&user){try{await cloud.saveCloud(p)}catch{}}s.addProject()}}>New</button><button onClick={async()=>{if(!confirm('Delete project "'+p.name+'"?'))return;if(hasSupabase()&&user){try{await cloud.deleteCloud(p.id)}catch(e:any){return alert(e.message)}}s.deleteProject()}}>Delete</button></div></section>
-      {!hasSupabase()?<section className="cloudNote"><b>Local mode</b><small>Add Supabase env values for account/cloud sync.</small></section>:!user?<section><label>Supabase account</label><input placeholder="Email" value={auth.email} onChange={e=>setAuth({...auth,email:e.target.value})}/><input type="password" placeholder="Password" value={auth.password} onChange={e=>setAuth({...auth,password:e.target.value})}/><div className="row"><button disabled={busy} onClick={()=>login(false)}>Login</button><button disabled={busy} onClick={()=>login(true)}>Sign up</button></div></section>:<section><small>Signed in as {user}</small><div className="row"><button disabled={busy} onClick={async()=>{setBusy(true);try{const ps=await cloud.loadCloud();if(ps.length){if(confirm("Replace local projects with the cloud versions?")){s.replaceAll(ps);setNotice("Cloud projects loaded.")}}else setNotice("No cloud projects found.")}catch(e:any){setNotice(e?.message??"Cloud load failed.")}finally{setBusy(false)}}}>Load cloud</button><button disabled={busy} onClick={async()=>{setBusy(true);try{await cloud.saveCloud(p);await cloud.signOut();setUser(null);setCloudReady(false);setNotice("Saved and signed out.")}catch(e:any){setNotice("Could not sign out safely: "+(e?.message??"Unknown error"))}finally{setBusy(false)}}}>Logout</button></div></section>}
-      {notice&&<section className="cloudNote"><small>{notice}</small></section>}<section><label>Project name</label><input value={p.name} onChange={e=>s.updateProject({name:e.target.value})}/><label>Customer</label><input value={p.customer} onChange={e=>s.updateProject({customer:e.target.value})}/><label>Reference</label><input value={p.reference} onChange={e=>s.updateProject({reference:e.target.value})}/><label>Status</label><select value={p.status} onChange={e=>s.updateProject({status:e.target.value as ProjectStatus})}>{(["Draft","Presented","Accepted","Rejected"] as ProjectStatus[]).map(x=><option key={x}>{x}</option>)}</select><label>Room W / H / D (mm)</label><div className="triple">{(["roomWidth","roomHeight","roomDepth"] as const).map(k=><input key={k} min="100" type="number" value={p[k]} onChange={e=>s.updateProject({[k]:Math.max(100,+e.target.value)})}/>)}</div><label>Clearance / Gap / Snap (mm)</label><div className="triple"><input type="number" min="0" value={p.rules.wallClearance} onChange={e=>s.updateProject({rules:{...p.rules,wallClearance:Math.max(0,+e.target.value)}})}/><input type="number" min="0" value={p.rules.componentGap} onChange={e=>s.updateProject({rules:{...p.rules,componentGap:Math.max(0,+e.target.value)}})}/><input type="number" min="1" value={p.rules.snap} onChange={e=>s.updateProject({rules:{...p.rules,snap:Math.max(1,+e.target.value)}})}/></div></section>
-      <div className="tabs"><button className={tab==="components"?"active":""} onClick={()=>setTab("components")}>Add</button><button className={tab==="items"?"active":""} onClick={()=>setTab("items")}>Items</button><button className={tab==="materials"?"active":""} onClick={()=>setTab("materials")}>Materials</button><button className={tab==="revisions"?"active":""} onClick={()=>setTab("revisions")}>History</button></div>
-      {tab==="components"&&<><input placeholder="Search components…" value={search} onChange={e=>setSearch(e.target.value)}/><section className="cards">{["Wardrobe","Base cabinet","Wall cabinet","Tall cabinet","Shelving","Media unit"].filter(x=>x.toLowerCase().includes(search.toLowerCase())).map(x=><button key={x} draggable onDragStart={e=>{e.dataTransfer.setData("application/x-joinery-component",x);e.dataTransfer.setData("text/plain",x);e.dataTransfer.effectAllowed="copy"}} onClick={()=>add(x)}><span className="componentGlyph">{x==="Wardrobe"?"▥":x==="Base cabinet"?"▭":x==="Wall cabinet"?"▱":x==="Tall cabinet"?"▥":x==="Shelving"?"☷":"▤"}</span><span><b>{x}</b><small>Drag to canvas or click to add</small></span></button>)}</section></>}
-      {tab==="items"&&<section className="itemManager">{p.items.map(i=><button key={i.id} className={s.selectedId===i.id?"activeItem":""} onClick={()=>s.select(i.id)}><span className="itemIcon">{i.type==="Shelving"?"☷":"▥"}</span><span><b>{i.name}</b><small>{i.width} × {i.height} × {i.depth} mm</small></span><span className="itemState">{i.locked?"🔒":""}</span></button>)}{!p.items.length&&<small>No joinery items yet.</small>}</section>}
-      {tab==="materials"&&<section className="materials">{MATERIALS.map(m=><div key={m.id} className={item?.materialId===m.id?"selectedMaterial":""} onClick={()=>item&&patch("materialId",m.id)}><i style={{background:m.colour}}/><span><b>{m.code}</b> {m.name}<small>{m.category} · {m.thickness} mm</small></span></div>)}</section>}
-      {tab==="revisions"&&<section className="revisionList">{[...p.revisions].reverse().map(r=><div key={r.id}><b>Revision {r.revision}</b><small>{new Date(r.createdAt).toLocaleString()}</small><button onClick={()=>confirm("Restore revision "+r.revision+"?")&&s.restoreRevision(r.id)}>Restore</button></div>)}{!p.revisions.length&&<small>No saved revisions yet.</small>}</section>}
+      <div className="sidebarHeader">
+        <select className="projectSelect" value={p.id} onChange={async e=>{if(hasSupabase()&&user){try{await cloud.saveCloud(p)}catch{}}s.setActive(e.target.value)}}>
+          {s.projects.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
+        </select>
+        <button className="iconBtn" title="New project" onClick={async()=>{if(hasSupabase()&&user){try{await cloud.saveCloud(p)}catch{}}s.addProject()}}>＋</button>
+      </div>
+
+      <div className="sidebarTabs">
+        <button className={tab==="components"?"active":""} onClick={()=>setTab("components")}><span>＋</span>Add</button>
+        <button className={tab==="items"?"active":""} onClick={()=>setTab("items")}><span>▦</span>Items</button>
+        <button className={tab==="materials"?"active":""} onClick={()=>setTab("materials")}><span>◩</span>Materials</button>
+        <button className={tab==="revisions"?"active":""} onClick={()=>setTab("revisions")}><span>↺</span>History</button>
+      </div>
+
+      <div className="sidebarBody">
+        {tab==="components"&&<>
+          <div className="panelTitle"><b>Add joinery</b><small>Drag onto the canvas</small></div>
+          <input className="searchInput" placeholder="Search components" value={search} onChange={e=>setSearch(e.target.value)}/>
+          <section className="cards">{COMPONENTS.filter(x=>x.toLowerCase().includes(search.toLowerCase())).map(x=><button key={x} draggable onDragStart={e=>{e.dataTransfer.setData("application/x-joinery-component",x);e.dataTransfer.setData("text/plain",x);e.dataTransfer.effectAllowed="copy"}} onClick={()=>add(x)}><span className="componentGlyph">{glyph(x)}</span><span><b>{x}</b><small>Drag or click to add</small></span></button>)}</section>
+        </>}
+
+        {tab==="items"&&<>
+          <div className="panelTitle"><b>Items</b><small>{p.items.length} in this design</small></div>
+          <section className="itemManager">{p.items.map(i=><button key={i.id} className={s.selectedId===i.id?"activeItem":""} onClick={()=>s.select(i.id)}><span className="itemIcon">{glyph(i.type)}</span><span><b>{i.name}</b><small>{i.width} × {i.height} × {i.depth} mm</small></span><span className="itemState">{i.locked?"●":""}</span></button>)}{!p.items.length&&<small className="muted">No joinery items yet.</small>}</section>
+        </>}
+
+        {tab==="materials"&&<>
+          <div className="panelTitle"><b>Materials</b><small>{item?"Applies to selected item":"Select an item first"}</small></div>
+          <section className="materials">{MATERIALS.map(m=><button key={m.id} className={item?.materialId===m.id?"selectedMaterial":""} onClick={()=>item&&patch("materialId",m.id)}><i style={{background:m.colour}}/><span><b>{m.code}</b>{m.name}<small>{m.category} · {m.thickness} mm</small></span></button>)}</section>
+        </>}
+
+        {tab==="revisions"&&<>
+          <div className="panelTitle"><b>History</b><small>Saved design snapshots</small></div>
+          <section className="revisionList">{[...p.revisions].reverse().map(r=><div key={r.id}><span><b>Revision {r.revision}</b><small>{new Date(r.createdAt).toLocaleString()}</small></span><button onClick={()=>confirm("Restore revision "+r.revision+"?")&&s.restoreRevision(r.id)}>Restore</button></div>)}{!p.revisions.length&&<small className="muted">No saved revisions yet.</small>}</section>
+        </>}
+
+        <details className="sidebarDetails">
+          <summary>Project & room</summary>
+          <div className="detailsBody">
+            <label>Project name<input value={p.name} onChange={e=>s.updateProject({name:e.target.value})}/></label>
+            <label>Customer<input value={p.customer} onChange={e=>s.updateProject({customer:e.target.value})}/></label>
+            <div className="fieldGrid2"><label>Reference<input value={p.reference} onChange={e=>s.updateProject({reference:e.target.value})}/></label><label>Status<select value={p.status} onChange={e=>s.updateProject({status:e.target.value as ProjectStatus})}>{(["Draft","Presented","Accepted","Rejected"] as ProjectStatus[]).map(x=><option key={x}>{x}</option>)}</select></label></div>
+            <div className="groupLabel">Room size · mm</div>
+            <div className="fieldGrid3">{(["roomWidth","roomHeight","roomDepth"] as const).map((k,n)=><label key={k}>{["W","H","D"][n]}<input min="100" type="number" value={p[k]} onChange={e=>s.updateProject({[k]:Math.max(100,+e.target.value)})}/></label>)}</div>
+            <div className="groupLabel">Rules · mm</div>
+            <div className="fieldGrid3"><label>Clear<input type="number" min="0" value={p.rules.wallClearance} onChange={e=>s.updateProject({rules:{...p.rules,wallClearance:Math.max(0,+e.target.value)}})}/></label><label>Gap<input type="number" min="0" value={p.rules.componentGap} onChange={e=>s.updateProject({rules:{...p.rules,componentGap:Math.max(0,+e.target.value)}})}/></label><label>Snap<input type="number" min="1" value={p.rules.snap} onChange={e=>s.updateProject({rules:{...p.rules,snap:Math.max(1,+e.target.value)}})}/></label></div>
+            <button className="dangerText" onClick={async()=>{if(!confirm('Delete project "'+p.name+'"?'))return;if(hasSupabase()&&user){try{await cloud.deleteCloud(p.id)}catch(e:any){return alert(e.message)}}s.deleteProject()}}>Delete project</button>
+          </div>
+        </details>
+
+        <details className="sidebarDetails">
+          <summary>Cloud</summary>
+          <div className="detailsBody">
+            {!hasSupabase()?<small className="muted">Local storage mode.</small>:!user?<><input placeholder="Email" value={auth.email} onChange={e=>setAuth({...auth,email:e.target.value})}/><input type="password" placeholder="Password" value={auth.password} onChange={e=>setAuth({...auth,password:e.target.value})}/><div className="row"><button disabled={busy} onClick={()=>login(false)}>Login</button><button disabled={busy} onClick={()=>login(true)}>Sign up</button></div></>:<><div className="cloudStatus"><span className={cloudReady?"statusDot live":"statusDot"}/><span>{cloudReady?"Cloud autosave on":"Preparing cloud sync"}</span></div><small className="muted">{user}</small><div className="row"><button disabled={busy} onClick={cloudSave}>Save all</button><button disabled={busy} onClick={async()=>{setBusy(true);try{await cloud.saveCloud(p);await cloud.signOut();setUser(null);setCloudReady(false)}finally{setBusy(false)}}}>Logout</button></div></>}
+            {notice&&<small className="noticeText">{notice}</small>}
+          </div>
+        </details>
+      </div>
     </aside>
-    <section className="workspace"><div className="workspaceToolbar"><span className="toolLabel">{item?"SELECTION":"MODE"}</span>{item?<><button className="tool activeTool">✥ Move</button><div className="precisionHud"><label>X<input aria-label="X position" type="number" value={item.x} onChange={e=>patch("x",+e.target.value)}/></label><label>Y<input aria-label="Y position" type="number" value={item.y} onChange={e=>patch("y",+e.target.value)}/></label><label>Z<input aria-label="Z position" type="number" value={item.z} onChange={e=>patch("z",+e.target.value)}/></label><span>mm</span></div><button className="tool" onClick={()=>s.duplicateItem(item.id)}>⧉ Copy</button><button className="tool" onClick={()=>s.updateItem(item.id,{locked:!item.locked})}>{item.locked?"🔓 Unlock":"🔒 Lock"}</button><button className="tool dangerTool" onClick={()=>confirm("Delete "+item.name+"?")&&s.deleteItem(item.id)}>⌫ Delete</button><span className="toolbarHint">{item.name} · {item.width} × {item.height} × {item.depth} mm</span></>:<><button className="tool activeTool">↖ Select</button><button className="tool" onClick={()=>setTab("components")}>＋ Add</button><span className="toolbarHint">Select geometry to reveal relevant tools · drag components from Add onto the canvas</span></>}</div><nav>{(["front","top","side","3d"] as const).map(v=><button key={v} className={s.view===v?"active":""} onClick={()=>s.setView(v)}>{v.toUpperCase()}</button>)}<span>{issues.length?<b className="warning">{issues.length} validation issue{issues.length>1?"s":""}</b>:<b className="valid">Design valid</b>}</span></nav><div className="stage">{s.view==="3d"?<Scene3D project={p} selected={s.selectedId} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onMoveStart={s.checkpoint}/>:<Drawing2D project={p} view={s.view} selected={s.selectedId} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onResize={(id,patch)=>s.moveItem(id,patch)} onMoveStart={s.checkpoint} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onContext={(e,id)=>{s.select(id);setMenu({x:e.clientX,y:e.clientY,id})}}/>}</div><footer>{hasSupabase()?(user?(cloudReady?"Cloud autosave enabled":"Preparing cloud sync…"):"Supabase available"):"Local storage fallback"} · mm coordinate model · Ctrl/Cmd+S save · Ctrl/Cmd+Z undo · Ctrl/Cmd+D duplicate</footer></section>
-    <aside className="right">{!item?<div className="empty"><b>No selection</b><p>Select a component to edit it.</p></div>:<><h3>{item.name}</h3><label>Name</label><input value={item.name} onChange={e=>patch("name",e.target.value)}/><label>X / Y / Z</label><div className="triple">{["x","y","z"].map(k=><input key={k} type="number" value={(item as any)[k]} onChange={e=>patch(k,+e.target.value)}/>)}</div><label>Width / Height / Depth</label><div className="triple">{["width","height","depth"].map(k=><input key={k} type="number" value={(item as any)[k]} onChange={e=>patch(k,+e.target.value)}/>)}</div><label>Shelves / Doors</label><div className="triple"><input type="number" min="0" value={item.shelves} onChange={e=>patch("shelves",Math.max(0,+e.target.value))}/><input type="number" min="0" value={item.doors} onChange={e=>patch("doors",Math.max(0,+e.target.value))}/></div><label>Material</label><select value={item.materialId} onChange={e=>patch("materialId",e.target.value)}>{MATERIALS.map(m=><option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}</select><div className="swatch" style={{background:material(item.materialId).colour}}/><label>Finish</label><input value={item.finish} onChange={e=>patch("finish",e.target.value)}/><label>Edge banding</label><select value={item.edgeBanding} onChange={e=>patch("edgeBanding",e.target.value)}>{["Matching 1mm","Matching 2mm","Contrast edge","None / raw"].map(x=><option key={x}>{x}</option>)}</select><label>Hardware</label><select value={item.hardware} onChange={e=>patch("hardware",e.target.value)}>{["None","Handleless","Bar handle","Knob","Push-to-open","Client specified"].map(x=><option key={x}>{x}</option>)}</select><label><input type="checkbox" checked={item.locked} onChange={e=>patch("locked",e.target.checked)}/> Lock position</label><textarea placeholder="Notes" value={item.notes} onChange={e=>patch("notes",e.target.value)}/><div className="row"><button onClick={()=>s.duplicateItem(item.id)}>Duplicate</button><button className="danger" onClick={()=>confirm("Delete "+item.name+"?")&&s.deleteItem(item.id)}>Delete</button></div></>}{issues.length>0&&<div className="issues"><b>Validation</b>{issues.slice(0,6).map((x,i)=><p key={i}>{x}</p>)}</div>}</aside>
+
+    <section className="workspace">
+      <div className="canvasTop">
+        <div className="adaptiveTools">
+          {!item?<><button className="tool activeTool">↖ Select</button><button className="tool" onClick={()=>{setLeftOpen(true);setTab("components")}}>＋ Add</button></>:<>
+            <span className="selectionName">{item.name}</span>
+            <button className="tool activeTool">✥ Move</button>
+            <button className="tool" onClick={()=>s.duplicateItem(item.id)}>⧉ Copy</button>
+            <button className="tool" onClick={()=>s.updateItem(item.id,{locked:!item.locked})}>{item.locked?"Unlock":"Lock"}</button>
+            <button className="tool dangerTool" onClick={()=>confirm("Delete "+item.name+"?")&&s.deleteItem(item.id)}>Delete</button>
+          </>}
+        </div>
+        <div className="viewSwitcher">{(["front","top","side","3d"] as const).map(v=><button key={v} className={s.view===v?"active":""} onClick={()=>s.setView(v)}>{v==="3d"?"3D":v[0].toUpperCase()+v.slice(1)}</button>)}</div>
+      </div>
+
+      {item&&<div className="precisionBar"><span>Position</span>{(["x","y","z"] as const).map(k=><label key={k}>{k.toUpperCase()}<input type="number" value={item[k]} onChange={e=>patch(k,+e.target.value)}/></label>)}<span className="unit">mm</span></div>}
+
+      <div className="stage">{s.view==="3d"?<Scene3D project={p} selected={s.selectedId} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onMoveStart={s.checkpoint}/>:<Drawing2D project={p} view={s.view} selected={s.selectedId} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onResize={(id,patch)=>s.moveItem(id,patch)} onMoveStart={s.checkpoint} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onContext={(e,id)=>{s.select(id);setMenu({x:e.clientX,y:e.clientY,id})}}/>}</div>
+
+      <div className="statusBar"><span className={issues.length?"statusDot warn":"statusDot live"}/><span>{issues.length?issues.length+" design issue"+(issues.length>1?"s":""):"Design valid"}</span><span>•</span><span>{user?(cloudReady?"Cloud synced":"Cloud connecting"):"Local"}</span><span className="statusHelp">Esc deselect · ⌘Z undo · arrows nudge</span></div>
+    </section>
+
+    {item&&<aside className="right">
+      <div className="inspectorHeader"><div><small>{item.type}</small><input value={item.name} onChange={e=>patch("name",e.target.value)}/></div><button className="iconBtn" onClick={()=>setRightOpen(false)}>×</button></div>
+      <div className="inspectorBody">
+        <section className="inspectorGroup"><h4>Transform</h4><div className="fieldGrid3">{(["x","y","z"] as const).map(k=><label key={k}>{k.toUpperCase()}<input type="number" value={item[k]} onChange={e=>patch(k,+e.target.value)}/></label>)}</div></section>
+        <section className="inspectorGroup"><h4>Dimensions</h4><div className="fieldGrid3">{(["width","height","depth"] as const).map((k,n)=><label key={k}>{["W","H","D"][n]}<input type="number" value={item[k]} onChange={e=>patch(k,+e.target.value)}/></label>)}</div></section>
+        <section className="inspectorGroup"><h4>Configuration</h4><div className="fieldGrid2"><label>Shelves<input type="number" min="0" value={item.shelves} onChange={e=>patch("shelves",Math.max(0,+e.target.value))}/></label><label>Doors<input type="number" min="0" value={item.doors} onChange={e=>patch("doors",Math.max(0,+e.target.value))}/></label></div><label>Hardware<select value={item.hardware} onChange={e=>patch("hardware",e.target.value)}>{["None","Handleless","Bar handle","Knob","Push-to-open","Client specified"].map(x=><option key={x}>{x}</option>)}</select></label><label className="checkRow"><input type="checkbox" checked={item.locked} onChange={e=>patch("locked",e.target.checked)}/>Lock position</label></section>
+        <section className="inspectorGroup"><h4>Material</h4><label>Board<select value={item.materialId} onChange={e=>patch("materialId",e.target.value)}>{MATERIALS.map(m=><option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}</select></label><div className="materialPreview"><i style={{background:material(item.materialId).colour}}/><span><b>{material(item.materialId).code}</b>{material(item.materialId).name}</span></div><label>Finish<input value={item.finish} onChange={e=>patch("finish",e.target.value)}/></label><label>Edge<select value={item.edgeBanding} onChange={e=>patch("edgeBanding",e.target.value)}>{["Matching 1mm","Matching 2mm","Contrast edge","None / raw"].map(x=><option key={x}>{x}</option>)}</select></label></section>
+        <section className="inspectorGroup"><h4>Notes</h4><textarea placeholder="Notes" value={item.notes} onChange={e=>patch("notes",e.target.value)}/></section>
+        {issues.length>0&&<section className="issues"><b>Design checks</b>{issues.slice(0,6).map((x,i)=><p key={i}>{x}</p>)}</section>}
+      </div>
+    </aside>}
+
     {menu&&<div className="contextMenu" style={{left:menu.x,top:menu.y}} onClick={e=>e.stopPropagation()}><button onClick={()=>{s.duplicateItem(menu.id);setMenu(null)}}>Duplicate</button><button onClick={()=>{if(confirm("Delete component?"))s.deleteItem(menu.id);setMenu(null)}}>Delete</button></div>}
   </main>
 }
