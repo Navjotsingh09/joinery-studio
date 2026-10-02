@@ -32,6 +32,7 @@ export default function Studio(){
   const [leftOpen,setLeftOpen]=useState(true);
   const [rightOpen,setRightOpen]=useState(true);
   const [projectOpen,setProjectOpen]=useState(false);
+  const [showLauncher,setShowLauncher]=useState(true);
   const file=useRef<HTMLInputElement>(null);
   const issues=useMemo(()=>validate(p),[p]);
   const designKind=useMemo(()=>inferDesignKind(p.items),[p.items]);
@@ -146,23 +147,39 @@ export default function Studio(){
     finally{setBusy(false)}
   };
 
-  if(!p.items.length){
-    return <ScenarioStart onCreate={(plan:ScenarioPlan)=>{
-      s.configureActive({
-        name:plan.name,
-        roomWidth:plan.roomWidth,
-        roomHeight:plan.roomHeight,
-        roomDepth:plan.roomDepth,
-        rules:plan.rules,
-        items:plan.items
-      });
-      setLeftOpen(true);setRightOpen(false);setTab("components");
-    }}/>;
+  if(showLauncher||!p.items.length){
+    return <ScenarioStart
+      continueName={p.items.length?p.name:undefined}
+      onContinue={p.items.length?()=>setShowLauncher(false):undefined}
+      onCreate={(plan:ScenarioPlan)=>{
+        if(p.items.length){
+          s.addProject();
+          useStudio.getState().configureActive({
+            name:plan.name,
+            roomWidth:plan.roomWidth,
+            roomHeight:plan.roomHeight,
+            roomDepth:plan.roomDepth,
+            rules:plan.rules,
+            items:plan.items
+          });
+        }else{
+          s.configureActive({
+            name:plan.name,
+            roomWidth:plan.roomWidth,
+            roomHeight:plan.roomHeight,
+            roomDepth:plan.roomDepth,
+            rules:plan.rules,
+            items:plan.items
+          });
+        }
+        setShowLauncher(false);setLeftOpen(true);setRightOpen(false);setTab("components");
+      }}
+    />;
   }
 
   return <main className={"studio "+(!leftOpen?"libraryClosed ":"")+(!rightOpen||!item?"inspectorClosed ":"")} onClick={()=>setMenu(null)}>
     <header className="topbar">
-      <div className="brand"><b>JOINERY</b><span>STUDIO</span></div>
+      <button className="brand brandButton" onClick={()=>setShowLauncher(true)}><b>JOINERY</b><span>STUDIO</span></button>
       <button className="projectButton" onClick={e=>{e.stopPropagation();setProjectOpen(v=>!v)}}>
         <span>{p.name}</span><small>{p.reference} · Rev {p.revision}</small>
       </button>
