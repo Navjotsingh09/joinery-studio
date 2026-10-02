@@ -13,8 +13,8 @@ import {ProjectStatus} from "@/types/model";
 import {isProjectBackup} from "@/lib/backup";
 import {mergeProjects} from "@/lib/projectMerge";
 
-const COMPONENTS=["Wardrobe","Base cabinet","Wall cabinet","Tall cabinet","Shelving","Media unit"];
-const glyph=(type:string)=>type==="Shelving"?"☷":type==="Media unit"?"▤":type==="Wall cabinet"?"▱":type==="Base cabinet"?"▭":"▥";
+const COMPONENTS=["Wardrobe","Base cabinet","Wall cabinet","Tall cabinet","Drawer unit","Shelving","Media unit"];
+const glyph=(type:string)=>type==="Shelving"?"☷":type==="Media unit"?"▤":type==="Drawer unit"?"▦":type==="Wall cabinet"?"▱":type==="Base cabinet"?"▭":"▥";
 
 export default function Studio(){
   const s=useStudio();
