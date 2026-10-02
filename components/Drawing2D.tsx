@@ -1,59 +1,123 @@
 "use client";
 import {useRef,useState} from "react";
-import {Project,ViewMode} from "@/types/model";
-import {itemRect,labelFor,viewSize,svgPoint,contrastText,clampItemToRoom,canPlace} from "@/lib/geometry";
+import {Project,ViewMode,JoineryItem} from "@/types/model";
+import {itemRect,labelFor,viewSize,svgPoint,contrastText,clampItemToRoom,validate} from "@/lib/geometry";
 import {material} from "@/lib/materials";
 
-export function Drawing2D({project,view,selected,onSelect,onMove,onMoveStart,onContext}:{project:Project;view:Exclude<ViewMode,"3d">;selected:string|null;onSelect:(id:string|null)=>void;onMove:(id:string,x:number,y:number,z:number)=>void;onMoveStart:()=>void;onContext:(e:React.MouseEvent,id:string)=>void}){
-  const ref=useRef<SVGSVGElement>(null);
-  const [drag,setDrag]=useState<{id:string;start:{x:number;y:number};ox:number;oy:number;oz:number}|null>(null);
-  const size=viewSize(project,view), pad=70, W=1000, H=650;
-  const scale=Math.min((W-pad*2)/size.w,(H-pad*2)/size.h);
-  const tx=pad+(W-pad*2-size.w*scale)/2, ty=pad+(H-pad*2-size.h*scale)/2;
+type DragState={
+  id:string;
+  mode:"move"|"resize";
+  start:{x:number;y:number};
+  original:JoineryItem;
+};
 
-  const down=(e:React.PointerEvent,id:string)=>{
-    e.stopPropagation();
+export function Drawing2D({
+  project,view,selected,onSelect,onMove,onResize,onMoveStart,onContext,onDropType
+}:{
+  project:Project;
+  view:Exclude<ViewMode,"3d">;
+  selected:string|null;
+  onSelect:(id:string|null)=>void;
+  onMove:(id:string,x:number,y:number,z:number)=>void;
+  onResize:(id:string,patch:Partial<JoineryItem>)=>void;
+  onMoveStart:()=>void;
+  onContext:(e:React.MouseEvent,id:string)=>void;
+  onDropType:(type:string,x:number,y:number,z:number)=>void;
+}){
+  const ref=useRef<SVGSVGElement>(null);
+  const [drag,setDrag]=useState<DragState|null>(null);
+  const size=viewSize(project,view),pad=76,W=1000,H=650;
+  const scale=Math.min((W-pad*2)/size.w,(H-pad*2)/size.h);
+  const tx=pad+(W-pad*2-size.w*scale)/2,ty=pad+(H-pad*2-size.h*scale)/2;
+  const issueNames=new Set(validate(project).flatMap(msg=>project.items.filter(i=>msg.includes(i.name)).map(i=>i.id)));
+
+  const begin=(e:React.PointerEvent,id:string,mode:"move"|"resize")=>{
+    e.preventDefault();e.stopPropagation();
     const i=project.items.find(x=>x.id===id);
     if(!i||i.locked||!ref.current)return;
-    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
     onMoveStart();
-    setDrag({id,start:svgPoint(ref.current,e.clientX,e.clientY),ox:i.x,oy:i.y,oz:i.z});
+    setDrag({id,mode,start:svgPoint(ref.current,e.clientX,e.clientY),original:{...i}});
     onSelect(id);
   };
 
   const move=(e:React.PointerEvent)=>{
     if(!drag||!ref.current)return;
-    const i=project.items.find(x=>x.id===drag.id);
-    if(!i)return;
     const q=svgPoint(ref.current,e.clientX,e.clientY);
     const dx=(q.x-drag.start.x)/scale,dy=(q.y-drag.start.y)/scale;
+    const i=drag.original;
+    if(drag.mode==="move"){
+      let candidate={...i};
+      if(view==="front")candidate={...candidate,x:i.x+dx,y:i.y-dy};
+      if(view==="top")candidate={...candidate,x:i.x+dx,z:i.z-dy};
+      if(view==="side")candidate={...candidate,y:i.y-dy,z:i.z+dx};
+      candidate=clampItemToRoom(candidate,project);
+      onMove(i.id,candidate.x,candidate.y,candidate.z);
+      return;
+    }
+    const min=100;
     let candidate={...i};
-    if(view==="front")candidate={...candidate,x:drag.ox+dx,y:drag.oy-dy};
-    if(view==="top")candidate={...candidate,x:drag.ox+dx,z:drag.oz-dy};
-    if(view==="side")candidate={...candidate,y:drag.oy-dy,z:drag.oz+dx};
+    if(view==="front")candidate={...candidate,width:Math.max(min,i.width+dx),height:Math.max(min,i.height+dy)};
+    if(view==="top")candidate={...candidate,width:Math.max(min,i.width+dx),depth:Math.max(min,i.depth+dy)};
+    if(view==="side")candidate={...candidate,depth:Math.max(min,i.depth+dx),height:Math.max(min,i.height+dy)};
     candidate=clampItemToRoom(candidate,project);
-    if(canPlace(project,candidate,i.id))onMove(i.id,candidate.x,candidate.y,candidate.z);
+    onResize(i.id,{width:candidate.width,height:candidate.height,depth:candidate.depth,x:candidate.x,y:candidate.y,z:candidate.z});
   };
 
-  return <svg ref={ref} className="drawing" viewBox={"0 0 "+W+" "+H} onPointerMove={move} onPointerUp={()=>setDrag(null)} onPointerCancel={()=>setDrag(null)} onPointerDown={()=>onSelect(null)}>
-    <defs><pattern id="grid" width={100*scale} height={100*scale} patternUnits="userSpaceOnUse"><path d={"M "+(100*scale)+" 0L0 0 0 "+(100*scale)} fill="none" stroke="#ece9e4"/></pattern></defs>
+  const drop=(e:React.DragEvent<SVGSVGElement>)=>{
+    e.preventDefault();
+    if(!ref.current)return;
+    const type=e.dataTransfer.getData("application/x-joinery-component")||e.dataTransfer.getData("text/plain");
+    if(!type)return;
+    const q=svgPoint(ref.current,e.clientX,e.clientY);
+    const rx=(q.x-tx)/scale,ry=(q.y-ty)/scale;
+    let x=0,y=0,z=0;
+    if(view==="front"){x=rx;y=project.roomHeight-ry}
+    if(view==="top"){x=rx;z=project.roomDepth-ry}
+    if(view==="side"){z=rx;y=project.roomHeight-ry}
+    onDropType(type,x,y,z);
+  };
+
+  return <svg ref={ref} className={"drawing "+(drag?"isDragging":"")} viewBox={"0 0 "+W+" "+H}
+    onPointerMove={move} onPointerUp={()=>setDrag(null)} onPointerCancel={()=>setDrag(null)}
+    onPointerDown={e=>{if(e.target===e.currentTarget)onSelect(null)}}
+    onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="copy"}} onDrop={drop}>
+    <defs>
+      <pattern id="minorGrid" width={50*scale} height={50*scale} patternUnits="userSpaceOnUse"><path d={"M "+(50*scale)+" 0L0 0 0 "+(50*scale)} fill="none" stroke="#efede9" strokeWidth=".7"/></pattern>
+      <pattern id="grid" width={500*scale} height={500*scale} patternUnits="userSpaceOnUse"><rect width={500*scale} height={500*scale} fill="url(#minorGrid)"/><path d={"M "+(500*scale)+" 0L0 0 0 "+(500*scale)} fill="none" stroke="#ddd9d2" strokeWidth="1.2"/></pattern>
+      <filter id="selectionShadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity=".2"/></filter>
+    </defs>
+    <text x={tx} y={34} className="viewTitle">{view==="front"?"FRONT ELEVATION":view==="top"?"PLAN VIEW":"SIDE ELEVATION"}</text>
+    <text x={tx} y={52} className="viewHint">Click to select · drag to move · drag corner handle to resize</text>
     <g transform={"translate("+tx+","+ty+")"}>
-      <rect width={size.w*scale} height={size.h*scale} fill="url(#grid)" stroke="#222" strokeWidth="2"/>
+      <rect className="roomCanvas" width={size.w*scale} height={size.h*scale} fill="url(#grid)" stroke="#383838" strokeWidth="2" onPointerDown={e=>{e.stopPropagation();onSelect(null)}}/>
       <line x1="0" y1={size.h*scale+25} x2={size.w*scale} y2={size.h*scale+25} stroke="#777"/>
-      <text x={size.w*scale/2} y={size.h*scale+45} textAnchor="middle" className="dim">{size.w} mm</text>
+      <line x1="0" y1={size.h*scale+19} x2="0" y2={size.h*scale+31} stroke="#777"/><line x1={size.w*scale} y1={size.h*scale+19} x2={size.w*scale} y2={size.h*scale+31} stroke="#777"/>
+      <text x={size.w*scale/2} y={size.h*scale+47} textAnchor="middle" className="dim">{size.w} mm</text>
       <line x1="-25" y1="0" x2="-25" y2={size.h*scale} stroke="#777"/>
-      <text x="-40" y={size.h*scale/2} transform={"rotate(-90 -40 "+(size.h*scale/2)+")"} textAnchor="middle" className="dim">{size.h} mm</text>
+      <line x1="-31" y1="0" x2="-19" y2="0" stroke="#777"/><line x1="-31" y1={size.h*scale} x2="-19" y2={size.h*scale} stroke="#777"/>
+      <text x="-43" y={size.h*scale/2} transform={"rotate(-90 -43 "+(size.h*scale/2)+")"} textAnchor="middle" className="dim">{size.h} mm</text>
       {project.items.map(i=>{
-        const r=itemRect(i,project,view), sel=i.id===selected, fill=material(i.materialId).colour, tc=contrastText(fill), rw=r.width*scale, rh=r.height*scale;
-        return <g key={i.id} transform={"translate("+(r.left*scale)+","+(r.top*scale)+")"} onPointerDown={e=>down(e,i.id)} onContextMenu={e=>{e.preventDefault();e.stopPropagation();onContext(e,i.id)}} style={{cursor:i.locked?"not-allowed":"move"}}>
-          <rect width={rw} height={rh} fill={fill} stroke={sel?"#c8102e":i.edgeBanding==="None / raw"?"#777":"#222"} strokeWidth={sel?4:i.edgeBanding.includes("2mm")?3:1.5}/>
-          {view==="front"&&Array.from({length:Math.max(0,i.shelves)}).map((_,n)=><line key={"s"+n} x1="0" x2={rw} y1={rh*(n+1)/(i.shelves+1)} y2={rh*(n+1)/(i.shelves+1)} stroke={tc} opacity=".55"/>)}
-          {view==="front"&&i.type!=="Media unit"&&Array.from({length:Math.max(0,i.doors-1)}).map((_,n)=><line key={"d"+n} y1="0" y2={rh} x1={rw*(n+1)/i.doors} x2={rw*(n+1)/i.doors} stroke={tc} opacity=".7"/>)}{view==="front"&&i.type==="Media unit"&&Array.from({length:Math.max(0,i.doors-1)}).map((_,n)=><line key={"dr"+n} x1="0" x2={rw} y1={rh*(n+1)/i.doors} y2={rh*(n+1)/i.doors} stroke={tc} opacity=".7"/>)}
-          <text x={rw/2} y={Math.max(15,rh/2)} textAnchor="middle" className="itemLabel" fill={tc}>{i.name}</text>
-          <text x={rw/2} y={Math.max(30,rh/2+16)} textAnchor="middle" className="itemSub" fill={tc}>{labelFor(i,view)}</text>
-          {sel&&<><line x1="0" y1={rh+9} x2={rw} y2={rh+9} stroke="#c8102e"/><text x={rw/2} y={rh+24} textAnchor="middle" className="dim" fill="#c8102e">{view==="side"?i.depth:i.width} mm</text><line x1={rw+9} y1="0" x2={rw+9} y2={rh} stroke="#c8102e"/><text x={rw+23} y={rh/2} textAnchor="middle" className="dim" fill="#c8102e" transform={"rotate(-90 "+(rw+23)+" "+(rh/2)+")"}>{view==="top"?i.depth:i.height} mm</text><text x="4" y="-8" className="dim" fill="#c8102e">{view==="front"?"X "+i.x+" · Y "+i.y:view==="top"?"X "+i.x+" · Z "+i.z:"Z "+i.z+" · Y "+i.y}</text></>}
+        const r=itemRect(i,project,view),sel=i.id===selected,invalid=issueNames.has(i.id),fill=material(i.materialId).colour,tc=contrastText(fill),rw=r.width*scale,rh=r.height*scale;
+        return <g key={i.id} className={"drawingItem "+(sel?"selected ":"")+(invalid?"invalid ":"")} transform={"translate("+(r.left*scale)+","+(r.top*scale)+")"}
+          onPointerDown={e=>begin(e,i.id,"move")}
+          onContextMenu={e=>{e.preventDefault();e.stopPropagation();onContext(e,i.id)}}
+          style={{cursor:i.locked?"not-allowed":drag?.id===i.id?"grabbing":"grab"}}>
+          <rect className="itemBody" width={rw} height={rh} rx="2" fill={fill} stroke={invalid?"#e15544":sel?"#c8102e":i.edgeBanding==="None / raw"?"#777":"#292929"} strokeWidth={sel?4:invalid?3:i.edgeBanding.includes("2mm")?3:1.5} filter={sel?"url(#selectionShadow)":undefined}/>
+          {view==="front"&&Array.from({length:Math.max(0,i.shelves)}).map((_,n)=><line key={"s"+n} x1="0" x2={rw} y1={rh*(n+1)/(i.shelves+1)} y2={rh*(n+1)/(i.shelves+1)} stroke={tc} opacity=".5"/>)}
+          {view==="front"&&i.type!=="Media unit"&&Array.from({length:Math.max(0,i.doors-1)}).map((_,n)=><line key={"d"+n} y1="0" y2={rh} x1={rw*(n+1)/i.doors} x2={rw*(n+1)/i.doors} stroke={tc} opacity=".7"/>)}
+          {view==="front"&&i.type==="Media unit"&&Array.from({length:Math.max(0,i.doors-1)}).map((_,n)=><line key={"dr"+n} x1="0" x2={rw} y1={rh*(n+1)/i.doors} y2={rh*(n+1)/i.doors} stroke={tc} opacity=".7"/>)}
+          <text x={rw/2} y={Math.max(15,rh/2-2)} textAnchor="middle" className="itemLabel" fill={tc}>{i.name}</text>
+          <text x={rw/2} y={Math.max(30,rh/2+15)} textAnchor="middle" className="itemSub" fill={tc}>{labelFor(i,view)}</text>
+          {sel&&<>
+            <line x1="0" y1={rh+11} x2={rw} y2={rh+11} stroke="#c8102e"/><text x={rw/2} y={rh+27} textAnchor="middle" className="dim selectionDim">{view==="side"?i.depth:i.width} mm</text>
+            <line x1={rw+11} y1="0" x2={rw+11} y2={rh} stroke="#c8102e"/><text x={rw+27} y={rh/2} textAnchor="middle" className="dim selectionDim" transform={"rotate(-90 "+(rw+27)+" "+(rh/2)+")"}>{view==="top"?i.depth:i.height} mm</text>
+            <text x="4" y="-10" className="dim selectionDim">{view==="front"?"X "+i.x+" · Y "+i.y:view==="top"?"X "+i.x+" · Z "+i.z:"Z "+i.z+" · Y "+i.y}</text>
+            {!i.locked&&<g className="resizeHandle" transform={"translate("+rw+","+rh+")"} onPointerDown={e=>begin(e,i.id,"resize")}><circle r="10" fill="#fff" stroke="#c8102e" strokeWidth="3"/><circle r="3" fill="#c8102e"/></g>}
+          </>}
         </g>
       })}
+      {!project.items.length&&<g className="emptyCanvas" pointerEvents="none"><text x={size.w*scale/2} y={size.h*scale/2-8} textAnchor="middle">Drag a component here</text><text x={size.w*scale/2} y={size.h*scale/2+16} textAnchor="middle">or click a component in the library to add it</text></g>}
     </g>
   </svg>;
 }
