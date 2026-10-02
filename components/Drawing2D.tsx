@@ -124,7 +124,7 @@ export function Drawing2D({
       {guides.x!==undefined&&<><line className="snapGuide" x1={guides.x*scale} x2={guides.x*scale} y1="0" y2={size.h*scale}/><text className="snapHint" x={guides.x*scale+8} y="18">{guides.label}</text></>}
       {guides.y!==undefined&&<><line className="snapGuide" x1="0" x2={size.w*scale} y1={guides.y*scale} y2={guides.y*scale}/><text className="snapHint" x="8" y={guides.y*scale-8}>{guides.label}</text></>}
       {project.items.map(i=>{
-        const r=itemRect(i,project,view),sel=i.id===selected,invalid=issueNames.has(i.id),fill=material(i.materialId).colour,tc=contrastText(fill),rw=r.width*scale,rh=r.height*scale,isDrawer=i.type==="Drawer unit"||i.type==="Media unit",hasPlinth=["Wardrobe","Base cabinet","Tall cabinet","Drawer unit","Media unit"].includes(i.type),plinthPx=hasPlinth?Math.min(rh*.14,100*scale):0;
+        const r=itemRect(i,project,view),sel=i.id===selected,invalid=issueNames.has(i.id),fill=material(i.materialId).colour,tc=contrastText(fill),rw=r.width*scale,rh=r.height*scale,isDrawer=i.type==="Drawer unit"||i.type==="Media unit",hasPlinth=["Wardrobe","Base cabinet","Tall cabinet","Drawer unit","Media unit","Sink base","Hob base","Kitchen island"].includes(i.type),plinthPx=hasPlinth?Math.min(rh*.14,100*scale):0,isStair=["Straight staircase","L staircase","U staircase"].includes(i.type),isBed=i.type==="Bed",isSink=i.type==="Sink base",isHob=i.type==="Hob base",isOven=i.type==="Oven tower";
         return <g key={i.id} className={"drawingItem "+(sel?"selected ":"")+(invalid?"invalid ":"")} transform={"translate("+(r.left*scale)+","+(r.top*scale)+")"}
           onPointerDown={e=>begin(e,i.id,"move")}
           onContextMenu={e=>{e.preventDefault();e.stopPropagation();onContext(e,i.id)}}
@@ -136,6 +136,12 @@ export function Drawing2D({
           {view==="front"&&hasPlinth&&<><line x1="0" x2={rw} y1={rh-plinthPx} y2={rh-plinthPx} stroke={tc} opacity=".5"/><rect x={rw*.06} y={rh-plinthPx} width={rw*.88} height={plinthPx} fill={fill} opacity=".78"/></>}
           {view==="front"&&i.doors>0&&!isDrawer&&i.hardware!=="None"&&i.hardware!=="Push-to-open"&&Array.from({length:i.doors}).map((_,n)=>{const dw=rw/i.doors,x=dw*n+dw*(n<i.doors/2?.82:.18);return <line key={"h"+n} x1={x} x2={x} y1={(rh-plinthPx)*.42} y2={(rh-plinthPx)*.58} stroke={tc} strokeWidth="2.4" opacity=".85"/>})}
           {view==="front"&&isDrawer&&i.hardware!=="None"&&i.hardware!=="Push-to-open"&&Array.from({length:Math.max(1,i.doors)}).map((_,n)=>{const fh=(rh-plinthPx)/Math.max(1,i.doors),y=fh*n+fh*.32;return <line key={"dh"+n} x1={rw*.42} x2={rw*.58} y1={y} y2={y} stroke={tc} strokeWidth="2.4" opacity=".85"/>})}
+          {isStair&&view==="side"&&Array.from({length:13}).map((_,n)=>{const x=rw*n/13,y=rh-rh*(n+1)/13;return <path key={"st"+n} d={"M "+x+" "+rh+" V "+y+" H "+(rw*(n+1)/13)} fill="none" stroke={tc} strokeWidth="1.6" opacity=".9"/>})}
+          {isStair&&view==="top"&&Array.from({length:13}).map((_,n)=><line key={"pt"+n} x1="0" x2={rw} y1={rh*(n+1)/13} y2={rh*(n+1)/13} stroke={tc} strokeWidth="1.3" opacity=".75"/>)}
+          {isBed&&view==="top"&&<><rect x={rw*.04} y={rh*.04} width={rw*.92} height={rh*.92} rx="8" fill="#f1eee8" stroke="#a79e91"/><rect x={rw*.12} y={rh*.08} width={rw*.34} height={rh*.18} rx="8" fill="#fff" stroke="#bbb4aa"/><rect x={rw*.54} y={rh*.08} width={rw*.34} height={rh*.18} rx="8" fill="#fff" stroke="#bbb4aa"/></>}
+          {isSink&&view==="top"&&<ellipse cx={rw/2} cy={rh*.45} rx={rw*.28} ry={rh*.26} fill="#8f9699" stroke="#52585c" strokeWidth="1.5"/>}
+          {isHob&&view==="top"&&<><rect x={rw*.2} y={rh*.18} width={rw*.6} height={rh*.64} rx="4" fill="#181a1c"/>{[[.35,.35],[.65,.35],[.35,.65],[.65,.65]].map((p,n)=><circle key={n} cx={rw*p[0]} cy={rh*p[1]} r={Math.min(rw,rh)*.08} fill="none" stroke="#5b6064" strokeWidth="2"/>)}</>}
+          {isOven&&view==="front"&&<><rect x={rw*.12} y={rh*.36} width={rw*.76} height={rh*.26} rx="3" fill="#17191b" stroke="#0c0d0e"/><line x1={rw*.24} x2={rw*.76} y1={rh*.41} y2={rh*.41} stroke="#777" strokeWidth="2"/></>}
           <text x={rw/2} y={Math.max(15,rh/2-2)} textAnchor="middle" className="itemLabel" fill={tc}>{i.name}</text>
           <text x={rw/2} y={Math.max(30,rh/2+15)} textAnchor="middle" className="itemSub" fill={tc}>{labelFor(i,view)}</text>
           {sel&&<>
