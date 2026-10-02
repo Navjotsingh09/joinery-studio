@@ -28,7 +28,22 @@ export default function Studio(){
   const file=useRef<HTMLInputElement>(null);
   const issues=useMemo(()=>validate(p),[p]);
 
-  useEffect(()=>{if(!hasSupabase())return;cloud.currentUser().then(u=>setUser(u?.email??null)).catch(()=>setUser(null));return cloud.onAuthChange(setUser)},[]);
+  useEffect(()=>{
+    if(!hasSupabase())return;
+    let active=true;
+    cloud.currentUser().then(async u=>{
+      if(!active)return;
+      setUser(u?.email??null);
+      if(u){
+        const remote=await cloud.loadCloud();
+        if(!active)return;
+        if(remote.length)s.replaceAll(mergeProjects(useStudio.getState().projects,remote));
+        setCloudReady(true);
+      }
+    }).catch(()=>{if(active){setUser(null);setCloudReady(false)}});
+    const off=cloud.onAuthChange(email=>{if(active){setUser(email);if(!email)setCloudReady(false)}});
+    return()=>{active=false;off()};
+  },[]);
   const cloudSave=async()=>{if(!hasSupabase()||!user)return;setBusy(true);try{await cloud.saveAllCloud(s.projects);setNotice("All projects saved to cloud.")}catch(e:any){setNotice("Cloud save failed: "+(e?.message??"Unknown error"))}finally{setBusy(false)}};
   useEffect(()=>{if(!hasSupabase()||!user||!cloudReady)return;const t=window.setTimeout(()=>{cloud.saveCloud(p).catch(()=>{})},1600);return()=>window.clearTimeout(t)},[user,cloudReady,p]);
   useEffect(()=>{
