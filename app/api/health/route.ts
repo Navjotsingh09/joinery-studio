@@ -8,16 +8,16 @@ export async function GET(){
   const key=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const configured=Boolean(url&&key);
   let supabaseReachable=false;
-  let supabaseError:string|null=null;
+  let supabaseError:boolean=false;
 
   if(url&&key){
     try{
       const db=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false}});
       const {error}=await db.from("projects").select("id",{head:true,count:"exact"}).limit(1);
       supabaseReachable=!error;
-      supabaseError=error?.message??null;
+      supabaseError=Boolean(error);
     }catch(e:any){
-      supabaseError=e?.message??"Unknown Supabase connectivity error";
+      supabaseError=true;
     }
   }
 
