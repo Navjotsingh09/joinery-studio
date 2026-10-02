@@ -1,6 +1,6 @@
 "use client";
-import {useRef} from "react";
-import {Canvas} from "@react-three/fiber";
+import {useEffect,useRef,useState} from "react";
+import {Canvas,useThree} from "@react-three/fiber";
 import {OrbitControls,Grid,GizmoHelper,GizmoViewport,TransformControls,ContactShadows} from "@react-three/drei";
 import * as THREE from "three";
 import {Project,JoineryItem} from "@/types/model";
@@ -227,6 +227,89 @@ function ApplianceGlass({position,size}:{position:[number,number,number];size:[n
   return <mesh position={position} castShadow><boxGeometry args={size}/><meshStandardMaterial color="#141618" roughness={.12} metalness={.12}/></mesh>;
 }
 
+
+function Dishwasher({w,h,d}:{w:number;h:number;d:number}){
+  return <group>
+    <mesh castShadow receiveShadow><boxGeometry args={[w,h,d]}/><meshStandardMaterial color="#c5c8c9" metalness={.42} roughness={.36}/></mesh>
+    <ApplianceGlass position={[0,h*.23,d/2+.012]} size={[w-.08,.13,.024]}/>
+    <Metal position={[0,h*.37,d/2+.028]} size={[w-.14,.018,.018]}/>
+    <circleGeometry args={[.01,16]}/>
+  </group>;
+}
+
+function WashingMachine({w,h,d}:{w:number;h:number;d:number}){
+  return <group>
+    <mesh castShadow receiveShadow><boxGeometry args={[w,h,d]}/><meshStandardMaterial color="#ecebea" roughness={.48}/></mesh>
+    <mesh position={[0,-h*.05,d/2+.016]} rotation={[Math.PI/2,0,0]} castShadow><cylinderGeometry args={[Math.min(w,h)*.29,Math.min(w,h)*.29,.035,40]}/><meshStandardMaterial color="#2c3134" metalness={.25} roughness={.24}/></mesh>
+    <mesh position={[0,-h*.05,d/2+.038]} rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[Math.min(w,h)*.2,Math.min(w,h)*.2,.016,40]}/><meshStandardMaterial color="#66808c" transparent opacity={.55} roughness={.12}/></mesh>
+    <rectAreaLight position={[0,h*.35,d/2+.03]} width={w*.35} height={.02} intensity={.15}/>
+    <Metal position={[w*.23,h*.34,d/2+.025]} size={[.08,.025,.018]}/>
+  </group>;
+}
+
+function Microwave({w,h,d}:{w:number;h:number;d:number}){
+  return <group>
+    <mesh castShadow><boxGeometry args={[w,h,d]}/><meshStandardMaterial color="#2b2d2f" metalness={.25} roughness={.3}/></mesh>
+    <ApplianceGlass position={[-w*.07,0,d/2+.014]} size={[w*.68,h*.72,.025]}/>
+    <mesh position={[w*.36,.08,d/2+.025]}><boxGeometry args={[w*.12,h*.36,.02]}/><meshStandardMaterial color="#17191a"/></mesh>
+    <Metal position={[-w*.32,0,d/2+.035]} size={[.015,h*.5,.018]}/>
+  </group>;
+}
+
+function ExtractorHood({w,h,d}:{w:number;h:number;d:number}){
+  return <group>
+    <mesh position={[0,-h*.28,.04]} castShadow><boxGeometry args={[w,.11,d]}/><meshStandardMaterial color="#777b7d" metalness={.65} roughness={.24}/></mesh>
+    <mesh position={[0,.05,-d*.18]} castShadow><boxGeometry args={[w*.34,h*.58,d*.34]}/><meshStandardMaterial color="#85898b" metalness={.62} roughness={.25}/></mesh>
+    <mesh position={[0,-h*.35,d*.28]} rotation={[Math.PI/2,0,0]}><circleGeometry args={[w*.18,32]}/><meshStandardMaterial color="#242729"/></mesh>
+  </group>;
+}
+
+function DoorOpening({w,h,d,c}:{w:number;h:number;d:number;c:string}){
+  const frame=.055,leaf=Math.max(.035,d*.38);
+  return <group>
+    <mesh position={[0,0,-d*.12]}><boxGeometry args={[Math.max(.05,w-frame*2),Math.max(.05,h-frame),.025]}/><meshStandardMaterial color="#4b4844" roughness={.92}/></mesh>
+    <Panel position={[-w/2+frame/2,0,0]} size={[frame,h,d]} colour={c}/>
+    <Panel position={[w/2-frame/2,0,0]} size={[frame,h,d]} colour={c}/>
+    <Panel position={[0,h/2-frame/2,0]} size={[w,frame,d]} colour={c}/>
+    <group position={[-w/2+frame+.015,-h*.05,d*.22]} rotation={[0,-.45,0]}>
+      <Panel position={[w*.34,0,0]} size={[w*.68,h*.88,leaf]} colour={boardColour(c,-.08)} front/>
+      <Handle x={w*.59} y={0} z={leaf/2+.02} height={h*.7} hardware="Bar handle"/>
+    </group>
+  </group>;
+}
+
+function WindowFrame({w,h,d}:{w:number;h:number;d:number}){
+  const frame=.055;
+  return <group>
+    <mesh><boxGeometry args={[w,h,.018]}/><meshPhysicalMaterial color="#9eb9c4" transparent opacity={.34} roughness={.08} transmission={.55}/></mesh>
+    <Metal position={[-w/2+frame/2,0,.012]} size={[frame,h,.04]}/>
+    <Metal position={[w/2-frame/2,0,.012]} size={[frame,h,.04]}/>
+    <Metal position={[0,h/2-frame/2,.012]} size={[w,frame,.04]}/>
+    <Metal position={[0,-h/2+frame/2,.012]} size={[w,frame,.04]}/>
+    <Metal position={[0,0,.015]} size={[.025,h-frame*2,.035]}/>
+    <Panel position={[0,-h/2-.045,-.015]} size={[w+.08,.07,Math.max(.11,d+.08)]} colour="#e6e1da" front/>
+  </group>;
+}
+
+function GlassBalustrade({w,h,d}:{w:number;h:number;d:number}){
+  const panels=Math.max(1,Math.round(w/.9)),pw=w/panels;
+  return <group>
+    {Array.from({length:panels},(_,n)=>{const x=-w/2+pw*(n+.5);return <mesh key={n} position={[x,0,0]}><boxGeometry args={[pw-.045,h-.08,.018]}/><meshPhysicalMaterial color="#b7d2db" transparent opacity={.32} roughness={.06} transmission={.65}/></mesh>})}
+    {Array.from({length:panels+1},(_,n)=><Metal key={"p"+n} position={[-w/2+pw*n,0,0]} size={[.035,h,.035]}/>)}
+    <Metal position={[0,h/2+.02,0]} size={[w+.06,.055,.055]}/>
+  </group>;
+}
+
+function TimberBalustrade({w,h,d,c}:{w:number;h:number;d:number;c:string}){
+  const count=Math.max(4,Math.round(w/.18));
+  return <group>
+    <Panel position={[0,h/2+.025,0]} size={[w+.08,.065,Math.max(.07,d)]} colour={boardColour(c,-.08)} front/>
+    <Panel position={[-w/2+.045,0,0]} size={[.09,h,.09]} colour={c} front/>
+    <Panel position={[w/2-.045,0,0]} size={[.09,h,.09]} colour={c} front/>
+    {Array.from({length:count},(_,n)=><Panel key={n} position={[-w/2+(w*(n+1))/(count+1),0,0]} size={[.035,h-.08,.035]} colour={c} front/>)}
+  </group>;
+}
+
 function SlidingWardrobe({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
   const bodyD=d-mm(BOARD),track=.028,gap=.012,count=Math.max(2,i.doors);
   return <group>
@@ -386,6 +469,14 @@ function CabinetGeometry({i}:{i:JoineryItem}){
   if(i.type==="L staircase")return <LStaircase w={w} h={h} d={d} c={c}/>;
   if(i.type==="U staircase")return <UStaircase w={w} h={h} d={d} c={c}/>;
   if(i.type==="Under-stair storage")return <UnderStairStorage i={i} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Dishwasher")return <Dishwasher w={w} h={h} d={d}/>;
+  if(i.type==="Washing machine")return <WashingMachine w={w} h={h} d={d}/>;
+  if(i.type==="Microwave")return <Microwave w={w} h={h} d={d}/>;
+  if(i.type==="Extractor hood")return <ExtractorHood w={w} h={h} d={d}/>;
+  if(i.type==="Door opening")return <DoorOpening w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Window")return <WindowFrame w={w} h={h} d={d}/>;
+  if(i.type==="Glass balustrade")return <GlassBalustrade w={w} h={h} d={d}/>;
+  if(i.type==="Timber balustrade")return <TimberBalustrade w={w} h={h} d={d} c={c}/>;
   return <OpenShelving i={i} w={w} h={h} d={d} c={c}/>;
 }
 
@@ -410,17 +501,37 @@ function ItemNode({i,project,selected,onSelect,onMove,onMoveStart}:{i:JoineryIte
   return <TransformControls mode="translate" translationSnap={Math.max(1,project.rules.snap)/1000} showX showY={isWallMounted(i)} showZ onMouseDown={()=>onMoveStart?.()} onObjectChange={sync}>{node}</TransformControls>;
 }
 
+
+type CameraPreset="iso"|"front"|"side"|"top";
+function CameraRig({preset,rw,rh,rd}:{preset:CameraPreset;rw:number;rh:number;rd:number}){
+  const {camera,controls}=useThree();
+  useEffect(()=>{
+    const m=Math.max(rw,rh,rd),target=new THREE.Vector3(0,Math.min(1.15,rh*.45),0);
+    camera.up.set(0,1,0);
+    if(preset==="front")camera.position.set(0,Math.max(1.4,rh*.5),Math.max(4.2,m*1.7));
+    else if(preset==="side")camera.position.set(Math.max(4.2,m*1.7),Math.max(1.4,rh*.5),0);
+    else if(preset==="top"){camera.up.set(0,0,-1);camera.position.set(0,Math.max(5,m*1.9),0);target.set(0,0,0)}
+    else camera.position.set(Math.max(3.7,rw*.95),Math.max(2.2,rh*.78),Math.max(4.3,rd*1.35));
+    camera.lookAt(target);
+    camera.updateProjectionMatrix();
+    const orbit=controls as any;
+    if(orbit?.target){orbit.target.copy(target);orbit.update?.()}
+  },[preset,rw,rh,rd,camera,controls]);
+  return null;
+}
+
 export function Scene3D({project,selected,onSelect,onMove,onMoveStart}:{project:Project;selected?:string|null;onSelect?:(id:string|null)=>void;onMove?:(id:string,x:number,y:number,z:number)=>void;onMoveStart?:()=>void}){
   const rw=mm(project.roomWidth),rh=mm(project.roomHeight),rd=mm(project.roomDepth),roomMax=Math.max(rw,rh,rd);
-  return <div className="three"><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(2.2,rh*.78),Math.max(4.3,rd*1.35)],fov:38}} shadows gl={{antialias:true}}>
+  const [preset,setPreset]=useState<CameraPreset>("iso"),[showGrid,setShowGrid]=useState(true),[showWalls,setShowWalls]=useState(true);
+  return <div className="three"><div className="sceneToolbar"><div className="cameraPresets">{(["iso","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={preset===v?"active":""} onClick={()=>setPreset(v)}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles"><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button><button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button></div></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(2.2,rh*.78),Math.max(4.3,rd*1.35)],fov:38}} shadows gl={{antialias:true}}>
+    <CameraRig preset={preset} rw={rw} rh={rh} rd={rd}/>
     <color attach="background" args={["#f2f1ee"]}/>
     <ambientLight intensity={.72}/>
     <hemisphereLight args={["#ffffff","#b6afa5",1.25]}/>
     <directionalLight castShadow position={[3.5,6.5,4.5]} intensity={2.15} shadow-mapSize-width={2048} shadow-mapSize-height={2048}/>
     <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.012,0]} receiveShadow><boxGeometry args={[rw,rd,.024]}/><meshStandardMaterial color="#d8d3cb" roughness={.9}/></mesh>
-    <Grid position={[0,.002,0]} args={[Math.max(rw,rd)*1.25,Math.max(rw,rd)*1.25]} cellSize={.1} sectionSize={.5} cellColor="#cbc6bf" sectionColor="#aaa49b" fadeDistance={15} fadeStrength={1.5}/>
-    <mesh position={[0,rh/2,-rd/2]} receiveShadow><boxGeometry args={[rw,rh,.035]}/><meshStandardMaterial color="#f7f6f3" roughness={.96}/></mesh>
-    <mesh position={[-rw/2,rh/2,0]} receiveShadow><boxGeometry args={[.035,rh,rd]}/><meshStandardMaterial color="#f4f3f0" roughness={.96}/></mesh>
+{showGrid&&<Grid position={[0,.002,0]} args={[Math.max(rw,rd)*1.25,Math.max(rw,rd)*1.25]} cellSize={.1} sectionSize={.5} cellColor="#cbc6bf" sectionColor="#aaa49b" fadeDistance={15} fadeStrength={1.5}/>}
+{showWalls&&<><mesh position={[0,rh/2,-rd/2]} receiveShadow><boxGeometry args={[rw,rh,.035]}/><meshStandardMaterial color="#f7f6f3" roughness={.96}/></mesh><mesh position={[-rw/2,rh/2,0]} receiveShadow><boxGeometry args={[.035,rh,rd]}/><meshStandardMaterial color="#f4f3f0" roughness={.96}/></mesh></>}
     {project.items.map(i=><ItemNode key={i.id} i={i} project={project} selected={selected===i.id} onSelect={onSelect} onMove={onMove} onMoveStart={onMoveStart}/>)}
     <ContactShadows position={[0,.003,0]} opacity={.32} scale={Math.max(5,roomMax*1.8)} blur={2.6} far={Math.max(5,roomMax*1.8)}/>
     <OrbitControls makeDefault target={[0,Math.min(1.15,rh*.48),0]} enableDamping dampingFactor={.08} enablePan enableZoom minDistance={1} maxDistance={Math.max(8,roomMax*4)}/>
