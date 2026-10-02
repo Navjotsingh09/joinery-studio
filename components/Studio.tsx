@@ -30,6 +30,7 @@ export default function Studio(){
   const [notice,setNotice]=useState("");
   const [leftOpen,setLeftOpen]=useState(true);
   const [rightOpen,setRightOpen]=useState(true);
+  const [projectOpen,setProjectOpen]=useState(false);
   const file=useRef<HTMLInputElement>(null);
   const issues=useMemo(()=>validate(p),[p]);
 
@@ -142,119 +143,95 @@ export default function Studio(){
     finally{setBusy(false)}
   };
 
-  return <main className={"shell "+(!leftOpen?"leftClosed ":"")+(!rightOpen||!item?"rightClosed ":"")} onClick={()=>setMenu(null)}>
+  return <main className={"studio "+(!leftOpen?"libraryClosed ":"")+(!rightOpen||!item?"inspectorClosed ":"")} onClick={()=>setMenu(null)}>
     <header className="topbar">
-      <button className="iconBtn" title="Toggle library" onClick={()=>setLeftOpen(v=>!v)}>☰</button>
       <div className="brand"><b>JOINERY</b><span>STUDIO</span></div>
-      <div className="projectMeta"><strong>{p.name}</strong><small>{p.reference} · Rev {p.revision}</small></div>
-      <div className="headerTools">
+      <button className="projectButton" onClick={e=>{e.stopPropagation();setProjectOpen(v=>!v)}}>
+        <span>{p.name}</span><small>{p.reference} · Rev {p.revision}</small>
+      </button>
+      <div className="topActions">
         <button className="iconBtn" title="Undo" onClick={s.undo}>↶</button>
         <button className="iconBtn" title="Redo" onClick={s.redo}>↷</button>
-        <details className="topMenu"><summary>•••</summary><div>
+        <div className="viewSwitcher">{(["front","top","side","3d"] as const).map(v=><button key={v} className={s.view===v?"active":""} onClick={()=>s.setView(v)}>{v==="3d"?"3D":v[0].toUpperCase()+v.slice(1)}</button>)}</div>
+        <details className="topMenu"><summary>Export</summary><div>
+          <button onClick={()=>exportPdf(p)}>PDF drawing pack</button>
           <button onClick={exportJson}>Export JSON</button>
           <button onClick={()=>file.current?.click()}>Import JSON</button>
-          <button onClick={()=>exportPdf(p)}>Export PDF</button>
         </div></details>
         <input ref={file} hidden type="file" accept=".json" onChange={importJson}/>
         {hasSupabase()&&user&&<button className="quietBtn" disabled={busy} onClick={cloudSave}>{busy?"Saving…":"Save"}</button>}
         <button disabled={issues.length>0} className="primary compactPrimary" onClick={s.saveRevision}>Save revision</button>
-        <button className="iconBtn" title="Toggle inspector" onClick={()=>setRightOpen(v=>!v)}>◧</button>
       </div>
     </header>
 
-    <aside className="left">
-      <div className="sidebarHeader">
-        <select className="projectSelect" value={p.id} onChange={async e=>{if(hasSupabase()&&user){try{await cloud.saveCloud(p)}catch{}}s.setActive(e.target.value)}}>
-          {s.projects.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}
-        </select>
-        <button className="iconBtn" title="New project" onClick={async()=>{if(hasSupabase()&&user){try{await cloud.saveCloud(p)}catch{}}s.addProject()}}>＋</button>
-      </div>
+    <nav className="toolRail">
+      <button className={tab==="components"&&leftOpen?"active":""} title="Add" onClick={()=>{setTab("components");setLeftOpen(true)}}><span>＋</span><small>Add</small></button>
+      <button className={tab==="items"&&leftOpen?"active":""} title="Items" onClick={()=>{setTab("items");setLeftOpen(true)}}><span>▦</span><small>Items</small></button>
+      <button className={tab==="materials"&&leftOpen?"active":""} title="Materials" onClick={()=>{setTab("materials");setLeftOpen(true)}}><span>◩</span><small>Material</small></button>
+      <button className={tab==="revisions"&&leftOpen?"active":""} title="History" onClick={()=>{setTab("revisions");setLeftOpen(true)}}><span>↺</span><small>History</small></button>
+      <div className="railSpacer"/>
+      <button title={leftOpen?"Hide library":"Show library"} onClick={()=>setLeftOpen(v=>!v)}><span>{leftOpen?"‹":"›"}</span></button>
+    </nav>
 
-      <div className="sidebarTabs">
-        <button className={tab==="components"?"active":""} onClick={()=>setTab("components")}><span>＋</span>Add</button>
-        <button className={tab==="items"?"active":""} onClick={()=>setTab("items")}><span>▦</span>Items</button>
-        <button className={tab==="materials"?"active":""} onClick={()=>setTab("materials")}><span>◩</span>Materials</button>
-        <button className={tab==="revisions"?"active":""} onClick={()=>setTab("revisions")}><span>↺</span>History</button>
+    <aside className="libraryPanel">
+      <div className="panelHead">
+        <div><b>{tab==="components"?"Add joinery":tab==="items"?"Items":tab==="materials"?"Materials":"History"}</b><small>{tab==="components"?"Drag to canvas":tab==="items"?p.items.length+" objects":tab==="materials"?(item?"Apply to selection":"Select an object"):"Saved snapshots"}</small></div>
+        <button className="iconBtn" onClick={()=>setLeftOpen(false)}>×</button>
       </div>
-
-      <div className="sidebarBody">
+      <div className="panelBody">
         {tab==="components"&&<>
-          <div className="panelTitle"><b>Add joinery</b><small>Drag onto the canvas</small></div>
           <input className="searchInput" placeholder="Search components" value={search} onChange={e=>setSearch(e.target.value)}/>
           <section className="cards">{COMPONENTS.filter(x=>x.toLowerCase().includes(search.toLowerCase())).map(x=><button key={x} draggable onDragStart={e=>{e.dataTransfer.setData("application/x-joinery-component",x);e.dataTransfer.setData("text/plain",x);e.dataTransfer.effectAllowed="copy"}} onClick={()=>add(x)}><span className="componentGlyph">{glyph(x)}</span><span><b>{x}</b><small>Drag or click to add</small></span></button>)}</section>
         </>}
-
-        {tab==="items"&&<>
-          <div className="panelTitle"><b>Items</b><small>{p.items.length} in this design</small></div>
-          <section className="itemManager">{p.items.map(i=><button key={i.id} className={s.selectedId===i.id?"activeItem":""} onClick={()=>s.select(i.id)}><span className="itemIcon">{glyph(i.type)}</span><span><b>{i.name}</b><small>{i.width} × {i.height} × {i.depth} mm</small></span><span className="itemState">{i.locked?"●":""}</span></button>)}{!p.items.length&&<small className="muted">No joinery items yet.</small>}</section>
-        </>}
-
-        {tab==="materials"&&<>
-          <div className="panelTitle"><b>Materials</b><small>{item?"Applies to selected item":"Select an item first"}</small></div>
-          <section className="materials">{MATERIALS.map(m=><button key={m.id} className={item?.materialId===m.id?"selectedMaterial":""} onClick={()=>item&&patch("materialId",m.id)}><i style={{background:m.colour}}/><span><b>{m.code}</b>{m.name}<small>{m.category} · {m.thickness} mm</small></span></button>)}</section>
-        </>}
-
-        {tab==="revisions"&&<>
-          <div className="panelTitle"><b>History</b><small>Saved design snapshots</small></div>
-          <section className="revisionList">{[...p.revisions].reverse().map(r=><div key={r.id}><span><b>Revision {r.revision}</b><small>{new Date(r.createdAt).toLocaleString()}</small></span><button onClick={()=>confirm("Restore revision "+r.revision+"?")&&s.restoreRevision(r.id)}>Restore</button></div>)}{!p.revisions.length&&<small className="muted">No saved revisions yet.</small>}</section>
-        </>}
-
-        <details className="sidebarDetails">
-          <summary>Project & room</summary>
-          <div className="detailsBody">
-            <label>Project name<input value={p.name} onChange={e=>s.updateProject({name:e.target.value})}/></label>
-            <label>Customer<input value={p.customer} onChange={e=>s.updateProject({customer:e.target.value})}/></label>
-            <div className="fieldGrid2"><label>Reference<input value={p.reference} onChange={e=>s.updateProject({reference:e.target.value})}/></label><label>Status<select value={p.status} onChange={e=>s.updateProject({status:e.target.value as ProjectStatus})}>{(["Draft","Presented","Accepted","Rejected"] as ProjectStatus[]).map(x=><option key={x}>{x}</option>)}</select></label></div>
-            <div className="groupLabel">Room size · mm</div>
-            <div className="fieldGrid3">{(["roomWidth","roomHeight","roomDepth"] as const).map((k,n)=><label key={k}>{["W","H","D"][n]}<input min="100" type="number" value={p[k]} onChange={e=>s.updateProject({[k]:Math.max(100,+e.target.value)})}/></label>)}</div>
-            <div className="groupLabel">Rules · mm</div>
-            <div className="fieldGrid3"><label>Clear<input type="number" min="0" value={p.rules.wallClearance} onChange={e=>s.updateProject({rules:{...p.rules,wallClearance:Math.max(0,+e.target.value)}})}/></label><label>Gap<input type="number" min="0" value={p.rules.componentGap} onChange={e=>s.updateProject({rules:{...p.rules,componentGap:Math.max(0,+e.target.value)}})}/></label><label>Snap<input type="number" min="1" value={p.rules.snap} onChange={e=>s.updateProject({rules:{...p.rules,snap:Math.max(1,+e.target.value)}})}/></label></div>
-            <button className="dangerText" onClick={async()=>{if(!confirm('Delete project "'+p.name+'"?'))return;if(hasSupabase()&&user){try{await cloud.deleteCloud(p.id)}catch(e:any){return alert(e.message)}}s.deleteProject()}}>Delete project</button>
-          </div>
-        </details>
-
-        <details className="sidebarDetails">
-          <summary>Cloud</summary>
-          <div className="detailsBody">
-            {!hasSupabase()?<small className="muted">Local storage mode.</small>:!user?<><input placeholder="Email" value={auth.email} onChange={e=>setAuth({...auth,email:e.target.value})}/><input type="password" placeholder="Password" value={auth.password} onChange={e=>setAuth({...auth,password:e.target.value})}/><div className="row"><button disabled={busy} onClick={()=>login(false)}>Login</button><button disabled={busy} onClick={()=>login(true)}>Sign up</button></div></>:<><div className="cloudStatus"><span className={cloudReady?"statusDot live":"statusDot"}/><span>{cloudReady?"Cloud autosave on":"Preparing cloud sync"}</span></div><small className="muted">{user}</small><div className="row"><button disabled={busy} onClick={cloudSave}>Save all</button><button disabled={busy} onClick={async()=>{setBusy(true);try{await cloud.saveCloud(p);await cloud.signOut();setUser(null);setCloudReady(false)}finally{setBusy(false)}}}>Logout</button></div></>}
-            {notice&&<small className="noticeText">{notice}</small>}
-          </div>
-        </details>
+        {tab==="items"&&<section className="itemManager">{p.items.map(i=><button key={i.id} className={s.selectedId===i.id?"activeItem":""} onClick={()=>s.select(i.id)}><span className="itemIcon">{glyph(i.type)}</span><span><b>{i.name}</b><small>{i.width} × {i.height} × {i.depth} mm</small></span><span className="itemState">{i.locked?"●":""}</span></button>)}{!p.items.length&&<small className="muted">No joinery yet.</small>}</section>}
+        {tab==="materials"&&<section className="materials">{MATERIALS.map(m=><button key={m.id} className={item?.materialId===m.id?"selectedMaterial":""} disabled={!item} onClick={()=>item&&patch("materialId",m.id)}><i style={{background:m.colour}}/><span><b>{m.code}</b>{m.name}<small>{m.category} · {m.thickness} mm</small></span></button>)}</section>}
+        {tab==="revisions"&&<section className="revisionList">{[...p.revisions].reverse().map(r=><div key={r.id}><span><b>Revision {r.revision}</b><small>{new Date(r.createdAt).toLocaleString()}</small></span><button onClick={()=>confirm("Restore revision "+r.revision+"?")&&s.restoreRevision(r.id)}>Restore</button></div>)}{!p.revisions.length&&<small className="muted">No saved revisions yet.</small>}</section>}
       </div>
     </aside>
 
     <section className="workspace">
-      <div className="canvasTop">
-        <div className="adaptiveTools">
-          {!item?<><button className="tool activeTool">↖ Select</button><button className="tool" onClick={()=>{setLeftOpen(true);setTab("components")}}>＋ Add</button></>:<>
-            <span className="selectionName">{item.name}</span>
-            <button className="tool activeTool">✥ Move</button>
-            <button className="tool" onClick={()=>s.duplicateItem(item.id)}>⧉ Copy</button>
-            <button className="tool" onClick={()=>s.updateItem(item.id,{locked:!item.locked})}>{item.locked?"Unlock":"Lock"}</button>
-            <button className="tool dangerTool" onClick={()=>confirm("Delete "+item.name+"?")&&s.deleteItem(item.id)}>Delete</button>
-          </>}
-        </div>
-        <div className="viewSwitcher">{(["front","top","side","3d"] as const).map(v=><button key={v} className={s.view===v?"active":""} onClick={()=>s.setView(v)}>{v==="3d"?"3D":v[0].toUpperCase()+v.slice(1)}</button>)}</div>
-      </div>
-
-      {item&&<div className="precisionBar"><span>Position</span>{(["x","y","z"] as const).map(k=><label key={k}>{k.toUpperCase()}<input type="number" value={item[k]} onChange={e=>patch(k,+e.target.value)}/></label>)}<span className="unit">mm</span></div>}
-
       <div className="stage">{s.view==="3d"?<Scene3D project={p} selected={s.selectedId} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onMoveStart={s.checkpoint}/>:<Drawing2D project={p} view={s.view} selected={s.selectedId} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onResize={(id,patch)=>s.moveItem(id,patch)} onMoveStart={s.checkpoint} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onContext={(e,id)=>{s.select(id);setMenu({x:e.clientX,y:e.clientY,id})}}/>}</div>
 
-      <div className="statusBar"><span className={issues.length?"statusDot warn":"statusDot live"}/><span>{issues.length?issues.length+" design issue"+(issues.length>1?"s":""):"Design valid"}</span><span>•</span><span>{user?(cloudReady?"Cloud synced":"Cloud connecting"):"Local"}</span><span className="statusHelp">Esc deselect · ⌘Z undo · arrows nudge</span></div>
+      {item&&<div className="selectionBar" onClick={e=>e.stopPropagation()}>
+        <span className="selectionName">{item.name}</span>
+        <button className="activeTool">✥ Move</button>
+        <button onClick={()=>s.duplicateItem(item.id)}>⧉ Copy</button>
+        <button onClick={()=>s.updateItem(item.id,{locked:!item.locked})}>{item.locked?"Unlock":"Lock"}</button>
+        <button className="dangerTool" onClick={()=>confirm("Delete "+item.name+"?")&&s.deleteItem(item.id)}>Delete</button>
+      </div>}
+
+      <div className="statusChip"><span className={issues.length?"statusDot warn":"statusDot live"}/><span>{issues.length?issues.length+" issue"+(issues.length>1?"s":""):"Design valid"}</span><span className="dotSep">·</span><span>{user?(cloudReady?"Cloud synced":"Cloud connecting"):"Local"}</span></div>
     </section>
 
-    {item&&<aside className="right">
+    {item&&<aside className="inspector">
       <div className="inspectorHeader"><div><small>{item.type}</small><input value={item.name} onChange={e=>patch("name",e.target.value)}/></div><button className="iconBtn" onClick={()=>setRightOpen(false)}>×</button></div>
       <div className="inspectorBody">
-        <section className="inspectorGroup"><h4>Transform</h4><div className="fieldGrid3">{(["x","y","z"] as const).map(k=><label key={k}>{k.toUpperCase()}<input type="number" value={item[k]} onChange={e=>patch(k,+e.target.value)}/></label>)}</div></section>
-        <section className="inspectorGroup"><h4>Dimensions</h4><div className="fieldGrid3">{(["width","height","depth"] as const).map((k,n)=><label key={k}>{["W","H","D"][n]}<input type="number" value={item[k]} onChange={e=>patch(k,+e.target.value)}/></label>)}</div></section>
+        <section className="inspectorGroup"><h4>Position</h4><div className="fieldGrid3">{(["x","y","z"] as const).map(k=><label key={k}>{k.toUpperCase()}<input type="number" value={item[k]} onChange={e=>patch(k,+e.target.value)}/></label>)}</div></section>
+        <section className="inspectorGroup"><h4>Size</h4><div className="fieldGrid3">{(["width","height","depth"] as const).map((k,n)=><label key={k}>{["W","H","D"][n]}<input type="number" value={item[k]} onChange={e=>patch(k,+e.target.value)}/></label>)}</div></section>
         <section className="inspectorGroup"><h4>Configuration</h4><div className="fieldGrid2"><label>Shelves<input type="number" min="0" value={item.shelves} onChange={e=>patch("shelves",Math.max(0,+e.target.value))}/></label><label>Doors<input type="number" min="0" value={item.doors} onChange={e=>patch("doors",Math.max(0,+e.target.value))}/></label></div><label>Hardware<select value={item.hardware} onChange={e=>patch("hardware",e.target.value)}>{["None","Handleless","Bar handle","Knob","Push-to-open","Client specified"].map(x=><option key={x}>{x}</option>)}</select></label><label className="checkRow"><input type="checkbox" checked={item.locked} onChange={e=>patch("locked",e.target.checked)}/>Lock position</label></section>
         <section className="inspectorGroup"><h4>Material</h4><label>Board<select value={item.materialId} onChange={e=>patch("materialId",e.target.value)}>{MATERIALS.map(m=><option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}</select></label><div className="materialPreview"><i style={{background:material(item.materialId).colour}}/><span><b>{material(item.materialId).code}</b>{material(item.materialId).name}</span></div><label>Finish<input value={item.finish} onChange={e=>patch("finish",e.target.value)}/></label><label>Edge<select value={item.edgeBanding} onChange={e=>patch("edgeBanding",e.target.value)}>{["Matching 1mm","Matching 2mm","Contrast edge","None / raw"].map(x=><option key={x}>{x}</option>)}</select></label></section>
         <section className="inspectorGroup"><h4>Notes</h4><textarea placeholder="Notes" value={item.notes} onChange={e=>patch("notes",e.target.value)}/></section>
         {issues.length>0&&<section className="issues"><b>Design checks</b>{issues.slice(0,6).map((x,i)=><p key={i}>{x}</p>)}</section>}
       </div>
     </aside>}
+
+    {projectOpen&&<div className="projectPopover" onClick={e=>e.stopPropagation()}>
+      <div className="popoverHead"><div><b>Project settings</b><small>Room, reference and cloud</small></div><button className="iconBtn" onClick={()=>setProjectOpen(false)}>×</button></div>
+      <div className="popoverBody">
+        <label>Project<select value={p.id} onChange={async e=>{if(hasSupabase()&&user){try{await cloud.saveCloud(p)}catch{}}s.setActive(e.target.value)}}>{s.projects.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
+        <div className="row"><button onClick={async()=>{if(hasSupabase()&&user){try{await cloud.saveCloud(p)}catch{}}s.addProject()}}>New project</button><button className="dangerText" onClick={async()=>{if(!confirm('Delete project "'+p.name+'"?'))return;if(hasSupabase()&&user){try{await cloud.deleteCloud(p.id)}catch(e:any){return alert(e.message)}}s.deleteProject()}}>Delete</button></div>
+        <label>Name<input value={p.name} onChange={e=>s.updateProject({name:e.target.value})}/></label>
+        <div className="fieldGrid2"><label>Reference<input value={p.reference} onChange={e=>s.updateProject({reference:e.target.value})}/></label><label>Status<select value={p.status} onChange={e=>s.updateProject({status:e.target.value as ProjectStatus})}>{(["Draft","Presented","Accepted","Rejected"] as ProjectStatus[]).map(x=><option key={x}>{x}</option>)}</select></label></div>
+        <label>Customer<input value={p.customer} onChange={e=>s.updateProject({customer:e.target.value})}/></label>
+        <div className="groupLabel">Room · mm</div>
+        <div className="fieldGrid3">{(["roomWidth","roomHeight","roomDepth"] as const).map((k,n)=><label key={k}>{["W","H","D"][n]}<input min="100" type="number" value={p[k]} onChange={e=>s.updateProject({[k]:Math.max(100,+e.target.value)})}/></label>)}</div>
+        <div className="groupLabel">Rules · mm</div>
+        <div className="fieldGrid3"><label>Clear<input type="number" min="0" value={p.rules.wallClearance} onChange={e=>s.updateProject({rules:{...p.rules,wallClearance:Math.max(0,+e.target.value)}})}/></label><label>Gap<input type="number" min="0" value={p.rules.componentGap} onChange={e=>s.updateProject({rules:{...p.rules,componentGap:Math.max(0,+e.target.value)}})}/></label><label>Snap<input type="number" min="1" value={p.rules.snap} onChange={e=>s.updateProject({rules:{...p.rules,snap:Math.max(1,+e.target.value)}})}/></label></div>
+        <div className="groupLabel">Cloud</div>
+        {!hasSupabase()?<small className="muted">Local storage mode.</small>:!user?<><input placeholder="Email" value={auth.email} onChange={e=>setAuth({...auth,email:e.target.value})}/><input type="password" placeholder="Password" value={auth.password} onChange={e=>setAuth({...auth,password:e.target.value})}/><div className="row"><button disabled={busy} onClick={()=>login(false)}>Login</button><button disabled={busy} onClick={()=>login(true)}>Sign up</button></div></>:<><div className="cloudStatus"><span className={cloudReady?"statusDot live":"statusDot"}/><span>{cloudReady?"Cloud autosave on":"Preparing cloud sync"}</span></div><small className="muted">{user}</small><div className="row"><button disabled={busy} onClick={cloudSave}>Save all</button><button disabled={busy} onClick={async()=>{setBusy(true);try{await cloud.saveCloud(p);await cloud.signOut();setUser(null);setCloudReady(false)}finally{setBusy(false)}}}>Logout</button></div></>}
+        {notice&&<small className="noticeText">{notice}</small>}
+      </div>
+    </div>}
 
     {menu&&<div className="contextMenu" style={{left:menu.x,top:menu.y}} onClick={e=>e.stopPropagation()}><button onClick={()=>{s.duplicateItem(menu.id);setMenu(null)}}>Duplicate</button><button onClick={()=>{if(confirm("Delete component?"))s.deleteItem(menu.id);setMenu(null)}}>Delete</button></div>}
   </main>
