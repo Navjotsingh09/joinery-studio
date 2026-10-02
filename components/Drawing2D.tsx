@@ -4,7 +4,7 @@ import {Project,ViewMode} from "@/types/model";
 import {itemRect,labelFor,viewSize,svgPoint,contrastText,clampItemToRoom,canPlace} from "@/lib/geometry";
 import {material} from "@/lib/materials";
 
-export function Drawing2D({project,view,selected,onSelect,onMove,onContext}:{project:Project;view:Exclude<ViewMode,"3d">;selected:string|null;onSelect:(id:string|null)=>void;onMove:(id:string,x:number,y:number,z:number)=>void;onContext:(e:React.MouseEvent,id:string)=>void}){
+export function Drawing2D({project,view,selected,onSelect,onMove,onMoveStart,onContext}:{project:Project;view:Exclude<ViewMode,"3d">;selected:string|null;onSelect:(id:string|null)=>void;onMove:(id:string,x:number,y:number,z:number)=>void;onMoveStart:()=>void;onContext:(e:React.MouseEvent,id:string)=>void}){
   const ref=useRef<SVGSVGElement>(null);
   const [drag,setDrag]=useState<{id:string;start:{x:number;y:number};ox:number;oy:number;oz:number}|null>(null);
   const size=viewSize(project,view), pad=70, W=1000, H=650;
@@ -16,6 +16,7 @@ export function Drawing2D({project,view,selected,onSelect,onMove,onContext}:{pro
     const i=project.items.find(x=>x.id===id);
     if(!i||i.locked||!ref.current)return;
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    onMoveStart();
     setDrag({id,start:svgPoint(ref.current,e.clientX,e.clientY),ox:i.x,oy:i.y,oz:i.z});
     onSelect(id);
   };
