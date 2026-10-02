@@ -26,6 +26,7 @@ export function Drawing2D({
 }){
   const ref=useRef<SVGSVGElement>(null);
   const [drag,setDrag]=useState<DragState|null>(null);
+  const [guides,setGuides]=useState<{x?:number;y?:number;label?:string}>({});
   const size=viewSize(project,view),pad=76,W=1000,H=650;
   const scale=Math.min((W-pad*2)/size.w,(H-pad*2)/size.h);
   const tx=pad+(W-pad*2-size.w*scale)/2,ty=pad+(H-pad*2-size.h*scale)/2;
@@ -52,6 +53,18 @@ export function Drawing2D({
       if(view==="top")candidate={...candidate,x:i.x+dx,z:i.z-dy};
       if(view==="side")candidate={...candidate,y:i.y-dy,z:i.z+dx};
       candidate=clampItemToRoom(candidate,project);
+      const r=itemRect(candidate,project,view);
+      const others=project.items.filter(o=>o.id!==i.id);
+      let gx:number|undefined,gy:number|undefined,label:string|undefined;
+      const threshold=Math.max(20,project.rules.snap*.6);
+      for(const o of others){
+        const or=itemRect(o,project,view);
+        const xs=[or.left,or.left+or.width],ys=[or.top,or.top+or.height];
+        const cx=[r.left,r.left+r.width],cy=[r.top,r.top+r.height];
+        for(const a of cx)for(const b of xs)if(Math.abs(a-b)<=threshold){gx=b;label="Aligned";break}
+        for(const a of cy)for(const b of ys)if(Math.abs(a-b)<=threshold){gy=b;label="Aligned";break}
+      }
+      setGuides({x:gx,y:gy,label});
       onMove(i.id,candidate.x,candidate.y,candidate.z);
       return;
     }
@@ -79,7 +92,7 @@ export function Drawing2D({
   };
 
   return <svg ref={ref} className={"drawing "+(drag?"isDragging":"")} viewBox={"0 0 "+W+" "+H}
-    onPointerMove={move} onPointerUp={()=>setDrag(null)} onPointerCancel={()=>setDrag(null)}
+    onPointerMove={move} onPointerUp={()=>{setDrag(null);setGuides({})}} onPointerCancel={()=>{setDrag(null);setGuides({})}}
     onPointerDown={e=>{if(e.target===e.currentTarget)onSelect(null)}}
     onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="copy"}} onDrop={drop}>
     <defs>
@@ -97,6 +110,8 @@ export function Drawing2D({
       <line x1="-25" y1="0" x2="-25" y2={size.h*scale} stroke="#777"/>
       <line x1="-31" y1="0" x2="-19" y2="0" stroke="#777"/><line x1="-31" y1={size.h*scale} x2="-19" y2={size.h*scale} stroke="#777"/>
       <text x="-43" y={size.h*scale/2} transform={"rotate(-90 -43 "+(size.h*scale/2)+")"} textAnchor="middle" className="dim">{size.h} mm</text>
+      {guides.x!==undefined&&<><line className="snapGuide" x1={guides.x*scale} x2={guides.x*scale} y1="0" y2={size.h*scale}/><text className="snapHint" x={guides.x*scale+8} y="18">{guides.label}</text></>}
+      {guides.y!==undefined&&<><line className="snapGuide" x1="0" x2={size.w*scale} y1={guides.y*scale} y2={guides.y*scale}/><text className="snapHint" x="8" y={guides.y*scale-8}>{guides.label}</text></>}
       {project.items.map(i=>{
         const r=itemRect(i,project,view),sel=i.id===selected,invalid=issueNames.has(i.id),fill=material(i.materialId).colour,tc=contrastText(fill),rw=r.width*scale,rh=r.height*scale;
         return <g key={i.id} className={"drawingItem "+(sel?"selected ":"")+(invalid?"invalid ":"")} transform={"translate("+(r.left*scale)+","+(r.top*scale)+")"}
