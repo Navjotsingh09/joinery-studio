@@ -267,6 +267,17 @@ function BedWall({w,h,d,c}:{w:number;h:number;d:number;c:string}){
   })}</group>;
 }
 
+function Bed({w,h,d,c}:{w:number;h:number;d:number;c:string}){
+  const baseH=Math.min(.24,h*.45),mattressH=Math.max(.18,Math.min(.28,h*.45));
+  return <group>
+    <Panel position={[0,-h/2+baseH/2,0]} size={[w,baseH,d]} colour={boardColour(c,-.12)}/>
+    <mesh position={[0,-h/2+baseH+mattressH/2,-.03]} castShadow receiveShadow><boxGeometry args={[Math.max(.3,w-.08),mattressH,Math.max(.5,d-.1)]}/><meshStandardMaterial color="#f1eee8" roughness={.9}/></mesh>
+    <mesh position={[0,-h/2+baseH+mattressH+.055,-d*.35]} castShadow><boxGeometry args={[Math.max(.24,w*.42),.1,Math.max(.18,d*.25)]}/><meshStandardMaterial color="#f8f6f2" roughness={.95}/></mesh>
+    <mesh position={[-w*.23,-h/2+baseH+mattressH+.04,-d*.34]} rotation={[0,0,.08]} castShadow><boxGeometry args={[w*.38,.09,d*.22]}/><meshStandardMaterial color="#faf8f4" roughness={.96}/></mesh>
+    <mesh position={[w*.23,-h/2+baseH+mattressH+.04,-d*.34]} rotation={[0,0,-.08]} castShadow><boxGeometry args={[w*.38,.09,d*.22]}/><meshStandardMaterial color="#faf8f4" roughness={.96}/></mesh>
+  </group>;
+}
+
 function KitchenIsland({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
   const plinth=.09,bodyH=h-plinth-.035,bodyY=-h/2+plinth+bodyH/2;
   return <group>
@@ -359,7 +370,7 @@ function CabinetGeometry({i}:{i:JoineryItem}){
   if(i.type==="Sliding wardrobe")return <SlidingWardrobe i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Dressing table")return <DressingTable i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Bedside cabinet")return <BedsideCabinet i={i} w={w} h={h} d={d} c={c}/>;
-  if(i.type==="Bed wall")return <BedWall w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Bed wall")return <BedWall w={w} h={h} d={d} c={c}/>;\n  if(i.type==="Bed")return <Bed w={w} h={h} d={d} c={c}/>;
   if(i.type==="Base cabinet")return <BaseCabinet i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Sink base")return <SinkBase i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Hob base")return <HobBase i={i} w={w} h={h} d={d} c={c}/>;
