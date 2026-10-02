@@ -53,17 +53,28 @@ export function Drawing2D({
       if(view==="top")candidate={...candidate,x:i.x+dx,z:i.z-dy};
       if(view==="side")candidate={...candidate,y:i.y-dy,z:i.z+dx};
       candidate=clampItemToRoom(candidate,project);
-      const r=itemRect(candidate,project,view);
+      let r=itemRect(candidate,project,view);
       const others=project.items.filter(o=>o.id!==i.id);
       let gx:number|undefined,gy:number|undefined,label:string|undefined;
       const threshold=Math.max(20,project.rules.snap*.6);
+      let bestX=threshold+1,bestY=threshold+1,deltaX=0,deltaY=0;
+      const cx=[r.left,r.left+r.width/2,r.left+r.width],cy=[r.top,r.top+r.height/2,r.top+r.height];
       for(const o of others){
         const or=itemRect(o,project,view);
-        const xs=[or.left,or.left+or.width],ys=[or.top,or.top+or.height];
-        const cx=[r.left,r.left+r.width],cy=[r.top,r.top+r.height];
-        for(const a of cx)for(const b of xs)if(Math.abs(a-b)<=threshold){gx=b;label="Aligned";break}
-        for(const a of cy)for(const b of ys)if(Math.abs(a-b)<=threshold){gy=b;label="Aligned";break}
+        const xs=[or.left,or.left+or.width/2,or.left+or.width],ys=[or.top,or.top+or.height/2,or.top+or.height];
+        for(const a of cx)for(const b of xs){const d=b-a;if(Math.abs(d)<bestX&&Math.abs(d)<=threshold){bestX=Math.abs(d);deltaX=d;gx=b;label="Snap"}}
+        for(const a of cy)for(const b of ys){const d=b-a;if(Math.abs(d)<bestY&&Math.abs(d)<=threshold){bestY=Math.abs(d);deltaY=d;gy=b;label="Snap"}}
       }
+      if(bestX<=threshold){
+        if(view==="front"||view==="top")candidate.x+=deltaX;
+        else candidate.z+=deltaX;
+      }
+      if(bestY<=threshold){
+        if(view==="front"||view==="side")candidate.y-=deltaY;
+        else candidate.z-=deltaY;
+      }
+      candidate=clampItemToRoom(candidate,project);
+      r=itemRect(candidate,project,view);
       setGuides({x:gx,y:gy,label});
       onMove(i.id,candidate.x,candidate.y,candidate.z);
       return;
