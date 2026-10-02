@@ -188,3 +188,32 @@ label{display:block;font-size:10px;font-weight:700;color:#66615b}label input,lab
 .studio.presentationMode .three{border-radius:0;border:0}
 .studio.presentationMode .statusChip{left:18px}
 @media(max-width:760px){.presentationToggle span{display:none}}
+
+
+/* Functional component groups */
+.componentGroups{display:flex;flex-direction:column;gap:16px}
+.componentGroupTitle{display:flex;align-items:center;justify-content:space-between;margin:3px 2px 7px;padding-top:4px}
+.componentGroupTitle span{font-size:8px;font-weight:900;letter-spacing:.13em;text-transform:uppercase;color:#8d867e}
+.componentGroupTitle small{display:grid;place-items:center;min-width:20px;height:18px;padding:0 5px;border-radius:999px;background:#eeeae4;color:#746e66;font-size:7px;font-weight:900}
+.componentGroup .cards{margin:0}
+
+/* Additional real-world library previews */
+.cabIcon.dishwasher:before,.cabIcon.washing-machine:before,.cabIcon.microwave:before,.cabIcon.extractor-hood:before,.cabIcon.door-opening:before,.cabIcon.window:before,.cabIcon.glass-balustrade:before,.cabIcon.timber-balustrade:before{content:"";position:absolute;inset:6px;border:1px solid #77716a;background:#faf9f7}
+.cabIcon.dishwasher:after{content:"";position:absolute;left:9px;right:9px;top:11px;height:3px;background:#77716a}
+.cabIcon.washing-machine:after{content:"";position:absolute;left:11px;top:12px;width:14px;height:14px;border:2px solid #5f686d;border-radius:50%;background:#a7bcc5}
+.cabIcon.microwave:before{inset:9px 5px;background:#2d2f31}.cabIcon.microwave:after{content:"";position:absolute;left:9px;top:13px;width:19px;height:12px;border:1px solid #777;background:#151719}
+.cabIcon.extractor-hood:before{left:9px;right:9px;top:7px;bottom:17px;background:#8b8f91}.cabIcon.extractor-hood:after{content:"";position:absolute;left:6px;right:6px;bottom:8px;height:10px;background:#737779;clip-path:polygon(18% 0,82% 0,100% 100%,0 100%)}
+.cabIcon.door-opening:before{inset:4px 8px 3px;background:#eee9e2;border-width:2px}.cabIcon.door-opening:after{content:"";position:absolute;left:12px;top:8px;width:14px;height:26px;background:#b98e5d;transform-origin:left center;transform:skewY(-8deg)}
+.cabIcon.window:before{inset:7px 5px;background:#c7dae1}.cabIcon.window:after{content:"";position:absolute;left:18px;top:8px;bottom:8px;width:1px;background:#666}
+.cabIcon.glass-balustrade:before{inset:10px 4px 5px;background:#b7d2db80}.cabIcon.glass-balustrade:after{content:"";position:absolute;left:5px;right:5px;top:8px;height:2px;background:#555}
+.cabIcon.timber-balustrade:before{inset:10px 4px 5px;background:repeating-linear-gradient(90deg,#b98e5d 0 2px,transparent 2px 7px)}.cabIcon.timber-balustrade:after{content:"";position:absolute;left:4px;right:4px;top:8px;height:3px;background:#8b6745}
+
+/* 3D scene controls */
+.three{position:relative}
+.sceneToolbar{position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:12;display:flex;align-items:center;gap:8px;pointer-events:auto}
+.cameraPresets,.sceneToggles{display:flex;align-items:center;gap:2px;padding:3px;background:#ffffffeb;border:1px solid #d8d3cb;border-radius:9px;box-shadow:0 6px 18px #00000012;backdrop-filter:blur(10px)}
+.sceneToolbar button{border:0;background:transparent;padding:6px 8px;font-size:8px;font-weight:900;color:#756f67;border-radius:6px}
+.sceneToolbar button.active{background:#272420;color:#fff}
+.sceneToggles button.active{background:#f0ece6;color:#393530}
+.presentationMode .sceneToolbar{top:16px}
+@media(max-width:700px){.sceneToolbar{left:10px;right:10px;transform:none;justify-content:center}.sceneToolbar button{padding:6px}.sceneToggles{display:none}}
