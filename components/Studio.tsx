@@ -2,14 +2,14 @@
 import {useEffect,useMemo,useRef,useState} from "react";
 import {useStudio} from "@/lib/store";
 import {newItem} from "@/lib/defaults";
-import {MATERIALS,material} from "@/lib/materials";
+import {MATERIALS,material,floorMaterials} from "@/lib/materials";
 import {Drawing2D} from "./Drawing2D";
 import {Scene3D} from "./Scene3D";
 import {validate,findFreePlacement,clampItemToRoom,canPlace,footprint,normalizeRotation} from "@/lib/geometry";
 import {exportPdf} from "@/lib/pdf";
 import {hasSupabase} from "@/lib/supabase";
 import * as cloud from "@/lib/cloud";
-import {ProjectStatus} from "@/types/model";
+import {ProjectStatus,Material} from "@/types/model";
 import {isProjectBackup} from "@/lib/backup";
 import {mergeProjects} from "@/lib/projectMerge";
 import {COMPONENT_GROUPS_BY_KIND,inferDesignKind,ScenarioPlan} from "@/lib/scenarios";
@@ -72,9 +72,12 @@ export default function Studio(){
   const [presentationMode,setPresentationMode]=useState(false);
   const [transformMode,setTransformMode]=useState<"translate"|"rotate">("translate");
   const file=useRef<HTMLInputElement>(null);
+  const materialFile=useRef<HTMLInputElement>(null);
   const issues=useMemo(()=>validate(p),[p]);
   const designKind=useMemo(()=>inferDesignKind(p.items),[p.items]);
   const componentGroups=COMPONENT_GROUPS_BY_KIND[designKind];
+  const availableMaterials=useMemo(()=>[...(p.customMaterials??[]),...MATERIALS],[p.customMaterials]);
+  const availableFloors=useMemo(()=>floorMaterials(p.customMaterials??[]),[p.customMaterials]);
 
   useEffect(()=>{if(item){setRightOpen(true);setTransformMode("translate")}},[item?.id]);
 
@@ -184,6 +187,18 @@ export default function Studio(){
     e.target.value=""
   };
 
+  const uploadMaterial=async(e:React.ChangeEvent<HTMLInputElement>)=>{
+    const f=e.target.files?.[0];if(!f)return;
+    if(!f.type.startsWith("image/")){setNotice("Choose an image file for the material.");e.target.value="";return}
+    if(f.size>1800000){setNotice("Material image is too large. Please use an image under 1.8 MB.");e.target.value="";return}
+    const dataUrl=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(reader.error);reader.readAsDataURL(f)});
+    const name=(window.prompt("Material name",f.name.replace(/\.[^.]+$/,""))||"Custom material").trim();
+    const custom:Material={id:"custom-"+crypto.randomUUID(),code:"CUSTOM",name,colour:"#b8b2a8",thickness:18,category:"Custom",textureDataUrl:dataUrl};
+    s.updateProject({customMaterials:[...(p.customMaterials??[]),custom]});
+    setNotice(name+" added to the material library.");
+    e.target.value="";
+  };
+
   const login=async(signup=false)=>{
     setBusy(true);setNotice("");
     try{
@@ -279,7 +294,7 @@ export default function Studio(){
           })}</section>
         </>}
         {tab==="items"&&<section className="itemManager">{p.items.map(i=><button key={i.id} className={s.selectedId===i.id?"activeItem":""} onClick={()=>s.select(i.id)}><ComponentIcon type={i.type}/><span><b>{i.name}</b><small>{i.width} × {i.height} × {i.depth} mm</small></span><span className="itemState">{i.locked?"●":""}</span></button>)}{!p.items.length&&<small className="muted">No joinery yet.</small>}</section>}
-        {tab==="materials"&&<section className="materials">{MATERIALS.map(m=><button key={m.id} className={item?.materialId===m.id?"selectedMaterial":""} disabled={!item} onClick={()=>item&&patch("materialId",m.id)}><i style={{background:m.colour}}/><span><b>{m.code}</b>{m.name}<small>{m.category} · {m.thickness} mm</small></span></button>)}</section>}
+        {tab==="materials"&&<section className="materials"><div className="materialTools"><button onClick={()=>materialFile.current?.click()}>Upload material image</button><input ref={materialFile} hidden type="file" accept="image/*" onChange={uploadMaterial}/><label>Floor material<select value={p.floorMaterialId??"floor-oak"} onChange={e=>s.updateProject({floorMaterialId:e.target.value})}>{availableFloors.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label></div>{availableMaterials.map(m=><button key={m.id} className={item?.materialId===m.id?"selectedMaterial":""} disabled={!item} onClick={()=>item&&patch("materialId",m.id)}><i style={{background:m.colour,backgroundImage:m.textureDataUrl?`url(${m.textureDataUrl})`:undefined,backgroundSize:"cover"}}/><span><b>{m.code}</b>{m.name}<small>{m.category} · {m.thickness} mm</small></span></button>)}</section>}
         {tab==="revisions"&&<section className="revisionList">{[...p.revisions].reverse().map(r=><div key={r.id}><span><b>Revision {r.revision}</b><small>{new Date(r.createdAt).toLocaleString()}</small></span><button onClick={()=>confirm("Restore revision "+r.revision+"?")&&s.restoreRevision(r.id)}>Restore</button></div>)}{!p.revisions.length&&<small className="muted">No saved revisions yet.</small>}</section>}
         {tab==="professional"&&<ProfessionalPanel project={p}/>}
       </div>
@@ -305,7 +320,7 @@ export default function Studio(){
         <section className="inspectorGroup"><h4>Position</h4><div className="fieldGrid3">{(["x","y","z"] as const).map(k=><label key={k}>{k.toUpperCase()}<input type="number" value={item[k]} onChange={e=>patch(k,+e.target.value)}/></label>)}</div><label className="rotationField">Rotation<select value={normalizeRotation(item.rotation??0)} onChange={e=>rotateItem(item.id,+e.target.value)}>{[0,90,180,270].map(v=><option key={v} value={v}>{v}°</option>)}</select></label></section>
         <section className="inspectorGroup"><h4>Size</h4><div className="fieldGrid3">{(["width","height","depth"] as const).map((k,n)=><label key={k}>{["W","H","D"][n]}<input type="number" value={item[k]} onChange={e=>patch(k,+e.target.value)}/></label>)}</div></section>
         <section className="inspectorGroup"><h4>Configuration</h4><div className="fieldGrid2"><label>Shelves<input type="number" min="0" value={item.shelves} onChange={e=>patch("shelves",Math.max(0,+e.target.value))}/></label><label>Doors<input type="number" min="0" value={item.doors} onChange={e=>patch("doors",Math.max(0,+e.target.value))}/></label></div><label>Hardware<select value={item.hardware} onChange={e=>patch("hardware",e.target.value)}>{["None","Handleless","Bar handle","Knob","Push-to-open","Client specified"].map(x=><option key={x}>{x}</option>)}</select></label><label>Layer<select value={item.layer??"Joinery"} onChange={e=>patch("layer",e.target.value)}>{["Joinery","Architecture","Services","Decor"].map(x=><option key={x}>{x}</option>)}</select></label><label className="checkRow"><input type="checkbox" checked={item.visible!==false} onChange={e=>patch("visible",e.target.checked)}/>Visible in drawings and 3D</label><label className="checkRow"><input type="checkbox" checked={item.locked} onChange={e=>patch("locked",e.target.checked)}/>Lock position</label></section>
-        <section className="inspectorGroup"><h4>Material</h4><label>Board<select value={item.materialId} onChange={e=>patch("materialId",e.target.value)}>{MATERIALS.map(m=><option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}</select></label><div className="materialPreview"><i style={{background:material(item.materialId).colour}}/><span><b>{material(item.materialId).code}</b>{material(item.materialId).name}</span></div><label>Finish<input value={item.finish} onChange={e=>patch("finish",e.target.value)}/></label><label>Edge<select value={item.edgeBanding} onChange={e=>patch("edgeBanding",e.target.value)}>{["Matching 1mm","Matching 2mm","Contrast edge","None / raw"].map(x=><option key={x}>{x}</option>)}</select></label></section>
+        <section className="inspectorGroup"><h4>Materials by part</h4><label>Carcass<select value={item.carcassMaterialId??item.materialId} onChange={e=>patch("carcassMaterialId",e.target.value)}>{availableMaterials.map(m=><option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}</select></label><label>Doors / fronts<select value={item.doorMaterialId??item.materialId} onChange={e=>patch("doorMaterialId",e.target.value)}>{availableMaterials.map(m=><option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}</select></label><label>Visible sides<select value={item.sideMaterialId??item.carcassMaterialId??item.materialId} onChange={e=>patch("sideMaterialId",e.target.value)}>{availableMaterials.map(m=><option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}</select></label><div className="materialPreview"><i style={{background:material(item.doorMaterialId??item.materialId,p.customMaterials??[]).colour}}/><span><b>{material(item.doorMaterialId??item.materialId,p.customMaterials??[]).code}</b>{material(item.doorMaterialId??item.materialId,p.customMaterials??[]).name}</span></div><label>Finish<input value={item.finish} onChange={e=>patch("finish",e.target.value)}/></label><label>Edge<select value={item.edgeBanding} onChange={e=>patch("edgeBanding",e.target.value)}>{["Matching 1mm","Matching 2mm","Contrast edge","None / raw"].map(x=><option key={x}>{x}</option>)}</select></label><label>Plinth<select value={item.plinthStyle??"recessed"} onChange={e=>patch("plinthStyle",e.target.value)}>{["recessed","flush","none"].map(x=><option key={x} value={x}>{x[0].toUpperCase()+x.slice(1)}</option>)}</select></label>{(item.plinthStyle??"recessed")==="recessed"&&<label>Plinth recess (mm)<input type="number" min="0" max="250" value={item.plinthRecess??65} onChange={e=>patch("plinthRecess",Math.max(0,+e.target.value))}/></label>}</section>
         <section className="inspectorGroup"><h4>Notes</h4><textarea placeholder="Notes" value={item.notes} onChange={e=>patch("notes",e.target.value)}/></section>
         {issues.length>0&&<section className="issues"><b>Design checks</b>{issues.slice(0,6).map((x,i)=><p key={i}>{x}</p>)}</section>}
       </div>
