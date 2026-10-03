@@ -5,7 +5,7 @@ import {OrbitControls,Grid,GizmoHelper,GizmoViewport,TransformControls,ContactSh
 import * as THREE from "three";
 import {Project,JoineryItem,Material,JoineryPart} from "@/types/model";
 import {material} from "@/lib/materials";
-import {sinkCutouts,SinkCutout} from "@/lib/renderGeometry";
+import {sinkCutouts,SinkCutout,roomShellWalls} from "@/lib/renderGeometry";
 import {clampItemToRoom,isWallMounted,footprint,normalizeRotation} from "@/lib/geometry";
 
 const mm=(v:number)=>v/1000;
@@ -165,18 +165,19 @@ function RoomShell({rw,rh,rd,showWalls,realistic,floorMaterial,studioMode=false}
   const uploadedFloor=useDataTexture(floorMaterial.textureDataUrl);
   const floor=studioMode?null:realistic?(uploadedFloor??builtInFloorTexture(floorMaterial.id,floorMaterial.colour)):null;
   const skirting=.095,skirtingD=.018;
+  const walls=roomShellWalls(rw,rh,rd);
   return <group>
     <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.014,0]} receiveShadow>
       <boxGeometry args={[rw,rd,.028]}/>
       <meshStandardMaterial map={floor??undefined} color={studioMode?"#d8cdbc":floor?"#ffffff":floorMaterial.colour} roughness={studioMode?.9:realistic?.72:.9}/>
     </mesh>
     {showWalls&&<>
-      <mesh position={[0,rh/2,-rd/2]} receiveShadow>
-        <boxGeometry args={[rw,rh,.05]}/>
+      <mesh position={walls.back.position} receiveShadow>
+        <boxGeometry args={walls.back.size}/>
         <meshStandardMaterial color={realistic?"#eeeae2":"#f7f6f3"} roughness={realistic ? .93 : .96}/>
       </mesh>
-      <mesh position={[-rw/2,rh/2,0]} receiveShadow>
-        <boxGeometry args={[.05,rh,rd]}/>
+      <mesh position={walls.left.position} receiveShadow>
+        <boxGeometry args={walls.left.size}/>
         <meshStandardMaterial color={realistic?"#f4f1eb":"#f4f3f0"} roughness={realistic ? .93 : .96}/>
       </mesh>
       {realistic&&<>

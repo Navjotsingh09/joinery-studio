@@ -27,3 +27,11 @@ export function alignApplianceFront(item:JoineryItem,items:JoineryItem[]){
   const nb=footprint(neighbour),size=axis==="z"?"depth":"width",positive=rotation===0||rotation===90;
   return {x:item.x,z:item.z,[axis]:positive?neighbour[axis]+nb[size]-box[size]:neighbour[axis]};
 }
+
+// Room dimensions describe finished INTERNAL faces. Wall thickness extends outward.
+export function roomShellWalls(width:number,height:number,depth:number,thickness=.05){
+  return {
+    back:{position:[0,height/2,-depth/2-thickness/2] as [number,number,number],size:[width,height,thickness] as [number,number,number]},
+    left:{position:[-width/2-thickness/2,height/2,0] as [number,number,number],size:[thickness,height,depth] as [number,number,number]}
+  };
+}
