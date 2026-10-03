@@ -37,7 +37,7 @@ function boardColour(hex:string,amount=0){
 
 const textureCache=new Map<string,THREE.CanvasTexture>();
 function woodTexture(colour:string){
-  const wood=["#b98e5d","#c7a477","#d7bd8b","#c5aa82"].includes(colour.toLowerCase());
+  const wood=["#b98e5d","#c7a477","#d7bd8b","#c5aa82","#8c6546"].includes(colour.toLowerCase());
   if(!wood||typeof document==="undefined")return null;
   const cached=textureCache.get(colour);if(cached)return cached;
   const canvas=document.createElement("canvas");canvas.width=128;canvas.height=256;
@@ -62,12 +62,12 @@ function woodTexture(colour:string){
 
 const stoneTextureCache=new Map<string,THREE.CanvasTexture>();
 function stoneTexture(id:string,colour:string){
-  if(typeof document==="undefined"||!(id==="stone-light"||id==="stone-dark"))return null;
+  if(typeof document==="undefined"||!(id==="stone-light"||id==="stone-dark"||sceneMaterial(id).category==="Worktop"))return null;
   const cached=stoneTextureCache.get(id);if(cached)return cached;
   const canvas=document.createElement("canvas");canvas.width=384;canvas.height=384;
   const ctx=canvas.getContext("2d");if(!ctx)return null;
   ctx.fillStyle=colour;ctx.fillRect(0,0,384,384);
-  if(id==="stone-light"){
+  if(id==="stone-light"||sceneMaterial(id).worktopStyle==="Marble"){
     const wash=ctx.createLinearGradient(0,0,384,384);wash.addColorStop(0,"rgba(255,255,255,.24)");wash.addColorStop(.5,"rgba(202,194,184,.08)");wash.addColorStop(1,"rgba(255,255,255,.18)");ctx.fillStyle=wash;ctx.fillRect(0,0,384,384);
     for(let k=0;k<7;k++){
       ctx.beginPath();
@@ -87,7 +87,8 @@ function stoneTexture(id:string,colour:string){
   const tex=new THREE.CanvasTexture(canvas);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(1.7,1.7);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=8;stoneTextureCache.set(id,tex);return tex;
 }
 function builtInSurfaceTexture(id:string|undefined,colour:string){
-  return id?stoneTexture(id,colour)??woodTexture(colour):woodTexture(colour);
+  if(id&&sceneMaterial(id).worktopStyle==="Plain")return null;
+  return id&&(sceneMaterial(id).worktopStyle==="Wood")?woodTexture(colour):id?stoneTexture(id,colour)??woodTexture(colour):woodTexture(colour);
 }
 
 const roomTextureCache=new Map<string,THREE.CanvasTexture>();
@@ -495,12 +496,12 @@ function OpenShelving({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:st
 }
 
 
-function WorktopSurface({w,h,d,materialId,position=[0,0,0]}:{w:number;h:number;d:number;materialId:string;position?:[number,number,number]}){
+function WorktopSurface({w,h,d,materialId,position=[0,0,0],edge="rounded",finish}:{w:number;h:number;d:number;materialId:string;position?:[number,number,number];edge?:"square"|"rounded";finish?:string}){
   const picker=useContext(PartSelectionContext),m=sceneMaterial(materialId),uploaded=useDataTexture(m.textureDataUrl);
   if(uploaded){uploaded.repeat.set(Math.max(1,w/.5),Math.max(1,d/.5));}
   const tex=uploaded??builtInSurfaceTexture(materialId,m.colour),picked=picker.selected&&picker.selectedPart==="worktop";
-  return <RoundedBox args={[w,h,d]} radius={Math.min(.007,h*.24)} smoothness={4} position={position} castShadow receiveShadow onClick={e=>{if(picker.selected){e.stopPropagation();picker.onSelectPart?.("worktop")}}}>
-    <meshStandardMaterial map={tex??undefined} color={tex?"#ffffff":m.colour} roughness={m.category==="Worktop"?.22:.48} metalness={0}/>
+  return <RoundedBox args={[w,h,d]} radius={edge==="square"?.0001:Math.min(.007,h*.24)} smoothness={4} position={position} castShadow receiveShadow onClick={e=>{if(picker.selected){e.stopPropagation();picker.onSelectPart?.("worktop")}}}>
+    <meshStandardMaterial map={tex??undefined} color={tex?"#ffffff":m.colour} roughness={(finish??m.surfaceFinish)==="Gloss"?.12:(finish??m.surfaceFinish)==="Semi-gloss"?.28:(finish??m.surfaceFinish)==="Textured matt"?.8:.55} metalness={0}/>
     {picked&&<lineSegments><edgesGeometry args={[new THREE.BoxGeometry(w,h,d)]}/><lineBasicMaterial color="#c8102e"/></lineSegments>}
   </RoundedBox>
 }
@@ -874,7 +875,7 @@ function CabinetGeometry({i,construction=false}:{i:JoineryItem;construction?:boo
   const renderItem=construction?{...i,openAmount:Math.max(72,i.openAmount??0)}:i;
   const c=sceneMaterial(renderItem.carcassMaterialId??renderItem.materialId).colour,w=mm(renderItem.width),h=mm(renderItem.height),d=mm(renderItem.depth);
   i=renderItem;
-  if(i.type==="Worktop"){const topId=i.worktopMaterialId??i.materialId;return <WorktopSurface w={w} h={h} d={d} materialId={topId}/>;}
+  if(i.type==="Worktop"){const topId=i.worktopMaterialId??i.materialId;return <WorktopSurface w={w} h={h} d={d} materialId={topId} edge={i.worktopEdge} finish={i.finish}/>;}
   if(i.type==="Wall segment"||i.type==="Chimney breast"||i.type==="Column"||i.type==="Ceiling bulkhead"||i.type==="Filler panel"||i.type==="End panel"||i.type==="Internal divider"||i.type==="Loft box")return <SimpleBlock w={w} h={h} d={d} c={c} materialId={i.materialId}/>;
   if(i.type==="Corner cabinet")return <CornerCabinet i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Hanging rail")return <HangingRail w={w}/>;

@@ -1,4 +1,30 @@
 import {Material} from "@/types/model";
+// Generic design finishes inspired by common UK worktop ranges, not supplier SKUs.
+export const WORKTOP_MATERIALS:Material[]=[
+{id:"wt-1",code:"WT01",name:"Oak solid wood",colour:"#b98e5d",thickness:40,category:"Worktop",worktopMaterial:"Solid wood",worktopStyle:"Wood",colourFamily:"Brown",surfaceFinish:"Oiled"},
+{id:"wt-2",code:"WT02",name:"Walnut solid wood",colour:"#8c6546",thickness:40,category:"Worktop",worktopMaterial:"Solid wood",worktopStyle:"Wood",colourFamily:"Brown",surfaceFinish:"Oiled"},
+{id:"wt-3",code:"WT03",name:"Beech solid wood",colour:"#d7bd8b",thickness:40,category:"Worktop",worktopMaterial:"Solid wood",worktopStyle:"Wood",colourFamily:"Brown",surfaceFinish:"Oiled"},
+{id:"wt-4",code:"WT04",name:"Black granite effect laminate",colour:"#292a2b",thickness:38,category:"Worktop",worktopMaterial:"Laminate",worktopStyle:"Granite",colourFamily:"Black",surfaceFinish:"Semi-gloss"},
+{id:"wt-5",code:"WT05",name:"White quartz effect laminate",colour:"#f0ede6",thickness:38,category:"Worktop",worktopMaterial:"Laminate",worktopStyle:"Quartz",colourFamily:"White",surfaceFinish:"Matt"},
+{id:"wt-6",code:"WT06",name:"Calacatta marble effect laminate",colour:"#efebe4",thickness:38,category:"Worktop",worktopMaterial:"Laminate",worktopStyle:"Marble",colourFamily:"White",surfaceFinish:"Semi-gloss"},
+{id:"wt-7",code:"WT07",name:"Grey concrete effect laminate",colour:"#999792",thickness:38,category:"Worktop",worktopMaterial:"Laminate",worktopStyle:"Concrete",colourFamily:"Grey",surfaceFinish:"Textured matt"},
+{id:"wt-8",code:"WT08",name:"Light stone effect laminate",colour:"#cbbfa9",thickness:38,category:"Worktop",worktopMaterial:"Laminate",worktopStyle:"Stone",colourFamily:"Brown",surfaceFinish:"Textured matt"},
+{id:"wt-9",code:"WT09",name:"Black sparkle laminate",colour:"#252529",thickness:38,category:"Worktop",worktopMaterial:"Laminate",worktopStyle:"Sparkle",colourFamily:"Black",surfaceFinish:"Gloss"},
+{id:"wt-10",code:"WT10",name:"White sparkle laminate",colour:"#f1f0eb",thickness:38,category:"Worktop",worktopMaterial:"Laminate",worktopStyle:"Sparkle",colourFamily:"White",surfaceFinish:"Gloss"},
+{id:"wt-11",code:"WT11",name:"Slate effect laminate",colour:"#555b60",thickness:38,category:"Worktop",worktopMaterial:"Laminate",worktopStyle:"Slate",colourFamily:"Grey",surfaceFinish:"Textured matt"},
+{id:"wt-12",code:"WT12",name:"Oak effect laminate",colour:"#c7a477",thickness:38,category:"Worktop",worktopMaterial:"Laminate",worktopStyle:"Wood",colourFamily:"Brown",surfaceFinish:"Matt"},
+{id:"wt-13",code:"WT13",name:"White marble effect compact laminate",colour:"#eeeae4",thickness:12,category:"Worktop",worktopMaterial:"Compact laminate",worktopStyle:"Marble",colourFamily:"White",surfaceFinish:"Matt"},
+{id:"wt-14",code:"WT14",name:"Dark slate effect compact laminate",colour:"#343b40",thickness:12,category:"Worktop",worktopMaterial:"Compact laminate",worktopStyle:"Slate",colourFamily:"Black",surfaceFinish:"Textured matt"},
+{id:"wt-15",code:"WT15",name:"Carrara effect solid surface",colour:"#e7e3dc",thickness:20,category:"Worktop",worktopMaterial:"Solid surface",worktopStyle:"Marble",colourFamily:"White",surfaceFinish:"Matt"},
+{id:"wt-16",code:"WT16",name:"White solid surface",colour:"#f5f3ee",thickness:20,category:"Worktop",worktopMaterial:"Solid surface",worktopStyle:"Plain",colourFamily:"White",surfaceFinish:"Matt"},
+{id:"wt-17",code:"WT17",name:"Beige matt bonded surface",colour:"#c5b6a1",thickness:38,category:"Worktop",worktopMaterial:"Bonded matt surface",worktopStyle:"Plain",colourFamily:"Brown",surfaceFinish:"Matt"},
+{id:"wt-18",code:"WT18",name:"Black matt solid surface",colour:"#252729",thickness:12,category:"Worktop",worktopMaterial:"Solid matt surface",worktopStyle:"Plain",colourFamily:"Black",surfaceFinish:"Matt"},
+{id:"wt-19",code:"WT19",name:"Forest green laminate",colour:"#405b4f",thickness:38,category:"Worktop",worktopMaterial:"Laminate",worktopStyle:"Plain",colourFamily:"Green",surfaceFinish:"Matt"},
+{id:"wt-20",code:"WT20",name:"Deep blue laminate",colour:"#344a63",thickness:38,category:"Worktop",worktopMaterial:"Laminate",worktopStyle:"Plain",colourFamily:"Blue",surfaceFinish:"Matt"},
+{id:"wt-21",code:"WT21",name:"Black granite",colour:"#343437",thickness:30,category:"Worktop",worktopMaterial:"Granite",worktopStyle:"Granite",colourFamily:"Black",surfaceFinish:"Gloss"},
+{id:"wt-22",code:"WT22",name:"White quartz",colour:"#eeeae5",thickness:20,category:"Worktop",worktopMaterial:"Quartz",worktopStyle:"Quartz",colourFamily:"White",surfaceFinish:"Gloss"},
+{id:"wt-23",code:"WT23",name:"White marble",colour:"#e9e5df",thickness:20,category:"Worktop",worktopMaterial:"Marble",worktopStyle:"Marble",colourFamily:"White",surfaceFinish:"Gloss"},
+];
 export const MATERIALS:Material[]=[
 {id:"u961",code:"U961",name:"Graphite Grey",colour:"#4a4b4d",thickness:18,category:"Decorative board"},
 {id:"u705",code:"U705",name:"Angora Grey",colour:"#b9b1a6",thickness:18,category:"Decorative board"},
@@ -15,6 +41,6 @@ export const MATERIALS:Material[]=[
 {id:"metal-brushed",code:"MET",name:"Brushed Steel",colour:"#9ca1a3",thickness:2,category:"Metal"},
 {id:"floor-oak",code:"FL01",name:"Natural Oak Floor",colour:"#c7ad8b",thickness:14,category:"Floor"},
 {id:"floor-walnut",code:"FL02",name:"Walnut Floor",colour:"#8c6546",thickness:14,category:"Floor"},
-{id:"floor-stone",code:"FL03",name:"Light Stone Tile",colour:"#d8d4cc",thickness:10,category:"Floor"}];
+{id:"floor-stone",code:"FL03",name:"Light Stone Tile",colour:"#d8d4cc",thickness:10,category:"Floor"},...WORKTOP_MATERIALS];
 export const material=(id:string,custom:Material[]=[])=>([...custom,...MATERIALS].find(m=>m.id===id)??MATERIALS[0]);
 export const floorMaterials=(custom:Material[]=[])=>([...custom,...MATERIALS].filter(m=>m.category==="Floor"||!!m.textureDataUrl));

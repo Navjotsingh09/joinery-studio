@@ -1,7 +1,7 @@
 export type ViewMode="front"|"top"|"side"|"3d";
 export type ProjectStatus="Draft"|"Presented"|"Accepted"|"Rejected";
 export type ItemLayer="Joinery"|"Architecture"|"Services"|"Decor";
-export type Material={id:string;code:string;name:string;colour:string;thickness:number;category:string;textureDataUrl?:string};
+export type Material={id:string;code:string;name:string;colour:string;thickness:number;category:string;textureDataUrl?:string;worktopMaterial?:string;worktopStyle?:string;colourFamily?:string;surfaceFinish?:string};
 export type WallSide="back"|"front"|"left"|"right";
 export type PlinthStyle="recessed"|"flush"|"none";
 export type JoineryPart="carcass"|"fronts"|"left-side"|"right-side"|"plinth"|"worktop"|"backsplash";
@@ -12,7 +12,7 @@ export type JoineryItem={
   carcassMaterialId?:string;doorMaterialId?:string;sideMaterialId?:string;
   leftSideMaterialId?:string;rightSideMaterialId?:string;plinthMaterialId?:string;worktopMaterialId?:string;
   plinthStyle?:PlinthStyle;plinthRecess?:number;wallSide?:WallSide;
-  productStyle?:string;colourVariant?:string;openAmount?:number
+  worktopEdge?:"square"|"rounded";productStyle?:string;colourVariant?:string;openAmount?:number
 };
 export type DesignRules={wallClearance:number;componentGap:number;snap:number;serviceClearance?:number};
 export type ProjectSnapshot={
