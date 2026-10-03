@@ -11,7 +11,7 @@ export type JoineryItem={
   carcassMaterialId?:string;doorMaterialId?:string;sideMaterialId?:string;
   plinthStyle?:PlinthStyle;plinthRecess?:number;wallSide?:WallSide
 };
-export type DesignRules={wallClearance:number;componentGap:number;snap:number;serviceClearance:number};
+export type DesignRules={wallClearance:number;componentGap:number;snap:number;serviceClearance?:number};
 export type ProjectSnapshot={
   name:string;customer:string;reference:string;status:ProjectStatus;roomWidth:number;roomHeight:number;roomDepth:number;
   rules:DesignRules;items:JoineryItem[];address?:string;notes?:string;archived?:boolean;
