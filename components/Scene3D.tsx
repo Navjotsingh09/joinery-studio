@@ -207,6 +207,19 @@ function DimensionOverlay({i}:{i:JoineryItem}){
   </group>
 }
 
+function ConstructionLabels({i}:{i:JoineryItem}){
+  const w=mm(i.width),h=mm(i.height),d=mm(i.depth);
+  const hasDoors=i.doors>0,hasPlinth=!!i.plinthStyle&&i.plinthStyle!=="none";
+  return <group>
+    <Html position={[-w/2-.09,h*.18,0]} center distanceFactor={7}><span className="constructionLabel">Carcass</span></Html>
+    {hasDoors&&<Html position={[0,h*.08,d/2+.16]} center distanceFactor={7}><span className="constructionLabel accent">Doors / fronts</span></Html>}
+    <Html position={[-w/2-.12,0,d/2-.05]} center distanceFactor={7}><span className="constructionLabel">Left side</span></Html>
+    <Html position={[w/2+.12,0,d/2-.05]} center distanceFactor={7}><span className="constructionLabel">Right side</span></Html>
+    {hasPlinth&&<Html position={[0,-h/2+.07,d/2+.12]} center distanceFactor={7}><span className="constructionLabel">Plinth</span></Html>}
+    {(i.type==="Base cabinet"||i.type==="Sink base"||i.type==="Hob base"||i.type==="Drawer unit"||i.type==="Kitchen island")&&<Html position={[0,h/2+.12,0]} center distanceFactor={7}><span className="constructionLabel">Worktop line</span></Html>}
+  </group>
+}
+
 function Handle({x,y,z,height,hardware,orientation="vertical"}:{x:number;y:number;z:number;height:number;hardware:string;orientation?:"vertical"|"horizontal"}){
   if(hardware==="None"||hardware==="Push-to-open")return null;
   if(hardware==="Handleless")return <Metal position={[x,y,z]} size={orientation==="vertical"?[.008,Math.min(.22,height*.34),.009]:[Math.min(.22,height*.55),.008,.009]}/>;
@@ -743,7 +756,7 @@ function ItemNode({i,project,selected,selectedPart,mode,construction,onSelect,on
   const sync=()=>{const g=group.current;if(!g)return;if(mode==="rotate"){onRotate?.(i.id,normalizeRotation(THREE.MathUtils.radToDeg(g.rotation.y)));return}const current={...i,rotation},box=footprint(current);const raw={...current,x:(g.position.x+mm(project.roomWidth)/2)*1000-box.width/2,y:g.position.y*1000-i.height/2,z:(g.position.z+mm(project.roomDepth)/2)*1000-box.depth/2};const q=clampItemToRoom(raw,project);onMove?.(i.id,q.x,q.y,q.z)};
   const node=<group ref={group} position={position} rotation={[0,THREE.MathUtils.degToRad(rotation),0]} onClick={e=>{e.stopPropagation();onSelect?.(i.id)}}>
     <PartSelectionContext.Provider value={{selected,selectedPart,onSelectPart:part=>onSelectPart?.(i.id,part)}}><CabinetGeometry i={i} construction={construction}/></PartSelectionContext.Provider>
-    {selected&&construction&&<DimensionOverlay i={i}/>}
+    {selected&&construction&&<><DimensionOverlay i={i}/><ConstructionLabels i={i}/></>}
     {selected&&!selectedPart&&<mesh><boxGeometry args={[mm(i.width)+.035,mm(i.height)+.035,mm(i.depth)+.035]}/><meshBasicMaterial color="#c8102e" wireframe transparent opacity={.4}/></mesh>}
   </group>;
   if(!selected||i.locked)return node;
