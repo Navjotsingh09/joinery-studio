@@ -4,11 +4,13 @@ export type ItemLayer="Joinery"|"Architecture"|"Services"|"Decor";
 export type Material={id:string;code:string;name:string;colour:string;thickness:number;category:string;textureDataUrl?:string};
 export type WallSide="back"|"front"|"left"|"right";
 export type PlinthStyle="recessed"|"flush"|"none";
+export type JoineryPart="carcass"|"fronts"|"left-side"|"right-side"|"plinth"|"worktop"|"backsplash";
 export type JoineryItem={
   id:string;name:string;type:string;x:number;y:number;z:number;width:number;height:number;depth:number;
   shelves:number;doors:number;materialId:string;finish:string;notes:string;locked:boolean;hardware:string;
   edgeBanding:string;rotation:number;visible?:boolean;layer?:ItemLayer;groupId?:string;
   carcassMaterialId?:string;doorMaterialId?:string;sideMaterialId?:string;
+  leftSideMaterialId?:string;rightSideMaterialId?:string;plinthMaterialId?:string;worktopMaterialId?:string;
   plinthStyle?:PlinthStyle;plinthRecess?:number;wallSide?:WallSide;
   productStyle?:string;colourVariant?:string;openAmount?:number
 };
