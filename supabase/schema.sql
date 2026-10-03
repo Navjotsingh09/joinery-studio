@@ -10,3 +10,11 @@ create index if not exists project_items_project_idx on public.project_items(pro
 create or replace function public.set_updated_at() returns trigger language plpgsql as $$ begin new.updated_at=now();return new;end $$;
 drop trigger if exists projects_set_updated_at on public.projects;create trigger projects_set_updated_at before update on public.projects for each row execute function public.set_updated_at();
 alter table public.project_items add column if not exists rotation integer not null default 0;
+
+alter table public.projects add column if not exists address text not null default '';
+alter table public.projects add column if not exists project_notes text not null default '';
+alter table public.projects add column if not exists archived boolean not null default false;
+alter table public.projects add column if not exists service_clearance integer not null default 50;
+alter table public.project_items add column if not exists visible boolean not null default true;
+alter table public.project_items add column if not exists layer text not null default 'Joinery';
+alter table public.project_items add column if not exists group_id uuid;

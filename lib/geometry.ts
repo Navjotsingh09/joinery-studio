@@ -20,14 +20,22 @@ export function labelFor(i:JoineryItem,v:Exclude<ViewMode,"3d">){
   if(v==="top")return fp.width+" × "+fp.depth+" mm";
   return fp.depth+" × "+i.height+" mm"
 }
-export const isWallMounted=(i:JoineryItem)=>["Wall cabinet","Microwave","Extractor hood","Window"].includes(i.type);
+const floatingTypes=new Set(["Wall cabinet","Microwave","Extractor hood","Window","Worktop","Ceiling bulkhead","Radiator","Socket","Switch","Mirror","Ceiling light","Pendant light","Tap","Hanging rail","Internal drawers","Shoe rack","Loft box"]);
+export const isWallMounted=(i:JoineryItem)=>floatingTypes.has(i.type);
 export function clampItemToRoom(i:JoineryItem,p:Project):JoineryItem{
   const rotation=normalizeRotation(i.rotation??0),candidate={...i,rotation},fp=footprint(candidate),step=Math.max(1,p.rules.snap),c=Math.max(0,p.rules.wallClearance);
   return{...candidate,x:clamp(snap(candidate.x,step),c,Math.max(c,p.roomWidth-c-fp.width)),y:isWallMounted(candidate)?clamp(snap(candidate.y,step),0,Math.max(0,p.roomHeight-candidate.height)):0,z:clamp(snap(candidate.z,step),0,Math.max(0,p.roomDepth-fp.depth))}
 }
+const wardrobeInternal=new Set(["Hanging rail","Internal drawers","Shoe rack","Internal divider","Loft box"]);
+const baseKitchen=new Set(["Base cabinet","Drawer unit","Sink base","Hob base","Corner cabinet","Filler panel","End panel","Dishwasher","Washing machine"]);
 export function allowedOverlap(a:JoineryItem,b:JoineryItem){
   const pair=[a.type,b.type];
-  return pair.includes("Under-stair storage")&&pair.some(t=>t.includes("staircase")||t==="L staircase"||t==="U staircase");
+  if(pair.includes("Under-stair storage")&&pair.some(t=>t.includes("staircase")||t==="L staircase"||t==="U staircase"))return true;
+  if(pair.some(t=>wardrobeInternal.has(t))&&pair.some(t=>t==="Wardrobe"||t==="Sliding wardrobe"))return true;
+  if(wardrobeInternal.has(a.type)&&wardrobeInternal.has(b.type))return true;
+  if(pair.includes("Worktop")&&pair.some(t=>baseKitchen.has(t)))return true;
+  if(pair.includes("Tap")&&pair.some(t=>t==="Sink base"||t==="Worktop"))return true;
+  return false;
 }
 export function itemsCollide(a:JoineryItem,b:JoineryItem,gap=0){
   if(allowedOverlap(a,b))return false;
@@ -44,6 +52,30 @@ export function findFreePlacement(p:Project,item:JoineryItem){
   const step=Math.max(25,p.rules.snap),c=Math.max(0,p.rules.wallClearance),base=clampItemToRoom(item,p),fp=footprint(base),maxX=Math.max(c,p.roomWidth-c-fp.width),maxZ=Math.max(0,p.roomDepth-fp.depth);
   for(let z=0;z<=maxZ;z+=step)for(let x=c;x<=maxX;x+=step){const candidate=clampItemToRoom({...base,x,z},p);if(canPlace(p,candidate,item.id))return candidate}
   return base
+}
+export type WallSide="back"|"front"|"left"|"right";
+export function wallClearances(p:Project,i:JoineryItem){
+  const fp=footprint(i);
+  return{left:Math.max(0,i.x),right:Math.max(0,p.roomWidth-i.x-fp.width),back:Math.max(0,i.z),front:Math.max(0,p.roomDepth-i.z-fp.depth),bottom:Math.max(0,i.y),top:Math.max(0,p.roomHeight-i.y-i.height)}
+}
+export function snapItemToWall(p:Project,i:JoineryItem,wall:WallSide){
+  const c=Math.max(0,p.rules.wallClearance);
+  const rotation=wall==="back"?0:wall==="front"?180:wall==="left"?90:270;
+  let q={...i,rotation};
+  const fp=footprint(q);
+  if(wall==="back")q={...q,z:0};
+  if(wall==="front")q={...q,z:Math.max(0,p.roomDepth-fp.depth)};
+  if(wall==="left")q={...q,x:c};
+  if(wall==="right")q={...q,x:Math.max(c,p.roomWidth-c-fp.width)};
+  return clampItemToRoom(q,p)
+}
+export function mirrorItem(p:Project,i:JoineryItem,axis:"x"|"z"){
+  const fp=footprint(i);
+  return clampItemToRoom(axis==="x"?{...i,x:p.roomWidth-i.x-fp.width}:{...i,z:p.roomDepth-i.z-fp.depth},p)
+}
+export function stairMetrics(i:JoineryItem){
+  const risers=Math.max(2,Math.round(i.height/180)),rise=i.height/risers,goings=Math.max(1,risers-1),going=i.depth/goings,pitch=Math.atan2(rise,going)*180/Math.PI,comfort=2*rise+going;
+  return{risers,rise:Math.round(rise),goings,going:Math.round(going),pitch:Math.round(pitch*10)/10,comfort:Math.round(comfort),review:rise<150||rise>220||going<220||pitch>42}
 }
 export function validate(p:Project){
   const issues:string[]=[],c=p.rules.wallClearance,g=p.rules.componentGap;

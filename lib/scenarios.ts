@@ -98,12 +98,12 @@ export function createScenarioPlan(kind:DesignKind,scenario:string,roomWidth:num
   const w=Math.max(2600,roomWidth),h=Math.max(2200,roomHeight),d=Math.max(2200,roomDepth);
   const items=kind==="kitchen"?kitchen(scenario,w,h,d):kind==="bedroom"?bedroom(scenario,w,h,d):stairs(scenario,w,h,d);
   const label=DESIGN_KINDS.find(x=>x.id===kind)?.scenarios.find(x=>x.id===scenario)?.title??scenario;
-  return {kind,scenario,name:label,roomWidth:w,roomHeight:h,roomDepth:d,rules:{wallClearance:0,componentGap:0,snap:50},items};
+  return {kind,scenario,name:label,roomWidth:w,roomHeight:h,roomDepth:d,rules:{wallClearance:0,componentGap:0,snap:50,serviceClearance:50},items};
 }
 
 export function inferDesignKind(items:JoineryItem[]):DesignKind{
   if(items.some(i=>i.type.toLowerCase().includes("stair")||i.type==="Under-stair storage"))return "stairs";
-  if(items.some(i=>["Sink base","Hob base","Oven tower","Fridge housing","Kitchen island"].includes(i.type)))return "kitchen";
+  if(items.some(i=>["Sink base","Hob base","Oven tower","Fridge housing","Kitchen island","Corner cabinet","Worktop"].includes(i.type)))return "kitchen";
   if(items.some(i=>["Sliding wardrobe","Bed wall","Bedside cabinet"].includes(i.type)))return "bedroom";
   if(items.some(i=>["Base cabinet","Wall cabinet"].includes(i.type)))return "kitchen";
   return "bedroom";
@@ -111,19 +111,23 @@ export function inferDesignKind(items:JoineryItem[]):DesignKind{
 
 export const COMPONENT_GROUPS_BY_KIND:Record<DesignKind,{title:string;items:string[]}[]>={
   kitchen:[
-    {title:"Cabinetry",items:["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Kitchen island","Shelving"]},
-    {title:"Appliances & services",items:["Sink base","Hob base","Oven tower","Fridge housing","Dishwasher","Washing machine","Microwave","Extractor hood"]},
-    {title:"Room",items:["Door opening","Window"]}
+    {title:"Cabinetry",items:["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Corner cabinet","Filler panel","End panel","Worktop","Kitchen island","Shelving"]},
+    {title:"Appliances & services",items:["Sink base","Hob base","Oven tower","Fridge housing","Dishwasher","Washing machine","Microwave","Extractor hood","Tap"]},
+    {title:"Room architecture",items:["Door opening","Window","Chimney breast","Column","Ceiling bulkhead"]},
+    {title:"Services & context",items:["Radiator","Socket","Switch","Ceiling light","Pendant light"]}
   ],
   bedroom:[
     {title:"Fitted furniture",items:["Wardrobe","Sliding wardrobe","Drawer unit","Wall cabinet","Shelving","Media unit"]},
-    {title:"Furniture",items:["Bed","Dressing table","Bedside cabinet","Bed wall"]},
-    {title:"Room",items:["Door opening","Window"]}
+    {title:"Wardrobe internals",items:["Hanging rail","Internal drawers","Shoe rack","Internal divider","Loft box"]},
+    {title:"Furniture",items:["Bed","Dressing table","Bedside cabinet","Bed wall","Mirror"]},
+    {title:"Room architecture",items:["Door opening","Window","Chimney breast","Column","Ceiling bulkhead"]},
+    {title:"Services",items:["Radiator","Socket","Switch","Ceiling light","Pendant light"]}
   ],
   stairs:[
     {title:"Stair systems",items:["Straight staircase","L staircase","U staircase","Under-stair storage"]},
     {title:"Balustrades",items:["Glass balustrade","Timber balustrade"]},
-    {title:"Room",items:["Door opening","Window","Shelving"]}
+    {title:"Room architecture",items:["Door opening","Window","Chimney breast","Column","Ceiling bulkhead"]},
+    {title:"Services & context",items:["Radiator","Socket","Switch","Ceiling light","Pendant light","Mirror","Shelving"]}
   ]
 };
 export const COMPONENTS_BY_KIND:Record<DesignKind,string[]>={
