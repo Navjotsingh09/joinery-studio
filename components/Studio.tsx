@@ -178,14 +178,14 @@ export default function Studio(){
   };
 
   const rotateItem=(id:string,nextRotation:number,transient=false)=>{
-    const current=p.items.find(x=>x.id===id);if(!current||current.locked)return;
+    const current=p.items.find(x=>x.id===id);if(!current||current.locked)return false;
     const oldBox=footprint(current),rotation=normalizeRotation(nextRotation);
     const candidateBase={...current,rotation};
     const newBox=footprint(candidateBase);
     const cx=current.x+oldBox.width/2,cz=current.z+oldBox.depth/2;
     const candidate=clampItemToRoom({...candidateBase,x:cx-newBox.width/2,z:cz-newBox.depth/2},p);
-    if(canPlace(p,candidate,id)){transient?s.moveItem(id,candidate):s.updateItem(id,candidate);setNotice("")}
-    else setNotice("Rotation blocked: the component would hit a wall or another object.");
+    if(canPlace(p,candidate,id)){transient?s.moveItem(id,candidate):s.updateItem(id,candidate);setNotice("");return true}
+    else {setNotice("Rotation blocked: the component would hit a wall or another object.");return false}
   };
 
   const rotateSelected=(delta=90)=>{if(item)rotateItem(item.id,(item.rotation??0)+delta)};
