@@ -311,6 +311,10 @@ export default function Studio(){
       projects={s.projects}
       activeId={p.id}
       onOpenProject={id=>{s.setActive(id);setShowLauncher(false)}}
+      onDeleteProject={async id=>{
+        if(hasSupabase()&&user)await cloud.deleteCloud(id);
+        useStudio.getState().deleteProject(id);
+      }}
       onContinue={p.items.length?()=>setShowLauncher(false):undefined}
       onCreate={(plan:ScenarioPlan)=>{
         if(p.items.length){
