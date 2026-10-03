@@ -20,7 +20,7 @@ export function labelFor(i:JoineryItem,v:Exclude<ViewMode,"3d">){
   if(v==="top")return fp.width+" × "+fp.depth+" mm";
   return fp.depth+" × "+i.height+" mm"
 }
-const floatingTypes=new Set(["Wall cabinet","Microwave","Extractor hood","Window","Worktop","Ceiling bulkhead","Radiator","Socket","Switch","Mirror","Ceiling light","Pendant light","Tap","Hanging rail","Internal drawers","Shoe rack","Loft box"]);
+const floatingTypes=new Set(["Wall cabinet","Microwave","Extractor hood","Window","Worktop","Ceiling bulkhead","Radiator","Socket","Switch","Mirror","Ceiling light","Pendant light","Tap","Arc mixer tap","Pull-out tap","Bridge tap","Backsplash","Single oven","Hanging rail","Internal drawers","Shoe rack","Loft box"]);
 export const isWallMounted=(i:JoineryItem)=>floatingTypes.has(i.type);
 export function clampItemToRoom(i:JoineryItem,p:Project):JoineryItem{
   const rotation=normalizeRotation(i.rotation??0),candidate={...i,rotation},fp=footprint(candidate),step=Math.max(1,p.rules.snap),c=Math.max(0,p.rules.wallClearance);
@@ -34,7 +34,9 @@ export function allowedOverlap(a:JoineryItem,b:JoineryItem){
   if(pair.some(t=>wardrobeInternal.has(t))&&pair.some(t=>t==="Wardrobe"||t==="Sliding wardrobe"))return true;
   if(wardrobeInternal.has(a.type)&&wardrobeInternal.has(b.type))return true;
   if(pair.includes("Worktop")&&pair.some(t=>baseKitchen.has(t)))return true;
-  if(pair.includes("Tap")&&pair.some(t=>t==="Sink base"||t==="Worktop"))return true;
+  const tapType=(t:string)=>t==="Tap"||t.endsWith(" tap");
+  if(pair.some(t=>tapType(t))&&pair.some(t=>t==="Sink base"||t==="Worktop"))return true;
+  if(pair.includes("Backsplash")&&pair.some(t=>baseKitchen.has(t)||["Wall cabinet","Tall cabinet","Oven tower","Fridge housing"].includes(t)))return true;
   if(pair.some(t=>t==="Door opening"||t==="Window")&&pair.includes("Wall segment"))return true;
   return false;
 }
