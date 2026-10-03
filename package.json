@@ -4,7 +4,7 @@
   "private":true,
   "scripts":{
     "dev":"next dev",
-    "build":"vitest run tests/geometry.test.ts -t XYZ && next build",
+    "build":"vitest run tests/geometry.test.ts && next build",
     "start":"next start",
     "typecheck":"tsc --noEmit",
     "test":"vitest run",
