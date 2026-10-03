@@ -212,6 +212,19 @@ function HingePair({height,side=1}:{height:number;side?:number}){
   </group>)}</>
 }
 
+function KitchenShelfProps({w,h,d,levels=2}:{w:number;h:number;d:number;levels?:number}){
+  if(!activeConstructionView)return null;
+  const count=Math.max(1,levels);
+  return <group>{Array.from({length:count},(_,n)=>{
+    const y=-h/2+(h*(n+1))/(count+1)+.035,z=d*.14,offset=Math.min(.11,w*.2),plateR=Math.min(.075,Math.max(.035,w*.1));
+    return <group key={n} position={[0,y,z]}>
+      <mesh position={[-offset,0,0]} castShadow><cylinderGeometry args={[plateR,plateR,.028,28]}/><meshStandardMaterial color="#e7e1d7" roughness={.58}/></mesh>
+      <mesh position={[-offset,.018,0]} castShadow><cylinderGeometry args={[plateR*.92,plateR*.92,.012,28]}/><meshStandardMaterial color="#f2ede5" roughness={.52}/></mesh>
+      <mesh position={[offset,.035,.015]} castShadow><cylinderGeometry args={[.042,.035,.07,22]}/><meshStandardMaterial color={n%2?"#c6b7a3":"#d8d3ca"} roughness={.62}/></mesh>
+    </group>
+  })}</group>;
+}
+
 function DrawerBox({w,h,d,z,colour}:{w:number;h:number;d:number;z:number;colour:string}){
   const side=.012,bottom=.009,boxH=Math.max(.08,h*.56),boxD=Math.max(.12,d*.72);
   return <group position={[0,0,z-boxD/2]}>
@@ -221,6 +234,10 @@ function DrawerBox({w,h,d,z,colour}:{w:number;h:number;d:number;z:number;colour:
     <Panel position={[0,0,-boxD/2+side/2]} size={[Math.max(.03,w-side*2),boxH,side]} colour={boardColour(colour,-.04)}/>
     <Metal position={[-w/2-.004,-boxH*.15,0]} size={[.008,.022,boxD*.78]}/>
     <Metal position={[w/2+.004,-boxH*.15,0]} size={[.008,.022,boxD*.78]}/>
+    {activeConstructionView&&w>.38&&<>
+      <mesh position={[-Math.min(.13,w*.2),-.005,.02]} castShadow><cylinderGeometry args={[.075,.065,.075,28]}/><meshStandardMaterial color="#2d2e2d" metalness={.22} roughness={.38}/></mesh>
+      <mesh position={[Math.min(.12,w*.18),-.012,-.025]} castShadow><cylinderGeometry args={[.06,.052,.06,28]}/><meshStandardMaterial color="#4a4138" metalness={.1} roughness={.48}/></mesh>
+    </>}
   </group>
 }
 
@@ -377,6 +394,7 @@ function TallCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:str
     <Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/>
     <group position={[0,bodyY,-mm(BOARD)/2]}>
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={Math.max(2,i.shelves)}/>
+      <KitchenShelfProps w={w} h={bodyH} d={bodyD} levels={Math.min(4,Math.max(2,i.shelves))}/>
       {i.doors>0&&<DoorFronts i={i} w={w} h={bodyH} d={bodyD} colour={c}/>}
     </group>
   </group>;
@@ -386,6 +404,7 @@ function WallCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:str
   const bodyD=d-mm(BOARD);
   return <group position={[0,0,-mm(BOARD)/2]}>
     <Carcass i={i} w={w} h={h} d={bodyD} colour={c} shelves={Math.max(1,i.shelves)}/>
+    <KitchenShelfProps w={w} h={h} d={bodyD} levels={Math.min(3,Math.max(1,i.shelves))}/>
     {i.doors>0&&<DoorFronts i={i} w={w} h={h} d={bodyD} colour={c}/>}
     <Panel position={[0,-h/2+.008,.012]} size={[Math.max(.03,w-.04),.01,Math.max(.03,d-.05)]} colour={boardColour(c,-.06)}/>
     {!activeConstructionView&&<>
