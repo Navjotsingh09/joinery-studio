@@ -275,7 +275,13 @@ function Carcass({i,w,h,d,colour,shelves=0,openBack=false}:{i:JoineryItem;w:numb
       return <Panel key={n} position={[shelfExplode,y,.005]} size={[innerW,t,shelfD]} colour={boardColour(carcassColour,.015)} materialId={carcassId} part="carcass"/>
     })}
     {activeConstructionView&&w>.9&&<Panel position={[0,0,.018]} size={[t,innerH,shelfD]} colour={boardColour(carcassColour,-.02)} materialId={carcassId} part="carcass"/>}
-    {activeConstructionView&&<>{[-.34,.34].map((y,n)=><mesh key={"drill"+n} position={[-w/2+t+.006-explode,y*h,bodyD/2+.002]}><cylinderGeometry args={[.004,.004,.004,12]}/><meshStandardMaterial color="#64615c"/></mesh>)}</>}
+    {activeConstructionView&&<>
+      {[-.34,.34].map((y,n)=><mesh key={"drill"+n} position={[-w/2+t+.006-explode,y*h,bodyD/2+.002]}><cylinderGeometry args={[.004,.004,.004,12]}/><meshStandardMaterial color="#64615c"/></mesh>)}
+      <mesh position={[-w/2+t/2-explode,0,bodyD/2+.001]}><boxGeometry args={[t*.92,h-.01,.0025]}/><meshStandardMaterial color={boardColour(leftColour,-.12)} roughness={.52}/></mesh>
+      <mesh position={[w/2-t/2+explode,0,bodyD/2+.001]}><boxGeometry args={[t*.92,h-.01,.0025]}/><meshStandardMaterial color={boardColour(rightColour,-.12)} roughness={.52}/></mesh>
+      <mesh position={[0,h/2-t/2+topExplode,bodyD/2+.001]}><boxGeometry args={[innerW,t*.92,.0025]}/><meshStandardMaterial color={boardColour(carcassColour,-.1)} roughness={.52}/></mesh>
+      <mesh position={[0,-h/2+t/2-topExplode,bodyD/2+.001]}><boxGeometry args={[innerW,t*.92,.0025]}/><meshStandardMaterial color={boardColour(carcassColour,-.1)} roughness={.52}/></mesh>
+    </>}
   </group>;
 }
 function DoorFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number;colour:string}){
