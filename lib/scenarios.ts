@@ -7,6 +7,7 @@ export type ScenarioPlan={kind:DesignKind;scenario:string;name:string;roomWidth:
 export const DESIGN_KINDS=[
   {id:"kitchen" as const,title:"Kitchen",description:"Cabinet runs, appliances, worktops, islands and storage",scenarios:[
     {id:"straight",title:"Straight kitchen",description:"Single-wall fitted kitchen"},
+    {id:"l-shape",title:"L-shaped kitchen",description:"Two fitted runs meeting at a corner"},
     {id:"island",title:"Kitchen + island",description:"Wall run with central island"},
     {id:"galley",title:"Galley kitchen",description:"Two facing cabinet runs"}
   ]},
@@ -42,6 +43,39 @@ function kitchen(kind:string,w:number,h:number,d:number):JoineryItem[]{
     item("Hob base","Hob cabinet",{x:start+m*4,y:baseY,z:backZ,width:m,height:870,depth:600,doors:3,shelves:0,materialId:"u705"})
   ];
   const wallUnits=[wall(start+m*2,"Wall cabinet"),wall(start+m*3,"Wall cabinet"),wall(start+m*4,"Wall cabinet")];
+  if(kind==="l-shape"){
+    const door="u705",carcass="w1000",side="u705",unit=600;
+    const q=(type:string,name:string,patch:Partial<JoineryItem>)=>item(type,name,{materialId:door,carcassMaterialId:carcass,doorMaterialId:door,sideMaterialId:side,plinthStyle:"recessed",plinthRecess:70,...patch});
+    const back=[
+      q("Base cabinet","Corner base",{x:0,y:0,z:0,width:unit,height:870,depth:600,doors:1,shelves:1}),
+      q("Drawer unit","Wide drawers",{x:600,y:0,z:0,width:900,height:870,depth:600,doors:3,shelves:0,hardware:"Bar handle"}),
+      q("Sink base","Sink base",{x:1500,y:0,z:0,width:800,height:870,depth:600,doors:2,shelves:0}),
+      q("Dishwasher","Dishwasher",{x:2300,y:0,z:0,width:600,height:870,depth:600,doors:0,shelves:0,colourVariant:"Stainless steel"}),
+      q("Tall cabinet","Tall pantry",{x:2900,y:0,z:0,width:600,height:Math.min(2250,h-80),depth:600,doors:2,shelves:5})
+    ];
+    const sideRun=[
+      q("Base cabinet","Return base",{x:0,y:0,z:600,width:600,height:870,depth:600,doors:1,shelves:1,rotation:90,wallSide:"left"}),
+      q("Hob base","Hob drawers",{x:0,y:0,z:1200,width:800,height:870,depth:600,doors:3,shelves:0,rotation:90,wallSide:"left",hardware:"Bar handle"}),
+      q("Base cabinet","Return storage",{x:0,y:0,z:2000,width:600,height:870,depth:600,doors:2,shelves:1,rotation:90,wallSide:"left"})
+    ];
+    const wallBack=[
+      q("Wall cabinet","Wall unit 1",{x:600,y:1480,z:0,width:900,height:720,depth:350,doors:2,shelves:2}),
+      q("Wall cabinet","Wall unit 2",{x:1500,y:1480,z:0,width:800,height:720,depth:350,doors:2,shelves:2}),
+      q("Wall cabinet","Wall unit 3",{x:2300,y:1480,z:0,width:600,height:720,depth:350,doors:1,shelves:2})
+    ];
+    const wallSide=[
+      q("Wall cabinet","Return wall 1",{x:0,y:1480,z:600,width:600,height:720,depth:350,doors:1,shelves:2,rotation:90,wallSide:"left"}),
+      q("Extractor hood","Extractor hood",{x:0,y:1550,z:1380,width:800,height:520,depth:420,doors:0,shelves:0,rotation:90,wallSide:"left",colourVariant:"Stainless steel"})
+    ];
+    const finishes=[
+      item("Worktop","Back worktop",{x:0,y:870,z:0,width:2900,height:38,depth:630,doors:0,shelves:0,materialId:"stone-light",hardware:"None"}),
+      item("Worktop","Return worktop",{x:0,y:870,z:600,width:2000,height:38,depth:630,doors:0,shelves:0,materialId:"stone-light",hardware:"None",rotation:90,wallSide:"left"}),
+      item("Backsplash","Back backsplash",{x:0,y:908,z:0,width:2900,height:560,depth:20,doors:0,shelves:0,materialId:"stone-light",hardware:"None"}),
+      item("Backsplash","Return backsplash",{x:0,y:908,z:600,width:2000,height:560,depth:20,doors:0,shelves:0,materialId:"stone-light",hardware:"None",rotation:90,wallSide:"left"}),
+      item("Pull-out tap","Pull-out mixer",{x:1830,y:905,z:470,width:170,height:420,depth:220,doors:0,shelves:0,materialId:"metal-brushed",hardware:"None",productStyle:"Pull-out",colourVariant:"Brushed steel"})
+    ];
+    return [...back,...sideRun,...wallBack,...wallSide,...finishes];
+  }
   if(kind==="island"){
     const iw=Math.min(1800,Math.max(1200,w*.42)),iz=Math.max(900,Math.min(d*.48,d-1450));
     return [...units,...wallUnits,item("Kitchen island","Kitchen island",{x:(w-iw)/2,y:0,z:iz,width:iw,height:920,depth:900,doors:4,shelves:0,materialId:"h1385",hardware:"Handleless"})];
