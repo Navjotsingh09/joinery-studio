@@ -57,7 +57,7 @@ function kitchen(kind:string,w:number,h:number,d:number):JoineryItem[]{
     const backTotal=cornerW+drawerW+sinkW+dishW+ovenW+pantryW,startX=Math.max(0,Math.min(100,(w-backTotal)/2));
     const xDrawer=startX+cornerW,xSink=xDrawer+drawerW,xDish=xSink+sinkW,xOven=xDish+dishW,xPantry=xOven+ovenW;
     const back:JoineryItem[]=[
-      lower("Base cabinet","Corner base",{x:startX,y:0,z:0,width:cornerW,height:870,depth:600,doors:1,shelves:1}),
+      lower("Corner cabinet","Corner cabinet",{x:startX,y:0,z:0,width:cornerW,height:870,depth:600,doors:1,shelves:1}),
       lower("Drawer unit","Wide drawers",{x:xDrawer,y:0,z:0,width:drawerW,height:870,depth:600,doors:3,shelves:0,hardware:"Bar handle"}),
       lower("Sink base","Sink base",{x:xSink,y:0,z:0,width:sinkW,height:870,depth:600,doors:2,shelves:0}),
       q("Dishwasher","Dishwasher",{x:xDish,y:0,z:0,width:dishW,height:870,depth:600,doors:0,shelves:0,colourVariant:"Stainless steel"})
