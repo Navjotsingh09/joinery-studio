@@ -35,3 +35,9 @@ export function roomShellWalls(width:number,height:number,depth:number,thickness
     left:{position:[-width/2-thickness/2,height/2,0] as [number,number,number],size:[thickness,height,depth] as [number,number,number]}
   };
 }
+
+// Normalize against actual geometry bounds, including uncentred extrusion geometry.
+export function splashbackTextureUV(x:number,y:number,minX:number,minY:number,maxX:number,maxY:number,crop:[number,number,number,number]):[number,number]{
+  const [left,top,width,height]=crop;
+  return [left+(x-minX)/Math.max(maxX-minX,1e-9)*width,1-top-height+(y-minY)/Math.max(maxY-minY,1e-9)*height];
+}

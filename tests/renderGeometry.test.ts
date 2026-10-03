@@ -28,3 +28,14 @@ describe("room walls do not hide splashbacks",()=>{
     expect(-w/2+thickness).toBeGreaterThan(leftInside);
   });
 });
+
+import {splashbackTextureUV} from "@/lib/renderGeometry";
+describe("supplier texture coordinates",()=>{
+  it("samples the same print region before and after extrusion centering",()=>{
+    const crop:[number,number,number,number]=[.245,.17,.5,.28];
+    expect(splashbackTextureUV(0,0,0,0,2,1,crop)).toEqual(splashbackTextureUV(-1,-.5,-1,-.5,1,.5,crop));
+    expect(splashbackTextureUV(2,1,0,0,2,1,crop)).toEqual(splashbackTextureUV(1,.5,-1,-.5,1,.5,crop));
+    expect(splashbackTextureUV(1,.5,0,0,2,1,crop)[0]).toBeCloseTo(.495);
+    expect(splashbackTextureUV(1,.5,0,0,2,1,crop)[1]).toBeCloseTo(.69);
+  });
+});

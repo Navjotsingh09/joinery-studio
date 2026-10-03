@@ -1,11 +1,11 @@
 "use client";
-import {createContext,useContext,useEffect,useRef,useState} from "react";
+import {createContext,useContext,useEffect,useLayoutEffect,useRef,useState} from "react";
 import {Canvas,useThree} from "@react-three/fiber";
 import {OrbitControls,Grid,GizmoHelper,GizmoViewport,TransformControls,ContactShadows,Html,Line,RoundedBox,Environment,Lightformer} from "@react-three/drei";
 import * as THREE from "three";
 import {Project,JoineryItem,Material,JoineryPart} from "@/types/model";
 import {material} from "@/lib/materials";
-import {sinkCutouts,SinkCutout,roomShellWalls} from "@/lib/renderGeometry";
+import {sinkCutouts,SinkCutout,roomShellWalls,splashbackTextureUV} from "@/lib/renderGeometry";
 import {clampItemToRoom,isWallMounted,footprint,normalizeRotation} from "@/lib/geometry";
 
 const mm=(v:number)=>v/1000;
@@ -201,8 +201,17 @@ function Panel({position,size,colour,front=false,materialId,part}:{position:[num
   const category=exact?.category??custom?.category??"";
   const isStone=category==="Worktop",isMetal=category==="Metal",isSplashback=category==="Splashback",mirror=exact?.splashbackFinish==="Mirrored",metallic=exact?.splashbackFinish==="Metallic";
   const roughness=isSplashback?(exact?.surfaceFinish==="Matt"?.8:mirror?.06:.16):isMetal?.2:isStone?.26:front?(category==="Woodgrain"?.7:.82):.72,metalness=mirror?.95:metallic?.5:isMetal?.78:0;
+  const panelMesh=useRef<THREE.Mesh>(null);
+  useLayoutEffect(()=>{
+    const mesh=panelMesh.current;if(!mesh)return;
+    physicalPanelUV(mesh,size);
+    if(photo&&exact?.textureCrop){
+      const g=mesh.geometry,p=g.getAttribute("position"),uv=g.getAttribute("uv");g.computeBoundingBox();const b=g.boundingBox;if(!b||!p||!uv)return;
+      for(let i=0;i<p.count;i++){const [u,v]=splashbackTextureUV(p.getX(i),p.getY(i),b.min.x,b.min.y,b.max.x,b.max.y,exact.textureCrop);uv.setXY(i,u,v)}uv.needsUpdate=true;
+    }
+  },[photo,exact?.textureCrop,size[0],size[1],size[2]]);
   const picked=!!part&&picker.selected&&picker.selectedPart===part;
-  return <RoundedBox args={size} radius={Math.min(.0012,Math.min(...size)*.12)} smoothness={2} position={position} castShadow receiveShadow onUpdate={mesh=>{physicalPanelUV(mesh,size);if(photo&&exact?.textureCrop){const g=mesh.geometry,p=g.getAttribute("position"),uv=g.getAttribute("uv"),[left,top,width,height]=exact.textureCrop;for(let i=0;i<p.count;i++)uv.setXY(i,left+(p.getX(i)/size[0]+.5)*width,1-top-height+(p.getY(i)/size[1]+.5)*height);uv.needsUpdate=true}}} onClick={part?e=>{e.stopPropagation();picker.onSelectPart?.(part)}:undefined}>
+  return <RoundedBox args={size} radius={Math.min(.0012,Math.min(...size)*.12)} smoothness={2} position={position} castShadow receiveShadow ref={panelMesh} onClick={part?e=>{e.stopPropagation();picker.onSelectPart?.(part)}:undefined}>
     <meshPhysicalMaterial map={tex??undefined} color={tex?"#ffffff":front?boardColour(baseColour,.025):baseColour} roughness={roughness} metalness={metalness} clearcoat={isSplashback&&!mirror?1:0} clearcoatRoughness={roughness} bumpMap={photo?undefined:tex??undefined} bumpScale={category==="Woodgrain"?.00035:.00012}/>
     {picked&&<lineSegments><edgesGeometry args={[new THREE.BoxGeometry(...size)]}/><lineBasicMaterial color="#c8102e"/></lineSegments>}
   </RoundedBox>
