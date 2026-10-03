@@ -8,6 +8,15 @@ const decodeFinish=(finish:string)=>{
   return {finish:finish.replace(ROTATION_SUFFIX,""),rotation:match?Number(match[1]):0};
 };
 const encodeLegacyFinish=(finish:string,rotation:number)=>finish.replace(ROTATION_SUFFIX,"")+"::jsrot="+normalizeRotation(rotation);
+const ITEM_META="\n::jsitem=";
+const PROJECT_META="\n::jsproject=";
+const encodeMeta=(plain:string,marker:string,meta:any)=>plain.replace(new RegExp(marker.trim()+"[^\\n]*$"),"")+marker+encodeURIComponent(JSON.stringify(meta));
+const decodeMeta=(value:string|undefined|null,marker:string)=>{
+  const raw=value??"",i=raw.lastIndexOf(marker);
+  if(i<0)return {plain:raw,meta:{} as any};
+  try{return {plain:raw.slice(0,i),meta:JSON.parse(decodeURIComponent(raw.slice(i+marker.length)))}}
+  catch{return {plain:raw.slice(0,i),meta:{} as any}}
+};
 
 export async function signIn(email:string,password:string){return supabase().auth.signInWithPassword({email,password})}
 export async function signUp(email:string,password:string){return supabase().auth.signUp({email,password})}
@@ -16,12 +25,15 @@ export async function currentUser(){if(!hasSupabase())return null;return (await 
 export function onAuthChange(cb:(email:string|null)=>void){const {data}=supabase().auth.onAuthStateChange((_event,session)=>cb(session?.user?.email??null));return()=>data.subscription.unsubscribe()}
 
 const toItem=(i:any):JoineryItem=>{
-  const legacy=decodeFinish(i.finish??"");
+  const legacy=decodeFinish(i.finish??""),decoded=decodeMeta(i.notes,ITEM_META),m=decoded.meta??{};
   return {
     id:i.id,name:i.name,type:i.type,x:i.x,y:i.y,z:i.z,width:i.width,height:i.height,depth:i.depth,
-    shelves:i.shelves,doors:i.doors,materialId:i.material_id,finish:legacy.finish,notes:i.notes,locked:i.locked,
+    shelves:i.shelves,doors:i.doors,materialId:i.material_id,finish:legacy.finish,notes:decoded.plain,locked:i.locked,
     hardware:i.hardware,edgeBanding:i.edge_banding,rotation:normalizeRotation(i.rotation??legacy.rotation??0),
-    visible:i.visible??true,layer:(i.layer??"Joinery") as ItemLayer,groupId:i.group_id??undefined
+    visible:i.visible??true,layer:(i.layer??"Joinery") as ItemLayer,groupId:i.group_id??undefined,
+    carcassMaterialId:m.carcassMaterialId,doorMaterialId:m.doorMaterialId,sideMaterialId:m.sideMaterialId,
+    plinthStyle:m.plinthStyle,plinthRecess:m.plinthRecess,wallSide:m.wallSide,
+    productStyle:m.productStyle,colourVariant:m.colourVariant,openAmount:m.openAmount
   };
 };
 
@@ -37,11 +49,13 @@ export async function loadCloud():Promise<Project[]>{
     ]);
     if(itemsResult.error)throw itemsResult.error;
     if(revsResult.error)throw revsResult.error;
+    const projectDecoded=decodeMeta(p.project_notes,PROJECT_META),projectMeta=projectDecoded.meta??{};
     out.push({
       id:p.id,name:p.name,customer:p.customer,reference:p.reference,status:p.status,revision:p.revision,
       roomWidth:p.room_width,roomHeight:p.room_height,roomDepth:p.room_depth,
       rules:{wallClearance:p.wall_clearance,componentGap:p.component_gap,snap:p.snap,serviceClearance:p.service_clearance??50},
-      address:p.address??"",notes:p.project_notes??"",archived:p.archived??false,
+      address:p.address??"",notes:projectDecoded.plain,archived:p.archived??false,
+      customMaterials:projectMeta.customMaterials??[],floorMaterialId:projectMeta.floorMaterialId,
       createdAt:p.created_at,updatedAt:p.updated_at,
       items:(itemsResult.data??[]).map(toItem),
       revisions:(revsResult.data??[]).map(r=>({id:r.id,revision:r.revision,createdAt:r.created_at,snapshot:r.snapshot}))
@@ -59,7 +73,8 @@ export async function saveCloud(p:Project){
     room_width:p.roomWidth,room_height:p.roomHeight,room_depth:p.roomDepth,
     wall_clearance:p.rules.wallClearance,component_gap:p.rules.componentGap,snap:p.rules.snap,updated_at:new Date().toISOString()
   };
-  const modernRow={...legacyRow,address:p.address??"",project_notes:p.notes??"",archived:p.archived??false,service_clearance:p.rules.serviceClearance??50};
+  const projectNotes=encodeMeta(p.notes??"",PROJECT_META,{customMaterials:p.customMaterials??[],floorMaterialId:p.floorMaterialId});
+  const modernRow={...legacyRow,address:p.address??"",project_notes:projectNotes,archived:p.archived??false,service_clearance:p.rules.serviceClearance??50};
   let e=(await db.from("projects").upsert(modernRow)).error;
   if(e)e=(await db.from("projects").upsert(legacyRow)).error;
   if(e)throw e;
@@ -67,8 +82,9 @@ export async function saveCloud(p:Project){
   if(p.items.length){
     const modernRows=p.items.map(i=>({
       id:i.id,project_id:p.id,name:i.name,type:i.type,x:i.x,y:i.y,z:i.z,width:i.width,height:i.height,depth:i.depth,
-      shelves:i.shelves,doors:i.doors,material_id:i.materialId,finish:i.finish,notes:i.notes,locked:i.locked,
-      hardware:i.hardware,edge_banding:i.edgeBanding,rotation:normalizeRotation(i.rotation??0),
+      shelves:i.shelves,doors:i.doors,material_id:i.materialId,finish:i.finish,
+      notes:encodeMeta(i.notes??"",ITEM_META,{carcassMaterialId:i.carcassMaterialId,doorMaterialId:i.doorMaterialId,sideMaterialId:i.sideMaterialId,plinthStyle:i.plinthStyle,plinthRecess:i.plinthRecess,wallSide:i.wallSide,productStyle:i.productStyle,colourVariant:i.colourVariant,openAmount:i.openAmount}),
+      locked:i.locked,hardware:i.hardware,edge_banding:i.edgeBanding,rotation:normalizeRotation(i.rotation??0),
       visible:i.visible!==false,layer:i.layer??"Joinery",group_id:i.groupId??null
     }));
     e=(await db.from("project_items").upsert(modernRows)).error;
