@@ -1,4 +1,5 @@
 import {Material} from "@/types/model";
+import {SPLASHBACK_MATERIALS} from "./splashbacks";
 // Generic design finishes inspired by common UK worktop ranges, not supplier SKUs.
 export const WORKTOP_MATERIALS:Material[]=[
 {id:"wt-1",code:"WT01",name:"Oak solid wood",colour:"#b98e5d",thickness:40,category:"Worktop",worktopMaterial:"Solid wood",worktopStyle:"Wood",colourFamily:"Brown",surfaceFinish:"Oiled"},
@@ -83,6 +84,6 @@ export const MATERIALS:Material[]=[
 {id:"metal-brushed",code:"MET",name:"Brushed Steel",colour:"#9ca1a3",thickness:2,category:"Metal"},
 {id:"floor-oak",code:"FL01",name:"Natural Oak Floor",colour:"#c7ad8b",thickness:14,category:"Floor"},
 {id:"floor-walnut",code:"FL02",name:"Walnut Floor",colour:"#8c6546",thickness:14,category:"Floor"},
-{id:"floor-stone",code:"FL03",name:"Light Stone Tile",colour:"#d8d4cc",thickness:10,category:"Floor"},...WORKTOP_MATERIALS,...CABINET_FINISHES];
+{id:"floor-stone",code:"FL03",name:"Light Stone Tile",colour:"#d8d4cc",thickness:10,category:"Floor"},...WORKTOP_MATERIALS,...CABINET_FINISHES,...SPLASHBACK_MATERIALS];
 export const material=(id:string,custom:Material[]=[])=>([...custom,...MATERIALS].find(m=>m.id===id)??MATERIALS[0]);
 export const floorMaterials=(custom:Material[]=[])=>([...custom,...MATERIALS].filter(m=>m.category==="Floor"||!!m.textureDataUrl));

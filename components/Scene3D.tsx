@@ -198,11 +198,11 @@ function Panel({position,size,colour,front=false,materialId,part}:{position:[num
   const tex=uploaded??builtInSurfaceTexture(materialId,baseColour);
   if(tex)tex.repeat.set(1,1);
   const category=exact?.category??custom?.category??"";
-  const isStone=category==="Worktop",isMetal=category==="Metal";
-  const roughness=isMetal?.2:isStone?.26:front?(category==="Woodgrain"?.7:.82):.72,metalness=isMetal?.78:0;
+  const isStone=category==="Worktop",isMetal=category==="Metal",isSplashback=category==="Splashback",mirror=exact?.splashbackFinish==="Mirrored",metallic=exact?.splashbackFinish==="Metallic";
+  const roughness=isSplashback?(exact?.surfaceFinish==="Matt"?.8:mirror?.06:.16):isMetal?.2:isStone?.26:front?(category==="Woodgrain"?.7:.82):.72,metalness=mirror?.95:metallic?.5:isMetal?.78:0;
   const picked=!!part&&picker.selected&&picker.selectedPart===part;
   return <RoundedBox args={size} radius={Math.min(.0012,Math.min(...size)*.12)} smoothness={2} position={position} castShadow receiveShadow onUpdate={mesh=>physicalPanelUV(mesh,size)} onClick={part?e=>{e.stopPropagation();picker.onSelectPart?.(part)}:undefined}>
-    <meshStandardMaterial map={tex??undefined} color={tex?"#ffffff":front?boardColour(baseColour,.025):baseColour} roughness={roughness} metalness={metalness} bumpMap={tex??undefined} bumpScale={category==="Woodgrain"?.00035:.00012}/>
+    <meshPhysicalMaterial map={tex??undefined} color={tex?"#ffffff":front?boardColour(baseColour,.025):baseColour} roughness={roughness} metalness={metalness} clearcoat={isSplashback&&!mirror?1:0} clearcoatRoughness={roughness} bumpMap={tex??undefined} bumpScale={category==="Woodgrain"?.00035:.00012}/>
     {picked&&<lineSegments><edgesGeometry args={[new THREE.BoxGeometry(...size)]}/><lineBasicMaterial color="#c8102e"/></lineSegments>}
   </RoundedBox>
 }
@@ -884,7 +884,7 @@ function RangeCooker({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
     {(style==="Classic"||professional)&&[-.3,-.1,.1,.3].map((x,n)=><mesh key={"knob"+n} position={[x*w,h*.36,d/2+.04]} rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[.022,.022,.016,18]}/><meshStandardMaterial color="#777" metalness={.65}/></mesh>)}
   </group>
 }
-function Backsplash({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){const m=sceneMaterial(i.materialId);return <group><Panel position={[0,0,0]} size={[w,h,Math.max(.012,d)]} colour={m.colour} materialId={i.materialId} part="backsplash" front/><lineSegments position={[0,0,d/2+.004]}><edgesGeometry args={[new THREE.BoxGeometry(w,h,.008)]}/><lineBasicMaterial color="#918a82"/></lineSegments></group>}
+function Backsplash({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){const m=sceneMaterial(i.materialId);return <group><Panel position={[0,0,0]} size={[w,h,Math.max(.004,d)]} colour={m.colour} materialId={i.materialId} part="backsplash" front/><lineSegments position={[0,0,d/2+.004]}><edgesGeometry args={[new THREE.BoxGeometry(w,h,.008)]}/><lineBasicMaterial color="#918a82"/></lineSegments></group>}
 
 function CabinetGeometry({i,project,construction=false}:{i:JoineryItem;project:Project;construction?:boolean}){
   const renderItem=construction?{...i,openAmount:Math.max(72,i.openAmount??0)}:i;
