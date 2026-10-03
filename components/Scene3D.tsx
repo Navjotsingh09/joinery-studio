@@ -341,34 +341,6 @@ function BaseCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:str
   </group>;
 }
 
-function CornerCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  const plinth=.1,top=.025,bodyH=Math.max(.25,h-plinth-top),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
-  const frontId=i.doorMaterialId??i.materialId,frontColour=sceneMaterial(frontId).colour,frontT=mm(BOARD),gap=mm(REVEAL);
-  const open=THREE.MathUtils.degToRad(activeConstructionView?82:Math.min(100,(i.openAmount??0)));
-  const frontW=Math.max(.16,w*.48-gap*2),sideW=Math.max(.16,d*.48-gap*2);
-  return <group>
-    <Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/>
-    <group position={[0,bodyY,-mm(BOARD)/2]}>
-      <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={Math.max(1,i.shelves)} openBack={false}/>
-      <group position={[-w*.25,0,bodyD/2-frontT/2+(activeConstructionView ? .045 : 0:0)]} rotation={[0,-open,0]}>
-        <Panel position={[frontW/2,0,0]} size={[frontW,bodyH-gap*2,frontT]} colour={frontColour} materialId={frontId} part="fronts" front/>
-        {open>.08&&<HingePair height={bodyH-gap*2} side={1}/>}
-        <Handle x={frontW*.82} y={-.02} z={frontT/2+.014} height={bodyH} hardware={i.hardware}/>
-      </group>
-      <group position={[w/2-frontT/2,0,d*.2]} rotation={[0,Math.PI/2+open,0]}>
-        <Panel position={[sideW/2,0,0]} size={[sideW,bodyH-gap*2,frontT]} colour={frontColour} materialId={frontId} part="fronts" front/>
-        {open>.08&&<HingePair height={bodyH-gap*2} side={-1}/>}
-        <Handle x={sideW*.82} y={-.02} z={frontT/2+.014} height={bodyH} hardware={i.hardware}/>
-      </group>
-      {activeConstructionView&&<>
-        {[.22,.52].map((r,n)=><mesh key={n} position={[0,-bodyH*.23+n*bodyH*.46,0]} castShadow receiveShadow><cylinderGeometry args={[Math.min(w,d)*r,Math.min(w,d)*r,.014,48]}/><meshStandardMaterial color={boardColour(c,.04)} roughness={.58}/></mesh>)}
-        <Html position={[w*.12,bodyH*.16,0]} center distanceFactor={7}><span className="constructionLabel">Corner access</span></Html>
-      </>}
-    </group>
-    <WorktopSurface w={w+.025} h={top+.007} d={d+.025} materialId={i.worktopMaterialId??"stone-light"} position={[0,h/2-top/2,.008]}/>
-  </group>;
-}
-
 function TallCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
   const plinth=.1,bodyH=Math.max(.4,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
   return <group>
@@ -750,7 +722,7 @@ function CabinetGeometry({i,construction=false}:{i:JoineryItem;construction?:boo
   i=renderItem;
   if(i.type==="Worktop"){const topId=i.worktopMaterialId??i.materialId;return <WorktopSurface w={w} h={h} d={d} materialId={topId}/>;}
   if(i.type==="Wall segment"||i.type==="Chimney breast"||i.type==="Column"||i.type==="Ceiling bulkhead"||i.type==="Filler panel"||i.type==="End panel"||i.type==="Internal divider"||i.type==="Loft box")return <SimpleBlock w={w} h={h} d={d} c={c} materialId={i.materialId}/>;
-  if(i.type==="Corner cabinet")return <CornerCabinet i={i} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Corner cabinet")return <BaseCabinet i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Hanging rail")return <HangingRail w={w}/>;
   if(i.type==="Internal drawers")return <DrawerUnit i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Shoe rack")return <OpenShelving i={i} w={w} h={h} d={d} c={c}/>;
