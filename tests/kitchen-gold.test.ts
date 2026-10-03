@@ -7,7 +7,7 @@ describe("kitchen gold-standard contract",()=>{
   it("ships the reference-style L kitchen with the complete visible system",()=>{
     const plan=createScenarioPlan("kitchen","l-shape",4200,2400,3400);
     const types=new Set(plan.items.map(i=>i.type));
-    ["Base cabinet","Corner cabinet","Drawer unit","Sink base","Dishwasher","Oven tower","Tall cabinet","Hob base","Wall cabinet","Extractor hood","Worktop","Backsplash","Pull-out tap"].forEach(type=>expect(types.has(type),type).toBe(true));
+    ["Base cabinet","Corner cabinet","Drawer unit","Sink base","Dishwasher","Oven tower","Fridge housing","Hob base","Wall cabinet","Extractor hood","Worktop","Backsplash","Pull-out tap"].forEach(type=>expect(types.has(type),type).toBe(true));
     expect(validate({
       id:"kitchen",name:plan.name,customer:"",reference:"QA",status:"Draft",revision:1,
       roomWidth:plan.roomWidth,roomHeight:plan.roomHeight,roomDepth:plan.roomDepth,
