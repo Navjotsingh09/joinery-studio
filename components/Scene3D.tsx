@@ -402,35 +402,37 @@ function Dishwasher({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
 }
 
 function WashingMachine({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
-  const finish=applianceFinish(i.colourVariant??"White");
+  const finish=applianceFinish(i.colourVariant??"White"),style=i.productStyle??"Contemporary",professional=style==="Professional",classic=style==="Classic";
+  const ring=Math.min(w,h)*(professional?.31:.29);
   return <group>
-    <mesh castShadow receiveShadow><boxGeometry args={[w,h,d]}/><meshStandardMaterial color={finish} roughness={.48}/></mesh>
-    <mesh position={[0,-h*.05,d/2+.016]} rotation={[Math.PI/2,0,0]} castShadow><cylinderGeometry args={[Math.min(w,h)*.29,Math.min(w,h)*.29,.035,40]}/><meshStandardMaterial color="#2c3134" metalness={.25} roughness={.24}/></mesh>
-    <mesh position={[0,-h*.05,d/2+.038]} rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[Math.min(w,h)*.2,Math.min(w,h)*.2,.016,40]}/><meshStandardMaterial color="#66808c" transparent opacity={.55} roughness={.12}/></mesh>
-    <rectAreaLight position={[0,h*.35,d/2+.03]} width={w*.35} height={.02} intensity={.15}/>
-    <Metal position={[w*.23,h*.34,d/2+.025]} size={[.08,.025,.018]}/>
+    <mesh castShadow receiveShadow><boxGeometry args={[w,h,d]}/><meshStandardMaterial color={finish} roughness={style==="Minimal"?.34:.48}/></mesh>
+    <mesh position={[0,-h*.05,d/2+.016]} rotation={[Math.PI/2,0,0]} castShadow><cylinderGeometry args={[ring,ring,.035,40]}/><meshStandardMaterial color={professional?"#1f2224":"#2c3134"} metalness={.25} roughness={.24}/></mesh>
+    <mesh position={[0,-h*.05,d/2+.038]} rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[ring*.69,ring*.69,.016,40]}/><meshStandardMaterial color="#66808c" transparent opacity={.55} roughness={.12}/></mesh>
+    <Metal position={[w*.23,h*.34,d/2+.025]} size={[professional?.11:.08,professional?.032:.025,.018]}/>
+    {classic&&<>{[-.12,.03,.18].map((x,n)=><mesh key={n} position={[x*w,h*.35,d/2+.031]} rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[.021,.021,.013,20]}/><meshStandardMaterial color="#444" metalness={.5}/></mesh>)}</>}
   </group>;
 }
-
 function Microwave({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
-  const finish=applianceFinish(i.colourVariant??"Black");
+  const finish=applianceFinish(i.colourVariant??"Black"),style=i.productStyle??"Contemporary",minimal=style==="Minimal",professional=style==="Professional";
   return <group>
-    <mesh castShadow><boxGeometry args={[w,h,d]}/><meshStandardMaterial color={finish} metalness={.25} roughness={.3}/></mesh>
-    <ApplianceGlass position={[-w*.07,0,d/2+.014]} size={[w*.68,h*.72,.025]}/>
-    <mesh position={[w*.36,.08,d/2+.025]}><boxGeometry args={[w*.12,h*.36,.02]}/><meshStandardMaterial color="#17191a"/></mesh>
-    <Metal position={[-w*.32,0,d/2+.035]} size={[.015,h*.5,.018]}/>
+    <mesh castShadow><boxGeometry args={[w,h,d]}/><meshStandardMaterial color={finish} metalness={.25} roughness={minimal?.2:.3}/></mesh>
+    <ApplianceGlass position={[-w*.07,0,d/2+.014]} size={[w*(minimal?.77:.68),h*.72,.025]}/>
+    {!minimal&&<mesh position={[w*.36,.08,d/2+.025]}><boxGeometry args={[w*.12,h*.36,.02]}/><meshStandardMaterial color="#17191a"/></mesh>}
+    <Metal position={[-w*(minimal?.4:.32),0,d/2+.035]} size={[professional?.022:.015,h*(professional?.58:.5),.018]}/>
+    {style==="Classic"&&<><mesh position={[w*.34,h*.22,d/2+.038]}><cylinderGeometry args={[.022,.022,.012,20]}/><meshStandardMaterial color="#777" metalness={.6}/></mesh><mesh position={[w*.34,.02,d/2+.038]}><cylinderGeometry args={[.022,.022,.012,20]}/><meshStandardMaterial color="#777" metalness={.6}/></mesh></>}
   </group>;
 }
-
 function ExtractorHood({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
-  const finish=applianceFinish(i.colourVariant);
+  const finish=applianceFinish(i.colourVariant),style=i.productStyle??"Contemporary",minimal=style==="Minimal",professional=style==="Professional";
   return <group>
-    <mesh position={[0,-h*.28,.04]} castShadow><boxGeometry args={[w,.11,d]}/><meshStandardMaterial color={finish} metalness={.65} roughness={.24}/></mesh>
-    <mesh position={[0,.05,-d*.18]} castShadow><boxGeometry args={[w*.34,h*.58,d*.34]}/><meshStandardMaterial color={finish} metalness={.62} roughness={.25}/></mesh>
+    {minimal?<mesh position={[0,-h*.18,.02]} castShadow><boxGeometry args={[w,.12,d*.62]}/><meshStandardMaterial color={finish} metalness={.62} roughness={.22}/></mesh>:<>
+      <mesh position={[0,-h*.28,.04]} castShadow><boxGeometry args={[w,professional?.16:.11,d]}/><meshStandardMaterial color={finish} metalness={.65} roughness={.24}/></mesh>
+      <mesh position={[0,.05,-d*.18]} castShadow><boxGeometry args={[w*(professional?.42:.34),h*.58,d*.34]}/><meshStandardMaterial color={finish} metalness={.62} roughness={.25}/></mesh>
+    </>}
     <mesh position={[0,-h*.35,d*.28]} rotation={[Math.PI/2,0,0]}><circleGeometry args={[w*.18,32]}/><meshStandardMaterial color="#242729"/></mesh>
+    {style==="Classic"&&<Metal position={[0,-h*.18,d*.42]} size={[w*.66,.018,.018]}/>}
   </group>;
 }
-
 function DoorOpening({w,h,d,c}:{w:number;h:number;d:number;c:string}){
   const frame=.055,leaf=Math.max(.035,d*.38);
   return <group>
@@ -538,11 +540,11 @@ function KitchenIsland({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:s
 }
 
 function SinkBase({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  return <group><BaseCabinet i={i} w={w} h={h} d={d} c={c}/><Sink w={w} d={d} y={h/2+.015}/></group>;
+  return <group><BaseCabinet i={i} w={w} h={h} d={d} c={c}/><Sink w={w} d={d} y={h/2+.048}/></group>;
 }
 
 function HobBase({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  return <group><BaseCabinet i={i} w={w} h={h} d={d} c={c}/><Hob w={w} d={d} y={h/2+.015}/></group>;
+  return <group><BaseCabinet i={i} w={w} h={h} d={d} c={c}/><Hob w={w} d={d} y={h/2+.044}/></group>;
 }
 
 function OvenTower({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
@@ -646,16 +648,41 @@ function TapObject({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
   </group>
 }
 
-function FreestandingFridge({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){const finish=applianceFinish(i.colourVariant);return <group><mesh castShadow receiveShadow><boxGeometry args={[w,h,d]}/><meshStandardMaterial color={finish} metalness={.32} roughness={.34}/></mesh><lineSegments position={[0,0,d/2+.006]}><edgesGeometry args={[new THREE.BoxGeometry(w-.025,h-.025,.01)]}/><lineBasicMaterial color="#555"/></lineSegments><Metal position={[w*.32,0,d/2+.025]} size={[.018,h*.42,.018]}/></group>}
-function SingleOven({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){const finish=applianceFinish(i.colourVariant??"Black");return <group><mesh castShadow><boxGeometry args={[w,h,d]}/><meshStandardMaterial color={finish} metalness={.3} roughness={.28}/></mesh><ApplianceGlass position={[0,-h*.05,d/2+.018]} size={[w*.78,h*.58,.03]}/><Metal position={[0,h*.32,d/2+.035]} size={[w*.68,.018,.018]}/></group>}
-function RangeCooker({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){const finish=applianceFinish(i.colourVariant??"Graphite");return <group><mesh castShadow><boxGeometry args={[w,h,d]}/><meshStandardMaterial color={finish} metalness={.28} roughness={.3}/></mesh><ApplianceGlass position={[-w*.23,-h*.1,d/2+.018]} size={[w*.4,h*.48,.03]}/><ApplianceGlass position={[w*.23,-h*.1,d/2+.018]} size={[w*.4,h*.48,.03]}/>{[-.3,-.1,.1,.3].map((x,n)=><mesh key={n} position={[x*w,h/2+.012,0]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[w*.075,.008,10,28]}/><meshStandardMaterial color="#222" metalness={.35}/></mesh>)}</group>}
+function FreestandingFridge({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
+  const finish=applianceFinish(i.colourVariant),style=i.productStyle??"Contemporary",minimal=style==="Minimal",professional=style==="Professional";
+  return <group>
+    <mesh castShadow receiveShadow><boxGeometry args={[w,h,d]}/><meshStandardMaterial color={finish} metalness={.32} roughness={minimal?.24:.34}/></mesh>
+    {!minimal&&<lineSegments position={[0,0,d/2+.006]}><edgesGeometry args={[new THREE.BoxGeometry(w-.025,h-.025,.01)]}/><lineBasicMaterial color="#555"/></lineSegments>}
+    {professional?<><Metal position={[-w*.22,0,d/2+.03]} size={[.018,h*.55,.022]}/><Metal position={[w*.22,0,d/2+.03]} size={[.018,h*.55,.022]}/></>:!minimal&&<Metal position={[w*.32,0,d/2+.025]} size={[.018,h*.42,.018]}/>}
+    {style==="Classic"&&<mesh position={[0,h*.34,d/2+.025]}><boxGeometry args={[w*.32,.055,.018]}/><meshStandardMaterial color="#ddd7ca" roughness={.4}/></mesh>}
+  </group>
+}
+function SingleOven({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
+  const finish=applianceFinish(i.colourVariant??"Black"),style=i.productStyle??"Contemporary",minimal=style==="Minimal",professional=style==="Professional";
+  return <group>
+    <mesh castShadow><boxGeometry args={[w,h,d]}/><meshStandardMaterial color={finish} metalness={.3} roughness={minimal?.2:.28}/></mesh>
+    <ApplianceGlass position={[0,-h*.05,d/2+.018]} size={[w*(minimal?.86:.78),h*(minimal?.66:.58),.03]}/>
+    {!minimal&&<Metal position={[0,h*.32,d/2+.035]} size={[w*(professional?.78:.68),professional?.026:.018,.018]}/>}
+    {(style==="Classic"||professional)&&[-.18,.18].map((x,n)=><mesh key={n} position={[x*w,h*.34,d/2+.04]} rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[professional?.024:.02,professional?.024:.02,.014,20]}/><meshStandardMaterial color="#85898b" metalness={.72}/></mesh>)}
+  </group>
+}
+function RangeCooker({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
+  const finish=applianceFinish(i.colourVariant??"Graphite"),style=i.productStyle??"Professional",professional=style==="Professional";
+  return <group>
+    <mesh castShadow><boxGeometry args={[w,h,d]}/><meshStandardMaterial color={finish} metalness={.28} roughness={style==="Minimal"?.22:.3}/></mesh>
+    <ApplianceGlass position={[-w*.23,-h*.1,d/2+.018]} size={[w*.4,h*.48,.03]}/><ApplianceGlass position={[w*.23,-h*.1,d/2+.018]} size={[w*.4,h*.48,.03]}/>
+    {[-.3,-.1,.1,.3].map((x,n)=><mesh key={n} position={[x*w,h/2+.012,0]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[w*.075,.008,10,28]}/><meshStandardMaterial color="#222" metalness={.35}/></mesh>)}
+    <Metal position={[0,h*.25,d/2+.036]} size={[w*(professional?.82:.68),professional?.028:.018,.018]}/>
+    {(style==="Classic"||professional)&&[-.3,-.1,.1,.3].map((x,n)=><mesh key={"knob"+n} position={[x*w,h*.36,d/2+.04]} rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[.022,.022,.016,18]}/><meshStandardMaterial color="#777" metalness={.65}/></mesh>)}
+  </group>
+}
 function Backsplash({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){const m=sceneMaterial(i.materialId);return <group><Panel position={[0,0,0]} size={[w,h,Math.max(.012,d)]} colour={m.colour} materialId={i.materialId} part="backsplash" front/><lineSegments position={[0,0,d/2+.004]}><edgesGeometry args={[new THREE.BoxGeometry(w,h,.008)]}/><lineBasicMaterial color="#918a82"/></lineSegments></group>}
 
 function CabinetGeometry({i,construction=false}:{i:JoineryItem;construction?:boolean}){
   const renderItem=construction?{...i,openAmount:Math.max(72,i.openAmount??0)}:i;
   const c=sceneMaterial(renderItem.carcassMaterialId??renderItem.materialId).colour,w=mm(renderItem.width),h=mm(renderItem.height),d=mm(renderItem.depth);
   i=renderItem;
-  if(i.type==="Worktop")return <SimpleBlock w={w} h={h} d={d} c={sceneMaterial(i.materialId).colour} materialId={i.materialId} part="worktop"/>;
+  if(i.type==="Worktop"){const topId=i.worktopMaterialId??i.materialId;return <SimpleBlock w={w} h={h} d={d} c={sceneMaterial(topId).colour} materialId={topId} part="worktop"/>;
   if(i.type==="Wall segment"||i.type==="Chimney breast"||i.type==="Column"||i.type==="Ceiling bulkhead"||i.type==="Filler panel"||i.type==="End panel"||i.type==="Internal divider"||i.type==="Loft box")return <SimpleBlock w={w} h={h} d={d} c={c} materialId={i.materialId}/>;
   if(i.type==="Corner cabinet")return <BaseCabinet i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Hanging rail")return <HangingRail w={w}/>;
@@ -734,12 +761,12 @@ function CameraRig({preset,rw,rh,rd}:{preset:CameraPreset;rw:number;rh:number;rd
   return null;
 }
 
-export function Scene3D({project,selected,selectedPart,transformMode="translate",onSelect,onSelectPart,onMove,onRotate,onMoveStart}:{project:Project;selected?:string|null;selectedPart?:JoineryPart|null;transformMode?:"translate"|"rotate";onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onMove?:(id:string,x:number,y:number,z:number)=>void;onRotate?:(id:string,rotation:number)=>void;onMoveStart?:()=>void}){
+export function Scene3D({project,selected,selectedPart,transformMode="translate",onSelect,onSelectPart,onDropType,onMove,onRotate,onMoveStart}:{project:Project;selected?:string|null;selectedPart?:JoineryPart|null;transformMode?:"translate"|"rotate";onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onDropType?:(type:string)=>void;onMove?:(id:string,x:number,y:number,z:number)=>void;onRotate?:(id:string,rotation:number)=>void;onMoveStart?:()=>void}){
   activeCustomMaterials=project.customMaterials??[];
   const rw=mm(project.roomWidth),rh=mm(project.roomHeight),rd=mm(project.roomDepth),roomMax=Math.max(rw,rh,rd),floorMaterial=sceneMaterial(project.floorMaterialId??"floor-oak");
-  const [preset,setPreset]=useState<CameraPreset>("iso"),[showGrid,setShowGrid]=useState(false),[showWalls,setShowWalls]=useState(true),[realistic,setRealistic]=useState(true),[construction,setConstruction]=useState(false);
+  const [preset,setPreset]=useState<CameraPreset>("iso"),[showGrid,setShowGrid]=useState(false),[showWalls,setShowWalls]=useState(true),[realistic,setRealistic]=useState(true),[construction,setConstruction]=useState(false),[dropReady,setDropReady]=useState(false);
   activeConstructionView=construction;
-  return <div className={"three "+(construction?"constructionView":"")}><div className="sceneToolbar"><div className="cameraPresets">{(["iso","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={preset===v?"active":""} onClick={()=>setPreset(v)}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles"><button className={realistic?"active":""} onClick={()=>setRealistic(v=>!v)}>{realistic?"Realistic":"Technical"}</button><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button><button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button><button className={construction?"active":""} onClick={()=>setConstruction(v=>!v)}>Construction</button></div></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(2.2,rh*.78),Math.max(4.3,rd*1.35)],fov:38}} dpr={[1,1.5]} performance={{min:.6}} shadows gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:1.08}}>
+  return <div className={"three "+(construction?"constructionView ":"")+(dropReady?"dropReady":"")} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="copy";setDropReady(true)}} onDragLeave={()=>setDropReady(false)} onDrop={e=>{e.preventDefault();setDropReady(false);const type=e.dataTransfer.getData("application/x-joinery-component")||e.dataTransfer.getData("text/plain");if(type)onDropType?.(type)}}><div className="sceneToolbar"><div className="cameraPresets">{(["iso","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={preset===v?"active":""} onClick={()=>setPreset(v)}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles"><button className={realistic?"active":""} onClick={()=>setRealistic(v=>!v)}>{realistic?"Realistic":"Technical"}</button><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button><button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button><button className={construction?"active":""} onClick={()=>setConstruction(v=>!v)}>Construction</button></div></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(2.2,rh*.78),Math.max(4.3,rd*1.35)],fov:38}} dpr={[1,1.5]} performance={{min:.6}} shadows gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:1.08}}>
     <CameraRig preset={preset} rw={rw} rh={rh} rd={rd}/>
     <color attach="background" args={[realistic?"#e7e2da":"#f2f1ee"]}/>
     <ambientLight intensity={realistic ? .5 : .72}/>
