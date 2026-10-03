@@ -70,6 +70,21 @@ export function snapItemToWall(p:Project,i:JoineryItem,wall:WallSide){
   if(wall==="right")q={...q,x:Math.max(c,p.roomWidth-c-fp.width)};
   return clampItemToRoom(q,p)
 }
+const autoWallTypes=new Set(["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Sink base","Hob base","Oven tower","Fridge housing","Corner cabinet","Filler panel","End panel","Wardrobe","Sliding wardrobe","Media unit","Shelving"]);
+export function autoFaceNearestWall(p:Project,i:JoineryItem,threshold=220){
+  if(!autoWallTypes.has(i.type))return i;
+  const fp=footprint(i),cx=i.x+fp.width/2,cz=i.z+fp.depth/2;
+  const distances:{side:WallSide;distance:number}[]=[
+    {side:"back",distance:cz},
+    {side:"front",distance:p.roomDepth-cz},
+    {side:"left",distance:cx},
+    {side:"right",distance:p.roomWidth-cx}
+  ];
+  const nearest=distances.sort((a,b)=>a.distance-b.distance)[0];
+  if(nearest.distance>threshold)return i;
+  const q=snapItemToWall(p,i,nearest.side);
+  return {...q,wallSide:nearest.side};
+}
 export function mirrorItem(p:Project,i:JoineryItem,axis:"x"|"z"){
   const fp=footprint(i);
   return clampItemToRoom(axis==="x"?{...i,x:p.roomWidth-i.x-fp.width}:{...i,z:p.roomDepth-i.z-fp.depth},p)
