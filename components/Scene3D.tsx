@@ -113,14 +113,14 @@ function builtInFloorTexture(id:string,colour:string){
   const tex=new THREE.CanvasTexture(canvas);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(4,4);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=8;roomTextureCache.set(key,tex);return tex;
 }
 
-function RoomShell({rw,rh,rd,showWalls,realistic,floorMaterial}:{rw:number;rh:number;rd:number;showWalls:boolean;realistic:boolean;floorMaterial:Material}){
+function RoomShell({rw,rh,rd,showWalls,realistic,floorMaterial,studioMode=false}:{rw:number;rh:number;rd:number;showWalls:boolean;realistic:boolean;floorMaterial:Material;studioMode?:boolean}){
   const uploadedFloor=useDataTexture(floorMaterial.textureDataUrl);
-  const floor=realistic?(uploadedFloor??builtInFloorTexture(floorMaterial.id,floorMaterial.colour)):null;
+  const floor=studioMode?null:realistic?(uploadedFloor??builtInFloorTexture(floorMaterial.id,floorMaterial.colour)):null;
   const skirting=.095,skirtingD=.018;
   return <group>
     <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.014,0]} receiveShadow>
       <boxGeometry args={[rw,rd,.028]}/>
-      <meshStandardMaterial map={floor??undefined} color={floor?"#ffffff":floorMaterial.colour} roughness={realistic ? .72 : .9}/>
+      <meshStandardMaterial map={floor??undefined} color={studioMode?"#d8cdbc":floor?"#ffffff":floorMaterial.colour} roughness={studioMode?.9:realistic?.72:.9}/>
     </mesh>
     {showWalls&&<>
       <mesh position={[0,rh/2,-rd/2]} receiveShadow>
@@ -196,7 +196,7 @@ function DrawerBox({w,h,d,z,colour}:{w:number;h:number;d:number;z:number;colour:
 
 function DimensionOverlay({i}:{i:JoineryItem}){
   const w=mm(i.width),h=mm(i.height),d=mm(i.depth),offset=.11;
-  const red="#c8102e";
+  const red="#4b4640";
   return <group>
     <Line points={[[-w/2,-h/2-offset,d/2+offset],[w/2,-h/2-offset,d/2+offset]]} color={red} lineWidth={1.4}/>
     <Line points={[[-w/2-offset,-h/2,d/2+offset],[-w/2-offset,h/2,d/2+offset]]} color={red} lineWidth={1.4}/>
@@ -358,6 +358,10 @@ function WallCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:str
     <Carcass i={i} w={w} h={h} d={bodyD} colour={c} shelves={Math.max(1,i.shelves)}/>
     {i.doors>0&&<DoorFronts i={i} w={w} h={h} d={bodyD} colour={c}/>}
     <Panel position={[0,-h/2+.008,.012]} size={[Math.max(.03,w-.04),.01,Math.max(.03,d-.05)]} colour={boardColour(c,-.06)}/>
+    {!activeConstructionView&&<>
+      <mesh position={[0,-h/2-.006,d*.18]}><boxGeometry args={[Math.max(.08,w-.08),.012,.025]}/><meshStandardMaterial color="#fff1c8" emissive="#ffe7a8" emissiveIntensity={2.2} roughness={.35}/></mesh>
+      <pointLight position={[0,-h/2-.06,d*.2]} intensity={2.1} distance={1.55} decay={2} color="#ffe4aa"/>
+    </>}
   </group>;
 }
 
@@ -825,15 +829,15 @@ export function Scene3D({project,selected,selectedPart,transformMode="translate"
   return <div className={"three "+(construction?"constructionView ":"")+(dropReady?"dropReady":"")} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="copy";setDropReady(true)}} onDragLeave={e=>{if(e.currentTarget===e.target)setDropReady(false)}} onDrop={e=>{e.preventDefault();setDropReady(false);const type=e.dataTransfer.getData("application/x-joinery-component")||e.dataTransfer.getData("text/plain");if(!type)return;const point=dropProjector.current?.(e.clientX,e.clientY)??{x:project.roomWidth/2,y:0,z:project.roomDepth/2};onDropType?.(type,point.x,point.y,point.z)}}><div className="sceneToolbar"><div className="cameraPresets">{(["iso","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={preset===v?"active":""} onClick={()=>setPreset(v)}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles renderModes"><button className={renderMode==="presentation"?"active":""} onClick={()=>setRenderMode("presentation")}>Presentation</button><button className={renderMode==="technical"?"active":""} onClick={()=>setRenderMode("technical")}>Technical</button><button className={renderMode==="construction"?"active":""} onClick={()=>setRenderMode("construction")}>Construction</button><span className="sceneToggleDivider"/><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button><button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button></div></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(2.2,rh*.78),Math.max(4.3,rd*1.35)],fov:38}} dpr={[1,1.5]} performance={{min:.6}} shadows gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:1.08}}>
     <CameraRig preset={preset} rw={rw} rh={rh} rd={rd}/>
     <DropProjector rw={rw} rd={rd} onReady={fn=>{dropProjector.current=fn}}/>
-    <color attach="background" args={[realistic?"#e7e2da":"#f2f1ee"]}/>
+    <color attach="background" args={[construction?"#e7ded1":realistic?"#e7e2da":"#f2f1ee"]}/>
     <ambientLight intensity={realistic ? .5 : .72}/>
     <hemisphereLight args={["#fffaf0",realistic?"#8f826f":"#b6afa5",realistic ? .9 : 1.25]}/>
     <directionalLight castShadow position={[3.5,6.5,4.5]} intensity={realistic?2.7:2.15} color={realistic?"#fff6e8":"#ffffff"} shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-bias={-0.00018}/>
-    <RoomShell rw={rw} rh={rh} rd={rd} showWalls={showWalls} realistic={realistic} floorMaterial={floorMaterial}/>
+    <RoomShell rw={rw} rh={rh} rd={rd} showWalls={showWalls&&!construction} realistic={realistic} floorMaterial={floorMaterial} studioMode={construction}/>
 {showGrid&&<Grid position={[0,.002,0]} args={[Math.max(rw,rd)*1.25,Math.max(rw,rd)*1.25]} cellSize={.1} sectionSize={.5} cellColor="#cbc6bf" sectionColor="#aaa49b" fadeDistance={15} fadeStrength={1.5}/>}
 
     {project.items.filter(i=>i.visible!==false).map(i=><ItemNode key={i.id} i={i} project={project} selected={selected===i.id} selectedPart={selected===i.id?selectedPart:null} mode={transformMode} construction={construction} onSelect={onSelect} onSelectPart={onSelectPart} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>)}
-    <ContactShadows position={[0,.003,0]} opacity={realistic ? .42 : .32} scale={Math.max(5,roomMax*1.8)} blur={realistic?3.2:2.6} far={Math.max(5,roomMax*1.8)}/>
+    <ContactShadows position={[0,.003,0]} opacity={construction?.52:realistic?.42:.32} scale={Math.max(5,roomMax*1.8)} blur={construction?2.4:realistic?3.2:2.6} far={Math.max(5,roomMax*1.8)}/>
     <OrbitControls makeDefault target={[0,Math.min(1.15,rh*.48),0]} enableDamping dampingFactor={.08} enablePan enableZoom minDistance={1} maxDistance={Math.max(8,roomMax*4)}/>
     <GizmoHelper alignment="bottom-right" margin={[70,70]}><GizmoViewport axisColors={["#c8102e","#2f8f5b","#315fa8"]} labelColor="#222"/></GizmoHelper>
   </Canvas></div>;
