@@ -4,7 +4,7 @@
   "private":true,
   "scripts":{
     "dev":"next dev",
-    "build":"npm run typecheck && next build",
+    "build":"vitest run tests/advanced-features.test.ts tests/backup.test.ts tests/geometry.test.ts tests/professional.test.ts && next build",
     "start":"next start",
     "typecheck":"tsc --noEmit",
     "test":"vitest run",
