@@ -732,7 +732,19 @@ function OvenTower({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:strin
 }
 
 function FridgeHousing({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  return <group><TallCabinet i={{...i,doors:2}} w={w} h={h} d={d} c={c}/><lineSegments position={[0,0,d/2+.03]}><edgesGeometry args={[new THREE.BoxGeometry(w-.06,h-.08,.01)]}/><lineBasicMaterial color="#6f6f6f"/></lineSegments></group>;
+  const plinth=.1,bodyH=Math.max(.9,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD),split=.42;
+  const lowerH=bodyH*split,upperH=bodyH-lowerH-.012,lowerY=-bodyH/2+lowerH/2,upperY=bodyH/2-upperH/2;
+  return <group>
+    <Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/>
+    <group position={[0,bodyY,-mm(BOARD)/2]}>
+      <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={activeConstructionView?2:0}/>
+      <mesh position={[0,0,bodyD*.03]} castShadow><boxGeometry args={[Math.max(.2,w-.09),Math.max(.5,bodyH-.08),Math.max(.22,bodyD*.7)]}/><meshStandardMaterial color="#4d5153" metalness={.14} roughness={.42}/></mesh>
+      <group position={[0,lowerY,0]}><DoorFronts i={{...i,doors:1}} w={w} h={lowerH-.01} d={bodyD} colour={c}/></group>
+      <group position={[0,upperY,0]}><DoorFronts i={{...i,doors:1}} w={w} h={upperH-.01} d={bodyD} colour={c}/></group>
+      <mesh position={[0,-bodyH/2+.045,bodyD/2+.018]}><boxGeometry args={[w*.62,.035,.018]}/><meshStandardMaterial color="#26282a" metalness={.25} roughness={.3}/></mesh>
+      {activeConstructionView&&<Html position={[0,.08,bodyD/2+.19]} center distanceFactor={7}><span className="constructionLabel accent">Integrated fridge cavity</span></Html>}
+    </group>
+  </group>;
 }
 
 function StairFlight({width,run,rise,count=13,position=[0,0,0],axis="z",reverse=false,colour}:{width:number;run:number;rise:number;count?:number;position?:[number,number,number];axis?:"x"|"z";reverse?:boolean;colour:string}){
