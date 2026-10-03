@@ -79,6 +79,7 @@ function ScenarioDiagram({kind,scenario}:{kind:DesignKind;scenario:string}){
 }
 
 export function ScenarioStart({onCreate,onContinue,continueName,projects=[],activeId,onOpenProject,onDeleteProject}:{onCreate:(plan:ScenarioPlan)=>void;onContinue?:()=>void;continueName?:string;projects?:Project[];activeId?:string;onOpenProject?:(id:string)=>void;onDeleteProject?:(id:string)=>Promise<void>}){
+  const [projectSearch,setProjectSearch]=useState(""),[projectFilter,setProjectFilter]=useState("all"),[projectSort,setProjectSort]=useState("recent");
   const [kind,setKind]=useState<DesignKind|null>(null);
   const [scenario,setScenario]=useState<string|null>(null);
   const [room,setRoom]=useState({width:4200,height:2400,depth:3200});
@@ -95,6 +96,9 @@ export function ScenarioStart({onCreate,onContinue,continueName,projects=[],acti
   };
   const choice=useMemo(()=>DESIGN_KINDS.find(x=>x.id===kind),[kind]);
   const step=scenario?3:kind?2:1;
+  const visibleProjects=projects.filter(p=>(showArchived||!p.archived)&&(projectFilter==="all"||inferDesignKind(p.items)===projectFilter)&&`${p.name} ${p.customer} ${p.reference}`.toLowerCase().includes(projectSearch.toLowerCase())).sort((a,b)=>projectSort==="name"?a.name.localeCompare(b.name):b.updatedAt.localeCompare(a.updatedAt));
+  const activeProject=projects.find(p=>p.id===activeId);
+
 
   const resetForKind=(k:DesignKind)=>{
     setKind(k);setScenario(null);
@@ -111,33 +115,35 @@ export function ScenarioStart({onCreate,onContinue,continueName,projects=[],acti
     </header>
 
     <section className="designHomeBody">
-      <div className="flowRail">
+      {kind&&<div className="flowRail">
         {[["01","Space"],["02","Layout"],["03","Room"]].map((x,n)=><div key={x[0]} className={"flowStep "+(step===n+1?"active ":"")+(step>n+1?"done ":"")}><span>{step>n+1?<Icon name="check" size={13}/>:x[0]}</span><b>{x[1]}</b></div>)}
-      </div>
+      </div>}
 
       {!kind&&<>
-        <section className="homeIntro">
-          <p className="eyebrow">START A NEW DESIGN</p>
-          <h1>Design a real space,<br/><span>not a generic box.</span></h1>
-          <p>Choose the room type first. Joinery Studio will load the right layouts, components and modelling rules for that job.</p>
+        <section className="studioHomeHero">
+          <div className="heroCopy"><p className="eyebrow"><span/> YOUR DESIGN WORKSPACE</p><h1>Beautiful spaces.<br/><span>Built around you.</span></h1><p>From your first idea to the final drawing. Create fitted kitchens, considered bedrooms and bespoke stairs — one detail at a time.</p><div className="heroActions"><button className="heroPrimary" onClick={()=>document.getElementById("choose-space")?.scrollIntoView({behavior:"smooth",block:"start"})}>Start a new design <Icon name="chevron-right" size={18}/></button>{onContinue&&<button className="heroSecondary" onClick={onContinue}>Resume your design <Icon name="chevron-right" size={16}/></button>}</div><div className="heroBenefits"><span><Icon name="check" size={14}/> Real dimensions</span><span><Icon name="check" size={14}/> Materials by part</span><span><Icon name="check" size={14}/> 2D & 3D views</span></div></div>
+          <div className="heroScene"><div className="heroSceneLabel"><span className="liveDot"/> SPACE TO CREATE <span>01 / KITCHEN</span></div><DesignPreview kind="kitchen"/><div className="heroSceneCard"><span className="sceneCardMark">JS</span><div><small>THE REFERENCE COLLECTION</small><b>Oak. Stone. Possibility.</b><span>An editable L-shaped starting point</span></div><button aria-label="Start the reference kitchen" onClick={()=>{resetForKind("kitchen");setScenario("l-shape")}}><Icon name="chevron-right" size={20}/></button></div><span className="heroSceneCaption">Illustrated layout inspiration</span></div>
         </section>
-
+        <section className="homeWorkspaceStrip"><div><b>{projects.filter(p=>!p.archived).length.toString().padStart(2,"0")}</b><span>Active projects</span></div><div><b>03</b><span>Spaces to design</span></div><div><b>mm</b><span>Measured to your room</span></div>{activeProject&&onContinue&&<button onClick={onContinue}><span><small>PICK UP WHERE YOU LEFT OFF</small><strong>{activeProject.name}</strong></span><Icon name="chevron-right" size={20}/></button>}</section>
+        <div className="homeSectionHeading" id="choose-space"><div><p className="eyebrow">MAKE IT YOUR OWN</p><h2>What are we designing?</h2></div><p>Choose a space. Find your layout.<br/>Make every finish yours.</p></div>
         <section className="premiumKindGrid">
           {DESIGN_KINDS.map(k=><button key={k.id} className={"premiumKindCard "+k.id} onClick={()=>resetForKind(k.id)}>
             <div className="premiumVisual"><DesignPreview kind={k.id}/><span className="previewBadge">{k.id==="stairs"?"Structure + storage":k.id==="kitchen"?"Cabinetry + appliances":"Wardrobes + furniture"}</span></div>
             <div className="premiumCardCopy">
               <div><span className="cardNumber">0{DESIGN_KINDS.findIndex(x=>x.id===k.id)+1}</span><h2>{k.title}</h2></div>
               <p>{k.description}</p>
-              <span className="cardAction">Choose {k.title.toLowerCase()} <Icon name="chevron-right" size={16}/></span>
+              <span className="kindFeatures">{k.id==="kitchen"?"Worktops · cabinetry · appliances":k.id==="bedroom"?"Wardrobes · furniture · headboards":"Flights · landings · fitted storage"}</span><span className="cardAction">Design your {k.title.toLowerCase()} <Icon name="chevron-right" size={16}/></span>
             </div>
           </button>)}
         </section>
 
         {!!projects.length&&<section className="projectLibrary">
           <div className="projectLibraryHead"><div><p className="eyebrow">YOUR PROJECTS</p><h2>Continue a design.</h2></div><button onClick={()=>setShowArchived(v=>!v)}>{showArchived?"Hide archived":"Show archived"}</button></div>
-          <div className="projectGrid">{projects.filter(p=>showArchived||!p.archived).map(pr=>{const pk=inferDesignKind(pr.items);return <article key={pr.id} className={"projectCard "+(pr.id===activeId?"activeProject ":"")+(pr.archived?"archivedProject":"")} >
+          <div className="homeProjectTools"><label><span>Find a project</span><input type="search" value={projectSearch} onChange={e=>setProjectSearch(e.target.value)} placeholder="Search name, customer or reference…"/></label><label><span>Space</span><select value={projectFilter} onChange={e=>setProjectFilter(e.target.value)}><option value="all">All spaces</option>{DESIGN_KINDS.map(k=><option key={k.id} value={k.id}>{k.title}</option>)}</select></label><label><span>Sort by</span><select value={projectSort} onChange={e=>setProjectSort(e.target.value)}><option value="recent">Recently updated</option><option value="name">Project name</option></select></label></div>
+          {!visibleProjects.length&&<div className="homeEmptyState"><Icon name="box" size={26}/><b>No matching projects</b><p>Try another search or show archived projects.</p><button onClick={()=>{setProjectSearch("");setProjectFilter("all");setShowArchived(true)}}>Show all projects</button></div>}
+          <div className="projectGrid">{visibleProjects.map(pr=>{const pk=inferDesignKind(pr.items);return <article key={pr.id} className={"projectCard "+(pr.id===activeId?"activeProject ":"")+(pr.archived?"archivedProject":"")} >
             <button className="projectOpen" disabled={deleting===pr.id} onClick={()=>onOpenProject?.(pr.id)} aria-label={"Open project "+pr.name}><div className="projectThumb"><DesignPreview kind={pk}/><span>{pk}</span></div>
-            <div className="projectCardCopy"><small>{pr.reference} · Rev {pr.revision}</small><b>{pr.name}</b><p>{pr.customer||"No customer yet"}{pr.address?" · "+pr.address:""}</p><div><span className={"projectStatus "+pr.status.toLowerCase()}>{pr.status}</span><em>{pr.items.length} objects</em></div></div>
+            <div className="projectCardCopy"><small>{pr.reference} · Rev {pr.revision}</small><b>{pr.name}</b><p>{pr.customer||"No customer yet"}{pr.address?" · "+pr.address:""}</p><div><span className={"projectStatus "+pr.status.toLowerCase()}>{pr.status}</span><em>{pr.items.length} objects · {new Date(pr.updatedAt).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</em></div></div>
             </button>
             {onDeleteProject&&<div className="projectCardActions"><button className="projectDelete" disabled={!!deleting} onClick={()=>void deleteProject(pr)} aria-label={"Delete project "+pr.name}>{deleting===pr.id?"Deleting…":"Delete project"}</button></div>}
           </article>})}</div>
@@ -148,6 +154,8 @@ export function ScenarioStart({onCreate,onContinue,continueName,projects=[],acti
           <button onClick={onContinue}>Continue editing <Icon name="chevron-right" size={16}/></button>
         </section>}
       </>}
+
+      {!kind&&<><section className="homeProcess"><div><p className="eyebrow">FROM IDEA TO DETAIL</p><h2>Your room. Your rhythm.</h2><p>A clear path from a measured space to a design you can share.</p></div><ol><li><span>01</span><b>Set the space</b><p>Choose a layout and enter your room dimensions.</p></li><li><span>02</span><b>Make it yours</b><p>Place your joinery, explore materials and refine each part.</p></li><li><span>03</span><b>See the whole picture</b><p>Explore in 3D, review elevations and export your drawings.</p></li></ol></section><footer className="homeFooter"><div><span className="brandMark">JS</span><b>Joinery Studio</b></div><p>Thoughtful spaces. Precise details.</p><span>Kitchen / Bedroom / Stairs</span></footer></>}
 
       {kind&&!scenario&&<>
         <section className="subPageHead">
