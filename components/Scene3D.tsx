@@ -350,7 +350,7 @@ function CornerCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:s
     <Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/>
     <group position={[0,bodyY,-mm(BOARD)/2]}>
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={Math.max(1,i.shelves)} openBack={false}/>
-      <group position={[-w*.25,0,bodyD/2-frontT/2+(activeConstructionView?.045:0)]} rotation={[0,-open,0]}>
+      <group position={[-w*.25,0,bodyD/2-frontT/2+(activeConstructionView ? .045 : 0:0)]} rotation={[0,-open,0]}>
         <Panel position={[frontW/2,0,0]} size={[frontW,bodyH-gap*2,frontT]} colour={frontColour} materialId={frontId} part="fronts" front/>
         {open>.08&&<HingePair height={bodyH-gap*2} side={1}/>}
         <Handle x={frontW*.82} y={-.02} z={frontT/2+.014} height={bodyH} hardware={i.hardware}/>
