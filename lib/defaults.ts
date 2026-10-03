@@ -33,6 +33,7 @@ const PRESETS:Record<string,Preset>={
 "Extractor hood":{width:800,height:700,depth:450,shelves:0,doors:0,y:1450},
 "Door opening":{width:900,height:2100,depth:100,shelves:0,doors:0,y:0},
 "Window":{width:1200,height:1000,depth:100,shelves:0,doors:0,y:900},
+"Wall segment":{width:1800,height:2400,depth:100,shelves:0,doors:0,y:0},
 "Chimney breast":{width:1200,height:2400,depth:400,shelves:0,doors:0,y:0},
 "Column":{width:300,height:2400,depth:300,shelves:0,doors:0,y:0},
 "Ceiling bulkhead":{width:1600,height:300,depth:500,shelves:0,doors:0,y:2100},
@@ -51,8 +52,8 @@ const PRESETS:Record<string,Preset>={
 "Glass balustrade":{width:1800,height:1000,depth:70,shelves:0,doors:0,y:0},
 "Timber balustrade":{width:1800,height:1000,depth:90,shelves:0,doors:0,y:0}};
 
-const noHardware=new Set(["Shelving","Straight staircase","L staircase","U staircase","Bed wall","Bed","Dishwasher","Washing machine","Microwave","Extractor hood","Door opening","Window","Glass balustrade","Timber balustrade","Worktop","Filler panel","End panel","Chimney breast","Column","Ceiling bulkhead","Radiator","Socket","Switch","Mirror","Ceiling light","Pendant light","Tap","Hanging rail","Shoe rack","Internal divider"]);
-const architecture=new Set(["Door opening","Window","Chimney breast","Column","Ceiling bulkhead"]);
+const noHardware=new Set(["Shelving","Straight staircase","L staircase","U staircase","Bed wall","Bed","Dishwasher","Washing machine","Microwave","Extractor hood","Door opening","Window","Wall segment","Glass balustrade","Timber balustrade","Worktop","Filler panel","End panel","Chimney breast","Column","Ceiling bulkhead","Radiator","Socket","Switch","Mirror","Ceiling light","Pendant light","Tap","Hanging rail","Shoe rack","Internal divider"]);
+const architecture=new Set(["Door opening","Window","Wall segment","Chimney breast","Column","Ceiling bulkhead"]);
 const services=new Set(["Dishwasher","Washing machine","Microwave","Extractor hood","Radiator","Socket","Switch","Ceiling light","Pendant light","Tap"]);
 const decor=new Set(["Bed","Mirror"]);
 const layerFor=(type:string):ItemLayer=>architecture.has(type)?"Architecture":services.has(type)?"Services":decor.has(type)?"Decor":"Joinery";

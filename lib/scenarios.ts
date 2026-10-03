@@ -113,20 +113,20 @@ export const COMPONENT_GROUPS_BY_KIND:Record<DesignKind,{title:string;items:stri
   kitchen:[
     {title:"Cabinetry",items:["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Corner cabinet","Filler panel","End panel","Worktop","Kitchen island","Shelving"]},
     {title:"Appliances & services",items:["Sink base","Hob base","Oven tower","Fridge housing","Dishwasher","Washing machine","Microwave","Extractor hood","Tap"]},
-    {title:"Room architecture",items:["Door opening","Window","Chimney breast","Column","Ceiling bulkhead"]},
+    {title:"Room architecture",items:["Wall segment","Door opening","Window","Chimney breast","Column","Ceiling bulkhead"]},
     {title:"Services & context",items:["Radiator","Socket","Switch","Ceiling light","Pendant light"]}
   ],
   bedroom:[
     {title:"Fitted furniture",items:["Wardrobe","Sliding wardrobe","Drawer unit","Wall cabinet","Shelving","Media unit"]},
     {title:"Wardrobe internals",items:["Hanging rail","Internal drawers","Shoe rack","Internal divider","Loft box"]},
     {title:"Furniture",items:["Bed","Dressing table","Bedside cabinet","Bed wall","Mirror"]},
-    {title:"Room architecture",items:["Door opening","Window","Chimney breast","Column","Ceiling bulkhead"]},
+    {title:"Room architecture",items:["Wall segment","Door opening","Window","Chimney breast","Column","Ceiling bulkhead"]},
     {title:"Services",items:["Radiator","Socket","Switch","Ceiling light","Pendant light"]}
   ],
   stairs:[
     {title:"Stair systems",items:["Straight staircase","L staircase","U staircase","Under-stair storage"]},
     {title:"Balustrades",items:["Glass balustrade","Timber balustrade"]},
-    {title:"Room architecture",items:["Door opening","Window","Chimney breast","Column","Ceiling bulkhead"]},
+    {title:"Room architecture",items:["Wall segment","Door opening","Window","Chimney breast","Column","Ceiling bulkhead"]},
     {title:"Services & context",items:["Radiator","Socket","Switch","Ceiling light","Pendant light","Mirror","Shelving"]}
   ]
 };

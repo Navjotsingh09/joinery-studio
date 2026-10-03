@@ -511,8 +511,29 @@ function UnderStairStorage({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number
   })}</group>;
 }
 
+
+function SimpleBlock({w,h,d,c}:{w:number;h:number;d:number;c:string}){return <Panel position={[0,0,0]} size={[w,h,d]} colour={c} front/>}
+function HangingRail({w}:{w:number}){return <mesh rotation={[0,0,Math.PI/2]} castShadow><cylinderGeometry args={[.012,.012,Math.max(.04,w-.06),18]}/><meshStandardMaterial color="#9b9b98" metalness={.78} roughness={.22}/></mesh>}
+function Radiator({w,h,d}:{w:number;h:number;d:number}){const count=Math.max(5,Math.round(w/.09));return <group>{Array.from({length:count},(_,n)=><mesh key={n} position={[-w/2+w*(n+.5)/count,0,0]} castShadow><boxGeometry args={[Math.max(.025,w/count-.014),h,d]}/><meshStandardMaterial color="#f0efeb" roughness={.55}/></mesh>)}<Metal position={[0,-h/2+.06,d/2+.018]} size={[w*.88,.018,.018]}/></group>}
+function ServicePlate({w,h,d,c="#f5f3ee"}:{w:number;h:number;d:number;c?:string}){return <group><mesh castShadow><boxGeometry args={[w,h,Math.max(.012,d)]}/><meshStandardMaterial color={c} roughness={.58}/></mesh><mesh position={[0,0,d/2+.008]}><boxGeometry args={[w*.22,h*.34,.012]}/><meshStandardMaterial color="#555" roughness={.5}/></mesh></group>}
+function MirrorPanel({w,h,d}:{w:number;h:number;d:number}){return <group><mesh><boxGeometry args={[w,h,Math.max(.012,d)]}/><meshPhysicalMaterial color="#c7d3d8" metalness={.15} roughness={.06} transmission={.18}/></mesh><lineSegments><edgesGeometry args={[new THREE.BoxGeometry(w,h,Math.max(.012,d))]}/><lineBasicMaterial color="#777"/></lineSegments></group>}
+function CeilingLight({w,h,d}:{w:number;h:number;d:number}){return <mesh rotation={[Math.PI/2,0,0]} castShadow><cylinderGeometry args={[Math.max(.05,w/2),Math.max(.05,w/2),Math.max(.025,h),32]}/><meshStandardMaterial color="#eee7cf" emissive="#fff2c5" emissiveIntensity={.55} roughness={.38}/></mesh>}
+function PendantLight({w,h}:{w:number;h:number}){return <group><Metal position={[0,h*.25,0]} size={[.012,h*.5,.012]}/><mesh position={[0,-h*.2,0]} castShadow><coneGeometry args={[Math.max(.08,w/2),Math.max(.12,h*.35),32,1,true]}/><meshStandardMaterial color="#3d3a36" metalness={.35} roughness={.35} side={THREE.DoubleSide}/></mesh><pointLight position={[0,-h*.35,0]} intensity={2.2} distance={2.2} color="#fff0d2"/></group>}
+function TapObject({w,h,d}:{w:number;h:number;d:number}){return <group><mesh position={[0,-h*.15,0]} castShadow><cylinderGeometry args={[Math.max(.012,w*.08),Math.max(.014,w*.09),h*.7,18]}/><meshStandardMaterial color="#777c7e" metalness={.82} roughness={.18}/></mesh><mesh position={[0,h*.18,d*.2]} rotation={[Math.PI/2,0,0]} castShadow><cylinderGeometry args={[Math.max(.01,w*.065),Math.max(.01,w*.065),Math.max(.08,d*.65),18]}/><meshStandardMaterial color="#777c7e" metalness={.82} roughness={.18}/></mesh></group>}
+
 function CabinetGeometry({i}:{i:JoineryItem}){
   const c=material(i.materialId).colour,w=mm(i.width),h=mm(i.height),d=mm(i.depth);
+  if(i.type==="Wall segment"||i.type==="Chimney breast"||i.type==="Column"||i.type==="Ceiling bulkhead"||i.type==="Filler panel"||i.type==="End panel"||i.type==="Worktop"||i.type==="Internal divider"||i.type==="Loft box")return <SimpleBlock w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Corner cabinet")return <BaseCabinet i={i} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Hanging rail")return <HangingRail w={w}/>;
+  if(i.type==="Internal drawers")return <DrawerUnit i={i} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Shoe rack")return <OpenShelving i={i} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Radiator")return <Radiator w={w} h={h} d={d}/>;
+  if(i.type==="Socket"||i.type==="Switch")return <ServicePlate w={w} h={h} d={d}/>;
+  if(i.type==="Mirror")return <MirrorPanel w={w} h={h} d={d}/>;
+  if(i.type==="Ceiling light")return <CeilingLight w={w} h={h} d={d}/>;
+  if(i.type==="Pendant light")return <PendantLight w={w} h={h}/>;
+  if(i.type==="Tap")return <TapObject w={w} h={h} d={d}/>;
   if(i.type==="Wardrobe")return <Wardrobe i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Sliding wardrobe")return <SlidingWardrobe i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Dressing table")return <DressingTable i={i} w={w} h={h} d={d} c={c}/>;
@@ -594,7 +615,7 @@ function CameraRig({preset,rw,rh,rd}:{preset:CameraPreset;rw:number;rh:number;rd
 export function Scene3D({project,selected,transformMode="translate",onSelect,onMove,onRotate,onMoveStart}:{project:Project;selected?:string|null;transformMode?:"translate"|"rotate";onSelect?:(id:string|null)=>void;onMove?:(id:string,x:number,y:number,z:number)=>void;onRotate?:(id:string,rotation:number)=>void;onMoveStart?:()=>void}){
   const rw=mm(project.roomWidth),rh=mm(project.roomHeight),rd=mm(project.roomDepth),roomMax=Math.max(rw,rh,rd);
   const [preset,setPreset]=useState<CameraPreset>("iso"),[showGrid,setShowGrid]=useState(false),[showWalls,setShowWalls]=useState(true),[realistic,setRealistic]=useState(true);
-  return <div className="three"><div className="sceneToolbar"><div className="cameraPresets">{(["iso","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={preset===v?"active":""} onClick={()=>setPreset(v)}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles"><button className={realistic?"active":""} onClick={()=>setRealistic(v=>!v)}>{realistic?"Realistic":"Technical"}</button><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button><button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button></div></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(2.2,rh*.78),Math.max(4.3,rd*1.35)],fov:38}} dpr={[1,1.75]} shadows gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:1.08}}>
+  return <div className="three"><div className="sceneToolbar"><div className="cameraPresets">{(["iso","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={preset===v?"active":""} onClick={()=>setPreset(v)}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles"><button className={realistic?"active":""} onClick={()=>setRealistic(v=>!v)}>{realistic?"Realistic":"Technical"}</button><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button><button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button></div></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(2.2,rh*.78),Math.max(4.3,rd*1.35)],fov:38}} dpr={[1,1.5]} performance={{min:.6}} shadows gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:1.08}}>
     <CameraRig preset={preset} rw={rw} rh={rh} rd={rd}/>
     <color attach="background" args={[realistic?"#e7e2da":"#f2f1ee"]}/>
     <ambientLight intensity={realistic ? .5 : .72}/>
@@ -603,7 +624,7 @@ export function Scene3D({project,selected,transformMode="translate",onSelect,onM
     <RoomShell rw={rw} rh={rh} rd={rd} showWalls={showWalls} realistic={realistic}/>
 {showGrid&&<Grid position={[0,.002,0]} args={[Math.max(rw,rd)*1.25,Math.max(rw,rd)*1.25]} cellSize={.1} sectionSize={.5} cellColor="#cbc6bf" sectionColor="#aaa49b" fadeDistance={15} fadeStrength={1.5}/>}
 
-    {project.items.map(i=><ItemNode key={i.id} i={i} project={project} selected={selected===i.id} mode={transformMode} onSelect={onSelect} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>)}
+    {project.items.filter(i=>i.visible!==false).map(i=><ItemNode key={i.id} i={i} project={project} selected={selected===i.id} mode={transformMode} onSelect={onSelect} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>)}
     <ContactShadows position={[0,.003,0]} opacity={realistic ? .42 : .32} scale={Math.max(5,roomMax*1.8)} blur={realistic?3.2:2.6} far={Math.max(5,roomMax*1.8)}/>
     <OrbitControls makeDefault target={[0,Math.min(1.15,rh*.48),0]} enableDamping dampingFactor={.08} enablePan enableZoom minDistance={1} maxDistance={Math.max(8,roomMax*4)}/>
     <GizmoHelper alignment="bottom-right" margin={[70,70]}><GizmoViewport axisColors={["#c8102e","#2f8f5b","#315fa8"]} labelColor="#222"/></GizmoHelper>

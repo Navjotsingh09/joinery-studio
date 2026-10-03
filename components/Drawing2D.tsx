@@ -1,7 +1,7 @@
 "use client";
 import {useRef,useState} from "react";
 import {Project,ViewMode,JoineryItem} from "@/types/model";
-import {itemRect,labelFor,viewSize,svgPoint,contrastText,clampItemToRoom,validate,normalizeRotation} from "@/lib/geometry";
+import {itemRect,labelFor,viewSize,svgPoint,contrastText,clampItemToRoom,validate,normalizeRotation,wallClearances} from "@/lib/geometry";
 import {material} from "@/lib/materials";
 
 type DragState={
@@ -64,7 +64,7 @@ export function Drawing2D({
       if(view==="side")candidate={...candidate,y:i.y-dy,z:i.z+dx};
       candidate=clampItemToRoom(candidate,project);
       let r=itemRect(candidate,project,view);
-      const others=project.items.filter(o=>o.id!==i.id);
+      const others=project.items.filter(o=>o.id!==i.id&&o.visible!==false);
       let gx:number|undefined,gy:number|undefined,label:string|undefined;
       const threshold=Math.max(20,project.rules.snap*.6);
       let bestX=threshold+1,bestY=threshold+1,deltaX=0,deltaY=0;
@@ -139,8 +139,8 @@ export function Drawing2D({
       <text x="-43" y={size.h*scale/2} transform={"rotate(-90 -43 "+(size.h*scale/2)+")"} textAnchor="middle" className="dim">{size.h} mm</text>
       {guides.x!==undefined&&<><line className="snapGuide" x1={guides.x*scale} x2={guides.x*scale} y1="0" y2={size.h*scale}/><text className="snapHint" x={guides.x*scale+8} y="18">{guides.label}</text></>}
       {guides.y!==undefined&&<><line className="snapGuide" x1="0" x2={size.w*scale} y1={guides.y*scale} y2={guides.y*scale}/><text className="snapHint" x="8" y={guides.y*scale-8}>{guides.label}</text></>}
-      {project.items.map(i=>{
-        const r=itemRect(i,project,view),sel=i.id===selected,invalid=issueNames.has(i.id),fill=material(i.materialId).colour,tc=contrastText(fill),rw=r.width*scale,rh=r.height*scale,rotation=normalizeRotation(i.rotation??0),quarter=rotation===90||rotation===270,faceView=(view==="front"&&!quarter)||(view==="side"&&quarter),isDrawer=i.type==="Drawer unit"||i.type==="Media unit",hasPlinth=["Wardrobe","Base cabinet","Tall cabinet","Drawer unit","Media unit","Sink base","Hob base","Kitchen island"].includes(i.type),plinthPx=hasPlinth?Math.min(rh*.14,100*scale):0,isStair=["Straight staircase","L staircase","U staircase"].includes(i.type),isBed=i.type==="Bed",isSink=i.type==="Sink base",isHob=i.type==="Hob base",isOven=i.type==="Oven tower",isDish=i.type==="Dishwasher",isWasher=i.type==="Washing machine",isMicrowave=i.type==="Microwave",isExtractor=i.type==="Extractor hood",isDoor=i.type==="Door opening",isWindow=i.type==="Window",isGlassBal=i.type==="Glass balustrade",isTimberBal=i.type==="Timber balustrade";
+      {project.items.filter(i=>i.visible!==false).map(i=>{
+        const r=itemRect(i,project,view),sel=i.id===selected,invalid=issueNames.has(i.id),fill=material(i.materialId).colour,tc=contrastText(fill),rw=r.width*scale,rh=r.height*scale,rotation=normalizeRotation(i.rotation??0),quarter=rotation===90||rotation===270,faceView=(view==="front"&&!quarter)||(view==="side"&&quarter),isDrawer=i.type==="Drawer unit"||i.type==="Media unit",hasPlinth=["Wardrobe","Base cabinet","Tall cabinet","Drawer unit","Media unit","Sink base","Hob base","Kitchen island","Corner cabinet"].includes(i.type),plinthPx=hasPlinth?Math.min(rh*.14,100*scale):0,isStair=["Straight staircase","L staircase","U staircase"].includes(i.type),isBed=i.type==="Bed",isSink=i.type==="Sink base",isHob=i.type==="Hob base",isOven=i.type==="Oven tower",isDish=i.type==="Dishwasher",isWasher=i.type==="Washing machine",isMicrowave=i.type==="Microwave",isExtractor=i.type==="Extractor hood",isDoor=i.type==="Door opening",isWindow=i.type==="Window",isGlassBal=i.type==="Glass balustrade",isTimberBal=i.type==="Timber balustrade",clear=wallClearances(project,i);
         return <g key={i.id} className={"drawingItem "+(sel?"selected ":"")+(invalid?"invalid ":"")} transform={"translate("+(r.left*scale)+","+(r.top*scale)+")"}
           onPointerDown={e=>begin(e,i.id,"move")}
           onContextMenu={e=>{e.preventDefault();e.stopPropagation();onContext(e,i.id)}}
@@ -171,7 +171,9 @@ export function Drawing2D({
           {sel&&<>
             <line x1="0" y1={rh+11} x2={rw} y2={rh+11} stroke="#c8102e"/><text x={rw/2} y={rh+27} textAnchor="middle" className="dim selectionDim">{view==="side"?i.depth:i.width} mm</text>
             <line x1={rw+11} y1="0" x2={rw+11} y2={rh} stroke="#c8102e"/><text x={rw+27} y={rh/2} textAnchor="middle" className="dim selectionDim" transform={"rotate(-90 "+(rw+27)+" "+(rh/2)+")"}>{view==="top"?i.depth:i.height} mm</text>
-            <text x="4" y="-10" className="dim selectionDim">{view==="front"?"X "+i.x+" · Y "+i.y:view==="top"?"X "+i.x+" · Z "+i.z:"Z "+i.z+" · Y "+i.y}</text><g className="rotationBadge" transform={"translate("+(rw-6)+",-18)"}><rect x="-42" y="-13" width="42" height="18" rx="5" fill="#fff" stroke="#c8102e"/><text x="-21" y="0" textAnchor="middle" className="rotationText">{rotation}°</text></g>
+            <text x="4" y="-10" className="dim selectionDim">{view==="front"?"X "+i.x+" · Y "+i.y:view==="top"?"X "+i.x+" · Z "+i.z:"Z "+i.z+" · Y "+i.y}</text>
+            {view==="top"&&<text x="4" y="-24" className="dim clearanceDim">L {clear.left} · R {clear.right} · Back {clear.back} · Front {clear.front} mm</text>}
+            <g className="rotationBadge" transform={"translate("+(rw-6)+",-18)"}><rect x="-42" y="-13" width="42" height="18" rx="5" fill="#fff" stroke="#c8102e"/><text x="-21" y="0" textAnchor="middle" className="rotationText">{rotation}°</text></g>
             {!i.locked&&<>
               <g className="resizeHandle" transform={"translate("+rw+","+rh+")"} onPointerDown={e=>begin(e,i.id,"resize")}><circle r="10" fill="#fff" stroke="#c8102e" strokeWidth="3"/><circle r="3" fill="#c8102e"/></g>
               <g className="rotateHandle" transform={"translate("+(rw/2)+",-34)"} onPointerDown={e=>begin(e,i.id,"rotate")}><line x1="0" y1="12" x2="0" y2="24" stroke="#c8102e" strokeWidth="2"/><circle r="11" fill="#fff" stroke="#c8102e" strokeWidth="2.5"/><path d="M -4 -2 A 5 5 0 1 1 3 4 M 3 4 L 3 0 M 3 4 L -1 4" fill="none" stroke="#c8102e" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></g>
