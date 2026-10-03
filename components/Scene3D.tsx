@@ -182,6 +182,7 @@ function DoorFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number;c
 }
 
 function DrawerFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number;colour:string}){
+  const faceMaterial=material(i.doorMaterialId??i.materialId),faceColour=faceMaterial.colour;
   const count=Math.max(2,i.doors||3),gap=mm(REVEAL),frontT=mm(BOARD),faceW=w-gap*2,faceH=(h-gap*(count+1))/count,z=d/2-frontT/2;
   return <>{Array.from({length:count},(_,n)=>{
     const y=-h/2+gap+faceH/2+n*(faceH+gap);
@@ -269,7 +270,7 @@ function OpenShelving({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:st
 
 
 function Countertop({w,d,y,colour="#e8e4dc"}:{w:number;d:number;y:number;colour?:string}){
-  return <Panel position={[0,y,0]} size={[w+.025,.028,d+.025]} colour={faceColour} front/>;
+  return <Panel position={[0,y,0]} size={[w+.025,.028,d+.025]} colour={colour} front/>;
 }
 
 function Sink({w,d,y}:{w:number;d:number;y:number}){
@@ -460,7 +461,7 @@ function StairFlight({width,run,rise,count=13,position=[0,0,0],axis="z",reverse=
     const a=reverse?-along:along;
     const pos:[number,number,number]=axis==="z"?[0,-rise/2+stepH/2,a]:[a,-rise/2+stepH/2,0];
     const size:[number,number,number]=axis==="z"?[width,stepH,tread+.006]:[tread+.006,stepH,width];
-    return <Panel key={n} position={pos} size={size} colour={faceColour} front/>
+    return <Panel key={n} position={pos} size={size} colour={colour} front/>
   })}
   </group>;
 }
