@@ -1,7 +1,7 @@
 "use client";
 import {useRef,useState} from "react";
-import {Project,ViewMode,JoineryItem} from "@/types/model";
-import {itemRect,labelFor,viewSize,svgPoint,contrastText,clampItemToRoom,validate,normalizeRotation,wallClearances} from "@/lib/geometry";
+import {Project,ViewMode,JoineryItem,WallSide} from "@/types/model";
+import {itemRect,labelFor,viewSize,svgPoint,contrastText,clampItemToRoom,validate,normalizeRotation,wallClearances,wallViewSize,wallItemRect,isItemOnWall} from "@/lib/geometry";
 import {material} from "@/lib/materials";
 
 type DragState={
@@ -12,11 +12,12 @@ type DragState={
 };
 
 export function Drawing2D({
-  project,view,selected,onSelect,onMove,onResize,onRotate,onMoveStart,onContext,onDropType
+  project,view,selected,wallSide,onSelect,onMove,onResize,onRotate,onMoveStart,onContext,onDropType
 }:{
   project:Project;
   view:Exclude<ViewMode,"3d">;
   selected:string|null;
+  wallSide?:WallSide;
   onSelect:(id:string|null)=>void;
   onMove:(id:string,x:number,y:number,z:number)=>void;
   onResize:(id:string,patch:Partial<JoineryItem>)=>void;
@@ -28,7 +29,10 @@ export function Drawing2D({
   const ref=useRef<SVGSVGElement>(null);
   const [drag,setDrag]=useState<DragState|null>(null);
   const [guides,setGuides]=useState<{x?:number;y?:number;label?:string}>({});
-  const size=viewSize(project,view),pad=76,W=1000,H=650;
+  const elevation=!!wallSide&&view==="front";
+  const size=elevation?wallViewSize(project,wallSide!):viewSize(project,view),pad=76,W=1000,H=650;
+  const rectFor=(i:JoineryItem)=>elevation?wallItemRect(i,project,wallSide!):rectFor(i);
+  const visibleItems=project.items.filter(i=>i.visible!==false&&(!elevation||isItemOnWall(project,i,wallSide!)));
   const scale=Math.min((W-pad*2)/size.w,(H-pad*2)/size.h);
   const tx=pad+(W-pad*2-size.w*scale)/2,ty=pad+(H-pad*2-size.h*scale)/2;
   const issueNames=new Set(validate(project).flatMap(msg=>project.items.filter(i=>msg.includes(i.name)).map(i=>i.id)));
@@ -49,7 +53,7 @@ export function Drawing2D({
     const dx=(q.x-drag.start.x)/scale,dy=(q.y-drag.start.y)/scale;
     const i=drag.original;
     if(drag.mode==="rotate"){
-      const originalRect=itemRect(i,project,view);
+      const originalRect=rectFor(i);
       const center={x:tx+(originalRect.left+originalRect.width/2)*scale,y:ty+(originalRect.top+originalRect.height/2)*scale};
       const a0=Math.atan2(drag.start.y-center.y,drag.start.x-center.x);
       const a1=Math.atan2(q.y-center.y,q.x-center.x);
@@ -59,7 +63,10 @@ export function Drawing2D({
     }
     if(drag.mode==="move"){
       let candidate={...i};
-      if(view==="front")candidate={...candidate,x:i.x+dx,y:i.y-dy};
+      if(view==="front"){
+        if(elevation&&(wallSide==="left"||wallSide==="right"))candidate={...candidate,z:i.z+(wallSide==="left"?-dx:dx),y:i.y-dy};
+        else candidate={...candidate,x:i.x+(elevation&&wallSide==="front"?-dx:dx),y:i.y-dy};
+      }
       if(view==="top")candidate={...candidate,x:i.x+dx,z:i.z-dy};
       if(view==="side")candidate={...candidate,y:i.y-dy,z:i.z+dx};
       candidate=clampItemToRoom(candidate,project);
@@ -127,7 +134,7 @@ export function Drawing2D({
       <pattern id="grid" width={500*scale} height={500*scale} patternUnits="userSpaceOnUse"><rect width={500*scale} height={500*scale} fill="url(#minorGrid)"/><path d={"M "+(500*scale)+" 0L0 0 0 "+(500*scale)} fill="none" stroke="#ddd9d2" strokeWidth="1.2"/></pattern>
       <filter id="selectionShadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity=".2"/></filter>
     </defs>
-    <text x={tx} y={34} className="viewTitle">{view==="front"?"FRONT ELEVATION":view==="top"?"PLAN VIEW":"SIDE ELEVATION"}</text>
+    <text x={tx} y={34} className="viewTitle">{elevation?(wallSide!.toUpperCase()+" WALL ELEVATION"):view==="front"?"FRONT ELEVATION":view==="top"?"PLAN VIEW":"SIDE ELEVATION"}</text>
     <text x={tx} y={52} className="viewHint">Click to select · drag to move · drag corner handle to resize</text>
     <g transform={"translate("+tx+","+ty+")"}>
       <rect className="roomCanvas" width={size.w*scale} height={size.h*scale} fill="url(#grid)" stroke="#383838" strokeWidth="2" onPointerDown={e=>{e.stopPropagation();onSelect(null)}}/>
@@ -139,8 +146,8 @@ export function Drawing2D({
       <text x="-43" y={size.h*scale/2} transform={"rotate(-90 -43 "+(size.h*scale/2)+")"} textAnchor="middle" className="dim">{size.h} mm</text>
       {guides.x!==undefined&&<><line className="snapGuide" x1={guides.x*scale} x2={guides.x*scale} y1="0" y2={size.h*scale}/><text className="snapHint" x={guides.x*scale+8} y="18">{guides.label}</text></>}
       {guides.y!==undefined&&<><line className="snapGuide" x1="0" x2={size.w*scale} y1={guides.y*scale} y2={guides.y*scale}/><text className="snapHint" x="8" y={guides.y*scale-8}>{guides.label}</text></>}
-      {project.items.filter(i=>i.visible!==false).map(i=>{
-        const r=itemRect(i,project,view),sel=i.id===selected,invalid=issueNames.has(i.id),fill=material(i.materialId).colour,tc=contrastText(fill),rw=r.width*scale,rh=r.height*scale,rotation=normalizeRotation(i.rotation??0),quarter=rotation===90||rotation===270,faceView=(view==="front"&&!quarter)||(view==="side"&&quarter),isDrawer=i.type==="Drawer unit"||i.type==="Media unit",hasPlinth=["Wardrobe","Base cabinet","Tall cabinet","Drawer unit","Media unit","Sink base","Hob base","Kitchen island","Corner cabinet"].includes(i.type),plinthPx=hasPlinth?Math.min(rh*.14,100*scale):0,isStair=["Straight staircase","L staircase","U staircase"].includes(i.type),isBed=i.type==="Bed",isSink=i.type==="Sink base",isHob=i.type==="Hob base",isOven=i.type==="Oven tower",isDish=i.type==="Dishwasher",isWasher=i.type==="Washing machine",isMicrowave=i.type==="Microwave",isExtractor=i.type==="Extractor hood",isDoor=i.type==="Door opening",isWindow=i.type==="Window",isGlassBal=i.type==="Glass balustrade",isTimberBal=i.type==="Timber balustrade",clear=wallClearances(project,i);
+      {visibleItems.map(i=>{
+        const r=rectFor(i),sel=i.id===selected,invalid=issueNames.has(i.id),fill=material(i.materialId).colour,tc=contrastText(fill),rw=r.width*scale,rh=r.height*scale,rotation=normalizeRotation(i.rotation??0),quarter=rotation===90||rotation===270,faceView=(view==="front"&&!quarter)||(view==="side"&&quarter),isDrawer=i.type==="Drawer unit"||i.type==="Media unit",hasPlinth=["Wardrobe","Base cabinet","Tall cabinet","Drawer unit","Media unit","Sink base","Hob base","Kitchen island","Corner cabinet"].includes(i.type),plinthPx=hasPlinth?Math.min(rh*.14,100*scale):0,isStair=["Straight staircase","L staircase","U staircase"].includes(i.type),isBed=i.type==="Bed",isSink=i.type==="Sink base",isHob=i.type==="Hob base",isOven=i.type==="Oven tower",isDish=i.type==="Dishwasher",isWasher=i.type==="Washing machine",isMicrowave=i.type==="Microwave",isExtractor=i.type==="Extractor hood",isDoor=i.type==="Door opening",isWindow=i.type==="Window",isGlassBal=i.type==="Glass balustrade",isTimberBal=i.type==="Timber balustrade",clear=wallClearances(project,i);
         return <g key={i.id} className={"drawingItem "+(sel?"selected ":"")+(invalid?"invalid ":"")} transform={"translate("+(r.left*scale)+","+(r.top*scale)+")"}
           onPointerDown={e=>begin(e,i.id,"move")}
           onContextMenu={e=>{e.preventDefault();e.stopPropagation();onContext(e,i.id)}}
