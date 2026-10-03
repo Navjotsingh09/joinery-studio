@@ -77,7 +77,7 @@ function kitchen(kind:string,w:number,h:number,d:number):JoineryItem[]{
     const wallBack:JoineryItem[]=[
       q("Wall cabinet","Wall unit 1",{x:xDrawer,y:1480,z:0,width:drawerW,height:720,depth:350,doors:2,shelves:2}),
       q("Wall cabinet","Wall unit 2",{x:xSink,y:1480,z:0,width:sinkW,height:720,depth:350,doors:2,shelves:2}),
-      q("Wall cabinet","Lift-up wall unit",{x:xDish,y:1480,z:0,width:dishW,height:720,depth:350,doors:1,shelves:2,productStyle:"Lift-up"})
+      q("Wall cabinet","Wall unit 3",{x:xDish,y:1480,z:0,width:dishW,height:720,depth:350,doors:1,shelves:2})
     ];
     const wallSide:JoineryItem[]=[
       q("Wall cabinet","Return wall 1",{x:0,y:1480,z:600,width:600,height:720,depth:350,doors:1,shelves:2,rotation:90,wallSide:"left"}),
