@@ -682,7 +682,7 @@ function CabinetGeometry({i,construction=false}:{i:JoineryItem;construction?:boo
   const renderItem=construction?{...i,openAmount:Math.max(72,i.openAmount??0)}:i;
   const c=sceneMaterial(renderItem.carcassMaterialId??renderItem.materialId).colour,w=mm(renderItem.width),h=mm(renderItem.height),d=mm(renderItem.depth);
   i=renderItem;
-  if(i.type==="Worktop"){const topId=i.worktopMaterialId??i.materialId;return <SimpleBlock w={w} h={h} d={d} c={sceneMaterial(topId).colour} materialId={topId} part="worktop"/>;
+  if(i.type==="Worktop"){const topId=i.worktopMaterialId??i.materialId;return <SimpleBlock w={w} h={h} d={d} c={sceneMaterial(topId).colour} materialId={topId} part="worktop"/>;}
   if(i.type==="Wall segment"||i.type==="Chimney breast"||i.type==="Column"||i.type==="Ceiling bulkhead"||i.type==="Filler panel"||i.type==="End panel"||i.type==="Internal divider"||i.type==="Loft box")return <SimpleBlock w={w} h={h} d={d} c={c} materialId={i.materialId}/>;
   if(i.type==="Corner cabinet")return <BaseCabinet i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Hanging rail")return <HangingRail w={w}/>;
