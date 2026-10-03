@@ -68,7 +68,7 @@ function kitchen(kind:string,w:number,h:number,d:number):JoineryItem[]{
       q("Extractor hood","Extractor hood",{x:0,y:1550,z:1380,width:800,height:520,depth:420,doors:0,shelves:0,rotation:90,wallSide:"left",colourVariant:"Stainless steel"})
     ];
     const finishes=[
-      item("Worktop","Back worktop",{x:0,y:870,z:0,width:2900,height:38,depth:630,doors:0,shelves:0,materialId:"stone-light",hardware:"None"}),
+      item("Worktop","Back worktop",{x:0,y:870,z:0,width:2900,height:38,depth:600,doors:0,shelves:0,materialId:"stone-light",hardware:"None"}),
       item("Worktop","Return worktop",{x:0,y:870,z:600,width:2000,height:38,depth:630,doors:0,shelves:0,materialId:"stone-light",hardware:"None",rotation:90,wallSide:"left"}),
       item("Backsplash","Back backsplash",{x:0,y:908,z:0,width:2900,height:560,depth:20,doors:0,shelves:0,materialId:"stone-light",hardware:"None"}),
       item("Backsplash","Return backsplash",{x:0,y:908,z:600,width:2000,height:560,depth:20,doors:0,shelves:0,materialId:"stone-light",hardware:"None",rotation:90,wallSide:"left"}),
