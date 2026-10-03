@@ -34,18 +34,24 @@ function kitchen(kind:string,w:number,h:number,d:number):JoineryItem[]{
   const backZ=0;
   const wallY=Math.min(Math.max(1450,h-950),1700);
   const wallH=Math.min(720,Math.max(550,h-wallY-80));
-  const wall=(x:number,name:string)=>item("Wall cabinet",name,{x,y:wallY,z:0,width:m,height:wallH,depth:350,doors:2,shelves:1,materialId:"w1000"});
+  const wall=(x:number,name:string)=>item("Wall cabinet",name,{x,y:wallY,z:0,width:m,height:wallH,depth:350,doors:2,shelves:1,materialId:"u961",carcassMaterialId:"h1180",doorMaterialId:"u961",leftSideMaterialId:"u961",rightSideMaterialId:"u961",plinthMaterialId:"u961"});
+  const k=(type:string,name:string,patch:Partial<JoineryItem>)=>item(type,name,{materialId:"u961",carcassMaterialId:"h1180",doorMaterialId:"u961",sideMaterialId:"u961",leftSideMaterialId:"u961",rightSideMaterialId:"u961",plinthMaterialId:"u961",worktopMaterialId:"stone-light",plinthStyle:"recessed",plinthRecess:70,...patch});
   const units=[
-    item("Fridge housing","Integrated fridge",{x:start,y:baseY,z:backZ,width:m,height:Math.min(2250,h-100),depth:600,doors:2,shelves:3,materialId:"u705"}),
-    item("Oven tower","Oven housing",{x:start+m,y:baseY,z:backZ,width:m,height:Math.min(2250,h-100),depth:600,doors:2,shelves:2,materialId:"u705"}),
-    item("Sink base","Sink cabinet",{x:start+m*2,y:baseY,z:backZ,width:m,height:870,depth:600,doors:2,shelves:0,materialId:"u705"}),
-    item("Drawer unit","Drawer stack",{x:start+m*3,y:baseY,z:backZ,width:m,height:870,depth:600,doors:4,shelves:0,materialId:"u705",hardware:"Bar handle"}),
-    item("Hob base","Hob cabinet",{x:start+m*4,y:baseY,z:backZ,width:m,height:870,depth:600,doors:3,shelves:0,materialId:"u705"})
+    k("Fridge housing","Integrated fridge",{x:start,y:baseY,z:backZ,width:m,height:Math.min(2250,h-100),depth:600,doors:2,shelves:3}),
+    k("Oven tower","Oven housing",{x:start+m,y:baseY,z:backZ,width:m,height:Math.min(2250,h-100),depth:600,doors:2,shelves:2}),
+    k("Sink base","Sink cabinet",{x:start+m*2,y:baseY,z:backZ,width:m,height:870,depth:600,doors:2,shelves:0}),
+    k("Drawer unit","Drawer stack",{x:start+m*3,y:baseY,z:backZ,width:m,height:870,depth:600,doors:4,shelves:0,hardware:"Bar handle"}),
+    k("Hob base","Hob cabinet",{x:start+m*4,y:baseY,z:backZ,width:m,height:870,depth:600,doors:3,shelves:0,hardware:"Bar handle"})
   ];
   const wallUnits=[wall(start+m*2,"Wall cabinet"),wall(start+m*3,"Wall cabinet"),wall(start+m*4,"Wall cabinet")];
+  const backFinishes=[
+    item("Worktop","Main worktop",{x:start+m*2,y:870,z:0,width:m*3,height:38,depth:625,doors:0,shelves:0,materialId:"stone-light",hardware:"None"}),
+    item("Backsplash","Main backsplash",{x:start+m*2,y:908,z:0,width:m*3,height:520,depth:20,doors:0,shelves:0,materialId:"stone-light",hardware:"None"}),
+    item("Pull-out tap","Sink mixer",{x:start+m*2+m*.5-85,y:905,z:455,width:170,height:420,depth:220,doors:0,shelves:0,materialId:"metal-brushed",hardware:"None",productStyle:"Pull-out",colourVariant:"Brushed steel"})
+  ];
   if(kind==="l-shape"){
-    const door="u705",carcass="w1000",side="u705",unit=600;
-    const q=(type:string,name:string,patch:Partial<JoineryItem>)=>item(type,name,{materialId:door,carcassMaterialId:carcass,doorMaterialId:door,sideMaterialId:side,plinthStyle:"recessed",plinthRecess:70,...patch});
+    const door="u961",carcass="h1180",side="u961",unit=600;
+    const q=(type:string,name:string,patch:Partial<JoineryItem>)=>item(type,name,{materialId:door,carcassMaterialId:carcass,doorMaterialId:door,sideMaterialId:side,leftSideMaterialId:side,rightSideMaterialId:side,plinthMaterialId:door,worktopMaterialId:"stone-light",plinthStyle:"recessed",plinthRecess:70,...patch});
     const back=[
       q("Base cabinet","Corner base",{x:0,y:0,z:0,width:unit,height:870,depth:600,doors:1,shelves:1}),
       q("Drawer unit","Wide drawers",{x:600,y:0,z:0,width:900,height:870,depth:600,doors:3,shelves:0,hardware:"Bar handle"}),
@@ -78,17 +84,20 @@ function kitchen(kind:string,w:number,h:number,d:number):JoineryItem[]{
   }
   if(kind==="island"){
     const iw=Math.min(1800,Math.max(1200,w*.42)),iz=Math.max(900,Math.min(d*.48,d-1450));
-    return [...units,...wallUnits,item("Kitchen island","Kitchen island",{x:(w-iw)/2,y:0,z:iz,width:iw,height:920,depth:900,doors:4,shelves:0,materialId:"h1385",hardware:"Handleless"})];
+    return [...units,...wallUnits,...backFinishes,k("Kitchen island","Kitchen island",{x:(w-iw)/2,y:0,z:iz,width:iw,height:920,depth:900,doors:4,shelves:0,hardware:"Handleless",worktopMaterialId:"stone-dark"})];
   }
   if(kind==="galley"){
     const gz=Math.max(1500,d-620);
-    return [...units,...wallUnits,
-      item("Base cabinet","Opposite base 1",{x:start+m,y:0,z:gz,width:m,height:870,depth:600,doors:2,shelves:1,materialId:"h1385"}),
-      item("Drawer unit","Opposite drawers",{x:start+m*2,y:0,z:gz,width:m,height:870,depth:600,doors:4,shelves:0,materialId:"h1385",hardware:"Bar handle"}),
-      item("Base cabinet","Opposite base 2",{x:start+m*3,y:0,z:gz,width:m,height:870,depth:600,doors:2,shelves:1,materialId:"h1385"})
+    const opposite=[
+      k("Base cabinet","Opposite base 1",{x:start+m,y:0,z:gz,width:m,height:870,depth:600,doors:2,shelves:1,rotation:180,wallSide:"front"}),
+      k("Drawer unit","Opposite drawers",{x:start+m*2,y:0,z:gz,width:m,height:870,depth:600,doors:4,shelves:0,hardware:"Bar handle",rotation:180,wallSide:"front"}),
+      k("Base cabinet","Opposite base 2",{x:start+m*3,y:0,z:gz,width:m,height:870,depth:600,doors:2,shelves:1,rotation:180,wallSide:"front"}),
+      item("Worktop","Opposite worktop",{x:start+m,y:870,z:gz-25,width:m*3,height:38,depth:625,doors:0,shelves:0,materialId:"stone-dark",hardware:"None",rotation:180,wallSide:"front"}),
+      item("Backsplash","Opposite backsplash",{x:start+m,y:908,z:d-20,width:m*3,height:520,depth:20,doors:0,shelves:0,materialId:"stone-dark",hardware:"None",rotation:180,wallSide:"front"})
     ];
+    return [...units,...wallUnits,...backFinishes,...opposite];
   }
-  return [...units,...wallUnits];
+  return [...units,...wallUnits,...backFinishes];
 }
 
 function bedroom(kind:string,w:number,h:number,d:number):JoineryItem[]{
@@ -148,7 +157,7 @@ export const COMPONENT_GROUPS_BY_KIND:Record<DesignKind,{title:string;items:stri
   kitchen:[
     {title:"Cabinetry",items:["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Corner cabinet","Filler panel","End panel","Worktop","Kitchen island","Shelving"]},
     {title:"Appliances",items:["Sink base","Hob base","Oven tower","Fridge housing","Dishwasher","Washing machine","Microwave","Extractor hood","Freestanding fridge","Single oven","Range cooker"]},
-    {title:"Taps & wall finishes",items:["Tap","Arc mixer tap","Pull-out tap","Bridge tap","Backsplash"]},
+    {title:"Sinks, taps & wall finishes",items:["Tap","Arc mixer tap","Pull-out tap","Bridge tap","Square neck tap","Backsplash"]},
     {title:"Room architecture",items:["Wall segment","Door opening","Window","Chimney breast","Column","Ceiling bulkhead"]},
     {title:"Services & context",items:["Radiator","Socket","Switch","Ceiling light","Pendant light"]}
   ],

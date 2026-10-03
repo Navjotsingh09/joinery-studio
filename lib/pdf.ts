@@ -14,7 +14,7 @@ export function exportPdf(p:Project){
     const sz=viewSize(p,v),sc=Math.min(w/sz.w,h/sz.h);
     doc.setFont("helvetica","bold");doc.text(title,x,y-3);doc.setDrawColor(40);doc.rect(x,y,sz.w*sc,sz.h*sc);
     visible(p).forEach((i,index)=>{
-      const r=itemRect(i,p,v),m=material(i.materialId),hex=m.colour.slice(1),rgb=[0,2,4].map(k=>parseInt(hex.slice(k,k+2),16));
+      const r=itemRect(i,p,v),drawMaterialId=i.type==="Worktop"?(i.worktopMaterialId??i.materialId):(i.doorMaterialId??i.materialId),m=material(drawMaterialId,p.customMaterials??[]),hex=m.colour.slice(1),rgb=[0,2,4].map(k=>parseInt(hex.slice(k,k+2),16));
       doc.setFillColor(rgb[0],rgb[1],rgb[2]);doc.rect(x+r.left*sc,y+r.top*sc,r.width*sc,r.height*sc,"FD");
       doc.setTextColor(contrastText(m.colour)==="#ffffff"?255:20);doc.setFontSize(4.8);doc.text(String(index+1)+" "+i.name,x+r.left*sc+1,y+r.top*sc+4);
       doc.setFontSize(4.2);doc.text(labelFor(i,v).replace(" × "," x "),x+r.left*sc+1,y+r.top*sc+8);
@@ -43,8 +43,9 @@ function addSchedule(doc:jsPDF,p:Project){
     heads.forEach((h,n)=>doc.text(h,cols[n]+1,y0+6));
     doc.setFont("helvetica","normal");
     items.slice(start,start+rows).forEach((i,n)=>{
-      const y=y0+rowH*(n+1),m=material(i.materialId);doc.setDrawColor(210);doc.line(15,y+rowH,399,y+rowH);
-      const values=[String(start+n+1),i.name,i.type,String(i.width),String(i.height),String(i.depth),String(i.x),i.y+" / "+i.z,normalizeRotation(i.rotation??0)+"°",m.code+" "+m.name+" · "+(i.layer??"Joinery")];
+      const y=y0+rowH*(n+1),m=material(i.worktopMaterialId??i.materialId,p.customMaterials??[]),carcass=material(i.carcassMaterialId??i.materialId,p.customMaterials??[]),front=material(i.doorMaterialId??i.materialId,p.customMaterials??[]);doc.setDrawColor(210);doc.line(15,y+rowH,399,y+rowH);
+      const materialSummary=i.carcassMaterialId||i.doorMaterialId?"C:"+carcass.code+" F:"+front.code:m.code+" "+m.name;
+      const values=[String(start+n+1),i.name,i.type,String(i.width),String(i.height),String(i.depth),String(i.x),i.y+" / "+i.z,normalizeRotation(i.rotation??0)+"°",materialSummary+" · "+(i.layer??"Joinery")];
       values.forEach((v,k)=>doc.text(String(v).slice(0,k===9?38:22),cols[k]+1,y+6));
     });
     doc.setFontSize(6);doc.text("Hidden objects are excluded. Dimensions are design values; verify site dimensions before manufacture.",15,285);

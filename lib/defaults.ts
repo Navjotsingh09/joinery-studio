@@ -47,6 +47,7 @@ const PRESETS:Record<string,Preset>={
 "Arc mixer tap":{width:160,height:360,depth:220,shelves:0,doors:0,y:870},
 "Pull-out tap":{width:170,height:420,depth:240,shelves:0,doors:0,y:870},
 "Bridge tap":{width:260,height:330,depth:220,shelves:0,doors:0,y:870},
+"Square neck tap":{width:180,height:360,depth:230,shelves:0,doors:0,y:870},
 "Backsplash":{width:1800,height:600,depth:20,shelves:0,doors:0,y:900},
 "Freestanding fridge":{width:700,height:1900,depth:700,shelves:0,doors:2,y:0},
 "Single oven":{width:600,height:600,depth:570,shelves:0,doors:1,y:700},
@@ -59,17 +60,19 @@ const PRESETS:Record<string,Preset>={
 "Glass balustrade":{width:1800,height:1000,depth:70,shelves:0,doors:0,y:0},
 "Timber balustrade":{width:1800,height:1000,depth:90,shelves:0,doors:0,y:0}};
 
-const noHardware=new Set(["Shelving","Straight staircase","L staircase","U staircase","Bed wall","Bed","Dishwasher","Washing machine","Microwave","Extractor hood","Door opening","Window","Wall segment","Glass balustrade","Timber balustrade","Worktop","Filler panel","End panel","Chimney breast","Column","Ceiling bulkhead","Radiator","Socket","Switch","Mirror","Ceiling light","Pendant light","Tap","Arc mixer tap","Pull-out tap","Bridge tap","Backsplash","Freestanding fridge","Single oven","Range cooker","Hanging rail","Shoe rack","Internal divider"]);
+const noHardware=new Set(["Shelving","Straight staircase","L staircase","U staircase","Bed wall","Bed","Dishwasher","Washing machine","Microwave","Extractor hood","Door opening","Window","Wall segment","Glass balustrade","Timber balustrade","Worktop","Filler panel","End panel","Chimney breast","Column","Ceiling bulkhead","Radiator","Socket","Switch","Mirror","Ceiling light","Pendant light","Tap","Arc mixer tap","Pull-out tap","Bridge tap","Square neck tap","Backsplash","Freestanding fridge","Single oven","Range cooker","Hanging rail","Shoe rack","Internal divider"]);
 const architecture=new Set(["Door opening","Window","Wall segment","Chimney breast","Column","Ceiling bulkhead"]);
-const services=new Set(["Dishwasher","Washing machine","Microwave","Extractor hood","Freestanding fridge","Single oven","Range cooker","Radiator","Socket","Switch","Ceiling light","Pendant light","Tap","Arc mixer tap","Pull-out tap","Bridge tap","Backsplash"]);
+const services=new Set(["Dishwasher","Washing machine","Microwave","Extractor hood","Freestanding fridge","Single oven","Range cooker","Radiator","Socket","Switch","Ceiling light","Pendant light","Tap","Arc mixer tap","Pull-out tap","Bridge tap","Square neck tap","Backsplash"]);
 const decor=new Set(["Bed","Mirror"]);
 const layerFor=(type:string):ItemLayer=>architecture.has(type)?"Architecture":services.has(type)?"Services":decor.has(type)?"Decor":"Joinery";
+const kitchenCabinet=new Set(["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Sink base","Hob base","Oven tower","Fridge housing","Kitchen island","Corner cabinet"]);
 
 export function newItem(type="Wardrobe"):JoineryItem{
   const p=PRESETS[type]??PRESETS.Wardrobe;
   const appliance=["Dishwasher","Washing machine","Microwave","Extractor hood","Freestanding fridge","Single oven","Range cooker"].includes(type);
   const tap=type==="Tap"||type.endsWith(" tap");
-  return{id:crypto.randomUUID(),name:type,type,x:100,y:p.y,z:0,width:p.width,height:p.height,depth:p.depth,shelves:p.shelves,doors:p.doors,materialId:type==="Worktop"||type==="Backsplash"?"stone-light":"h1180",finish:"ST9 Matt",notes:"",locked:false,hardware:noHardware.has(type)?"None":type==="Drawer unit"||type==="Dressing table"||type==="Internal drawers"?"Bar handle":type==="Under-stair storage"?"Push-to-open":"Handleless",edgeBanding:type==="Worktop"||type==="Backsplash"?"None / raw":"Matching 1mm",rotation:0,visible:true,layer:layerFor(type),productStyle:appliance?"Contemporary":tap?(type==="Bridge tap"?"Bridge":type==="Pull-out tap"?"Pull-out":"Arc mixer"):undefined,colourVariant:appliance?"Stainless steel":tap?"Chrome":undefined,openAmount:0}
+  const kitchen=kitchenCabinet.has(type);
+  return{id:crypto.randomUUID(),name:type,type,x:100,y:p.y,z:0,width:p.width,height:p.height,depth:p.depth,shelves:p.shelves,doors:p.doors,materialId:type==="Worktop"||type==="Backsplash"?"stone-light":kitchen?"u961":"h1180",finish:"ST9 Matt",notes:"",locked:false,hardware:noHardware.has(type)?"None":type==="Drawer unit"||type==="Dressing table"||type==="Internal drawers"?"Bar handle":type==="Under-stair storage"?"Push-to-open":"Handleless",edgeBanding:type==="Worktop"||type==="Backsplash"?"None / raw":"Matching 1mm",rotation:0,visible:true,layer:layerFor(type),carcassMaterialId:kitchen?"h1180":undefined,doorMaterialId:kitchen?"u961":undefined,sideMaterialId:kitchen?"u961":undefined,leftSideMaterialId:kitchen?"u961":undefined,rightSideMaterialId:kitchen?"u961":undefined,plinthMaterialId:kitchen?"u961":undefined,worktopMaterialId:type==="Kitchen island"?"stone-light":undefined,plinthStyle:kitchen?"recessed":undefined,plinthRecess:kitchen?70:undefined,productStyle:appliance?"Contemporary":tap?(type==="Bridge tap"?"Bridge":type==="Pull-out tap"?"Pull-out":type==="Square neck tap"?"Square neck":"Arc mixer"):undefined,colourVariant:appliance?"Stainless steel":tap?"Chrome":undefined,openAmount:0}
 }
 export function newProject(name="New project"):Project{
   return{id:crypto.randomUUID(),name,customer:"",reference:"JS-"+String(Date.now()).slice(-5),status:"Draft",revision:1,roomWidth:3600,roomHeight:2400,roomDepth:3000,rules:{wallClearance:20,componentGap:2,snap:50,serviceClearance:50},items:[],revisions:[],createdAt:now(),updatedAt:now(),address:"",notes:"",archived:false}

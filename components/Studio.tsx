@@ -9,7 +9,7 @@ import {validate,findFreePlacement,clampItemToRoom,canPlace,footprint,normalizeR
 import {exportPdf} from "@/lib/pdf";
 import {hasSupabase} from "@/lib/supabase";
 import * as cloud from "@/lib/cloud";
-import {ProjectStatus,Material,WallSide} from "@/types/model";
+import {ProjectStatus,Material,WallSide,JoineryPart} from "@/types/model";
 import {isProjectBackup} from "@/lib/backup";
 import {mergeProjects} from "@/lib/projectMerge";
 import {COMPONENT_GROUPS_BY_KIND,inferDesignKind,ScenarioPlan} from "@/lib/scenarios";
@@ -52,6 +52,7 @@ function componentDescription(type:string){
     "Arc mixer tap":"High-arc kitchen mixer tap",
     "Pull-out tap":"Mixer tap with pull-out spray head",
     "Bridge tap":"Traditional two-post bridge tap",
+    "Square neck tap":"Angular contemporary mixer tap",
     "Backsplash":"Wall finish panel behind worktops",
     "Door opening":"Measured door opening and clearance zone",
     "Window":"Measured window opening",
@@ -80,6 +81,7 @@ export default function Studio(){
   const [presentationMode,setPresentationMode]=useState(false);
   const [transformMode,setTransformMode]=useState<"translate"|"rotate">("translate");
   const [elevationWall,setElevationWall]=useState<WallSide>("back");
+  const [selectedPart,setSelectedPart]=useState<JoineryPart|null>(null);
   const file=useRef<HTMLInputElement>(null);
   const materialFile=useRef<HTMLInputElement>(null);
   const issues=useMemo(()=>validate(p),[p]);
@@ -88,7 +90,7 @@ export default function Studio(){
   const availableMaterials=useMemo(()=>[...(p.customMaterials??[]),...MATERIALS],[p.customMaterials]);
   const availableFloors=useMemo(()=>floorMaterials(p.customMaterials??[]),[p.customMaterials]);
 
-  useEffect(()=>{if(item){setRightOpen(true);setTransformMode("translate")}},[item?.id]);
+  useEffect(()=>{if(item){setRightOpen(true);setTransformMode("translate");setSelectedPart(null)}},[item?.id]);
 
   useEffect(()=>{
     if(!hasSupabase())return;
@@ -185,6 +187,31 @@ export default function Studio(){
     else setNotice("Placement blocked — that unit would overlap another object or leave the room.");
   };
 
+  const materialFieldForPart=(part:JoineryPart)=>{
+    if(part==="carcass")return "carcassMaterialId";
+    if(part==="fronts")return "doorMaterialId";
+    if(part==="left-side")return "leftSideMaterialId";
+    if(part==="right-side")return "rightSideMaterialId";
+    if(part==="plinth")return "plinthMaterialId";
+    if(part==="worktop")return "worktopMaterialId";
+    return "materialId";
+  };
+  const materialIdForPart=(part:JoineryPart)=>{
+    if(!item)return "";
+    if(part==="carcass")return item.carcassMaterialId??item.materialId;
+    if(part==="fronts")return item.doorMaterialId??item.materialId;
+    if(part==="left-side")return item.leftSideMaterialId??item.sideMaterialId??item.carcassMaterialId??item.materialId;
+    if(part==="right-side")return item.rightSideMaterialId??item.sideMaterialId??item.carcassMaterialId??item.materialId;
+    if(part==="plinth")return item.plinthMaterialId??item.carcassMaterialId??item.materialId;
+    if(part==="worktop")return item.worktopMaterialId??item.materialId;
+    return item.materialId;
+  };
+  const applyMaterial=(materialId:string)=>{
+    if(!item)return;
+    if(selectedPart)s.updateItem(item.id,{[materialFieldForPart(selectedPart)]:materialId});
+    else s.updateItem(item.id,{materialId});
+  };
+
   const patch=(k:string,v:any)=>{
     if(!item)return;
     if(!["x","y","z","width","height","depth"].includes(k)){s.updateItem(item.id,{[k]:v});return}
@@ -213,12 +240,15 @@ export default function Studio(){
     const f=e.target.files?.[0];if(!f)return;
     if(!f.type.startsWith("image/")){setNotice("Choose an image file for the material.");e.target.value="";return}
     if(f.size>1800000){setNotice("Material image is too large. Please use an image under 1.8 MB.");e.target.value="";return}
-    const dataUrl=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(reader.error);reader.readAsDataURL(f)});
-    const name=(window.prompt("Material name",f.name.replace(/\.[^.]+$/,""))||"Custom material").trim();
-    const custom:Material={id:"custom-"+crypto.randomUUID(),code:"CUSTOM",name,colour:"#b8b2a8",thickness:18,category:"Custom",textureDataUrl:dataUrl};
-    s.updateProject({customMaterials:[...(p.customMaterials??[]),custom]});
-    setNotice(name+" added to the material library.");
-    e.target.value="";
+    try{
+      const dataUrl=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(reader.error);reader.readAsDataURL(f)});
+      await new Promise<void>((resolve,reject)=>{const image=new Image();image.onload=()=>image.width>=64&&image.height>=64?resolve():reject(new Error("Image is too small"));image.onerror=()=>reject(new Error("Image could not be read"));image.src=dataUrl});
+      const name=(window.prompt("Material name",f.name.replace(/\.[^.]+$/,""))||"Custom material").trim();
+      const custom:Material={id:"custom-"+crypto.randomUUID(),code:"CUSTOM",name,colour:"#b8b2a8",thickness:18,category:"Custom",textureDataUrl:dataUrl};
+      s.updateProject({customMaterials:[...(p.customMaterials??[]),custom]});
+      setNotice(name+" added. Select a cabinet surface, worktop, backsplash or floor to apply it.");
+    }catch(err:any){setNotice("Material upload failed: "+(err?.message??"Please try another image."))}
+    finally{e.target.value=""}
   };
 
   const login=async(signup=false)=>{
@@ -317,17 +347,17 @@ export default function Studio(){
           })}</section>
         </>}
         {tab==="items"&&<section className="itemManager">{p.items.map(i=><button key={i.id} className={s.selectedId===i.id?"activeItem":""} onClick={()=>s.select(i.id)}><ComponentIcon type={i.type}/><span><b>{i.name}</b><small>{i.width} × {i.height} × {i.depth} mm</small></span><span className="itemState">{i.locked?"●":""}</span></button>)}{!p.items.length&&<small className="muted">No joinery yet.</small>}</section>}
-        {tab==="materials"&&<section className="materials"><div className="materialTools"><button onClick={()=>materialFile.current?.click()}>Upload material image</button><input ref={materialFile} hidden type="file" accept="image/*" onChange={uploadMaterial}/><label>Floor material<select value={p.floorMaterialId??"floor-oak"} onChange={e=>s.updateProject({floorMaterialId:e.target.value})}>{availableFloors.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label></div>{availableMaterials.map(m=><button key={m.id} className={item?.materialId===m.id?"selectedMaterial":""} disabled={!item} onClick={()=>item&&patch("materialId",m.id)}><i style={{background:m.colour,backgroundImage:m.textureDataUrl?`url(${m.textureDataUrl})`:undefined,backgroundSize:"cover"}}/><span><b>{m.code}</b>{m.name}<small>{m.category} · {m.thickness} mm</small></span></button>)}</section>}
+        {tab==="materials"&&<section className="materials"><div className="materialTools"><button onClick={()=>materialFile.current?.click()}>Upload material image</button><input ref={materialFile} hidden type="file" accept="image/*" onChange={uploadMaterial}/><label>Floor material<select value={p.floorMaterialId??"floor-oak"} onChange={e=>s.updateProject({floorMaterialId:e.target.value})}>{availableFloors.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>{item&&<small className="materialTarget">Applying to: {selectedPart?selectedPart.replace("-"," "):"whole object"}</small>}</div>{availableMaterials.map(m=><button key={m.id} className={(item&&(selectedPart?materialIdForPart(selectedPart):item.materialId)===m.id)?"selectedMaterial":""} disabled={!item} onClick={()=>applyMaterial(m.id)}><i style={{background:m.colour,backgroundImage:m.textureDataUrl?`url(${m.textureDataUrl})`:undefined,backgroundSize:"cover"}}/><span><b>{m.code}</b>{m.name}<small>{m.category} · {m.thickness} mm</small></span></button>)}</section>}
         {tab==="revisions"&&<section className="revisionList">{[...p.revisions].reverse().map(r=><div key={r.id}><span><b>Revision {r.revision}</b><small>{new Date(r.createdAt).toLocaleString()}</small></span><button onClick={()=>confirm("Restore revision "+r.revision+"?")&&s.restoreRevision(r.id)}>Restore</button></div>)}{!p.revisions.length&&<small className="muted">No saved revisions yet.</small>}</section>}
         {tab==="professional"&&<ProfessionalPanel project={p}/>}
       </div>
     </aside>
 
     <section className="workspace">
-      <div className="stage">{s.view==="3d"?<Scene3D project={p} selected={s.selectedId} transformMode={transformMode} onSelect={s.select} onMove={moveSafely} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint}/>:<Drawing2D project={p} view={s.view} wallSide={s.view==="front"?elevationWall:undefined} selected={s.selectedId} onSelect={s.select} onMove={moveSafely} onResize={(id,patch)=>s.moveItem(id,patch)} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onContext={(e,id)=>{s.select(id);setMenu({x:e.clientX,y:e.clientY,id})}}/>}</div>
+      <div className="stage">{s.view==="3d"?<Scene3D project={p} selected={s.selectedId} selectedPart={selectedPart} transformMode={transformMode} onSelect={id=>{s.select(id);if(id!==s.selectedId)setSelectedPart(null)}} onSelectPart={(id,part)=>{if(id===s.selectedId)setSelectedPart(part)}} onDropType={type=>add(type)} onMove={moveSafely} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint}/>:<Drawing2D project={p} view={s.view} wallSide={s.view==="front"?elevationWall:undefined} selected={s.selectedId} onSelect={s.select} onMove={moveSafely} onResize={(id,patch)=>s.moveItem(id,patch)} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onContext={(e,id)=>{s.select(id);setMenu({x:e.clientX,y:e.clientY,id})}}/>}</div>
 
       {item&&<div className="selectionBar" onClick={e=>e.stopPropagation()}>
-        <span className="selectionName">{item.name}</span>
+        <span className="selectionName">{item.name}</span>{selectedPart&&<button className="selectedPartPill" onClick={()=>setSelectedPart(null)}>Surface: {selectedPart.replace("-"," ")} ×</button>}
         <button className={transformMode==="translate"?"activeTool":""} onClick={()=>setTransformMode("translate")}><Icon name="move" size={15}/> Move</button><button className={transformMode==="rotate"?"activeTool":""} onClick={()=>setTransformMode("rotate")}><Icon name="rotate" size={15}/> Rotate</button><button title="Rotate 90° left" onClick={()=>rotateSelected(-90)}>−90°</button><button title="Rotate 90° right" onClick={()=>rotateSelected(90)}>+90°</button>
         <button onClick={()=>s.duplicateItem(item.id)}><Icon name="copy" size={15}/> Copy</button>
         <button onClick={()=>s.updateItem(item.id,{locked:!item.locked})}>{item.locked?<Icon name="unlock" size={15}/>:<Icon name="lock" size={15}/>} {item.locked?"Unlock":"Lock"}</button>
@@ -340,11 +370,11 @@ export default function Studio(){
     {item&&<aside className="inspector">
       <div className="inspectorHeader"><div><small>{item.type}</small><input value={item.name} onChange={e=>patch("name",e.target.value)}/></div><button className="iconBtn" onClick={()=>setRightOpen(false)}><Icon name="x" size={16}/></button></div>
       <div className="inspectorBody">
-        <section className="inspectorGroup"><h4>Position</h4><div className="fieldGrid3">{(["x","y","z"] as const).map(k=><label key={k}>{k.toUpperCase()}<input type="number" value={item[k]} onChange={e=>patch(k,+e.target.value)}/></label>)}</div><label className="rotationField">Rotation<select value={normalizeRotation(item.rotation??0)} onChange={e=>rotateItem(item.id,+e.target.value)}>{[0,90,180,270].map(v=><option key={v} value={v}>{v}°</option>)}</select></label></section>
+        <section className="inspectorGroup"><h4>Position</h4><div className="fieldGrid3">{(["x","y","z"] as const).map((k,n)=><label key={k}>{["Left / right","Height","Forward / back"][n]}<small>{k.toUpperCase()}</small><input type="number" value={item[k]} onChange={e=>patch(k,+e.target.value)}/></label>)}</div><label className="rotationField">Rotation<select value={normalizeRotation(item.rotation??0)} onChange={e=>rotateItem(item.id,+e.target.value)}>{[0,90,180,270].map(v=><option key={v} value={v}>{v}°</option>)}</select></label></section>
         <section className="inspectorGroup"><h4>Size</h4><div className="fieldGrid3">{(["width","height","depth"] as const).map((k,n)=><label key={k}>{["W","H","D"][n]}<input type="number" value={item[k]} onChange={e=>patch(k,+e.target.value)}/></label>)}</div></section>
         <section className="inspectorGroup"><h4>Configuration</h4><div className="fieldGrid2"><label>Shelves<input type="number" min="0" value={item.shelves} onChange={e=>patch("shelves",Math.max(0,+e.target.value))}/></label><label>Doors<input type="number" min="0" value={item.doors} onChange={e=>patch("doors",Math.max(0,+e.target.value))}/></label></div><label>Hardware<select value={item.hardware} onChange={e=>patch("hardware",e.target.value)}>{["None","Handleless","Bar handle","Knob","Push-to-open","Client specified"].map(x=><option key={x}>{x}</option>)}</select></label><label>Layer<select value={item.layer??"Joinery"} onChange={e=>patch("layer",e.target.value)}>{["Joinery","Architecture","Services","Decor"].map(x=><option key={x}>{x}</option>)}</select></label><label className="checkRow"><input type="checkbox" checked={item.visible!==false} onChange={e=>patch("visible",e.target.checked)}/>Visible in drawings and 3D</label><label className="checkRow"><input type="checkbox" checked={item.locked} onChange={e=>patch("locked",e.target.checked)}/>Lock position</label></section>
         <section className="inspectorGroup"><h4>Interaction</h4><label>Open doors / drawers<input type="range" min="0" max="100" step="5" value={item.openAmount??0} onChange={e=>patch("openAmount",+e.target.value)}/><span className="rangeValue">{item.openAmount??0}%</span></label>{["Dishwasher","Washing machine","Microwave","Extractor hood","Freestanding fridge","Single oven","Range cooker"].includes(item.type)&&<><label>Appliance style<select value={item.productStyle??"Contemporary"} onChange={e=>patch("productStyle",e.target.value)}>{["Contemporary","Minimal","Classic","Professional"].map(x=><option key={x}>{x}</option>)}</select></label><label>Appliance colour<select value={item.colourVariant??"Stainless steel"} onChange={e=>patch("colourVariant",e.target.value)}>{["Stainless steel","Black","White","Graphite","Cream"].map(x=><option key={x}>{x}</option>)}</select></label></>}{(item.type==="Tap"||item.type.endsWith(" tap"))&&<><label>Tap style<select value={item.productStyle??"Arc mixer"} onChange={e=>patch("productStyle",e.target.value)}>{["Arc mixer","Pull-out","Bridge","Square neck"].map(x=><option key={x}>{x}</option>)}</select></label><label>Tap finish<select value={item.colourVariant??"Chrome"} onChange={e=>patch("colourVariant",e.target.value)}>{["Chrome","Brushed steel","Matt black","Brass"].map(x=><option key={x}>{x}</option>)}</select></label></>}</section>
-        <section className="inspectorGroup"><h4>Materials by part</h4><label>Carcass<select value={item.carcassMaterialId??item.materialId} onChange={e=>patch("carcassMaterialId",e.target.value)}>{availableMaterials.map(m=><option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}</select></label><label>Doors / fronts<select value={item.doorMaterialId??item.materialId} onChange={e=>patch("doorMaterialId",e.target.value)}>{availableMaterials.map(m=><option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}</select></label><label>Visible sides<select value={item.sideMaterialId??item.carcassMaterialId??item.materialId} onChange={e=>patch("sideMaterialId",e.target.value)}>{availableMaterials.map(m=><option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}</select></label><div className="materialPreview"><i style={{background:material(item.doorMaterialId??item.materialId,p.customMaterials??[]).colour}}/><span><b>{material(item.doorMaterialId??item.materialId,p.customMaterials??[]).code}</b>{material(item.doorMaterialId??item.materialId,p.customMaterials??[]).name}</span></div><label>Finish<input value={item.finish} onChange={e=>patch("finish",e.target.value)}/></label><label>Edge<select value={item.edgeBanding} onChange={e=>patch("edgeBanding",e.target.value)}>{["Matching 1mm","Matching 2mm","Contrast edge","None / raw"].map(x=><option key={x}>{x}</option>)}</select></label><label>Plinth<select value={item.plinthStyle??"recessed"} onChange={e=>patch("plinthStyle",e.target.value)}>{["recessed","flush","none"].map(x=><option key={x} value={x}>{x[0].toUpperCase()+x.slice(1)}</option>)}</select></label>{(item.plinthStyle??"recessed")==="recessed"&&<label>Plinth recess (mm)<input type="number" min="0" max="250" value={item.plinthRecess??65} onChange={e=>patch("plinthRecess",Math.max(0,+e.target.value))}/></label>}</section>
+        <section className="inspectorGroup"><h4>Materials by part</h4><p className="surfaceHelp">Select the unit in 3D, then click the face you want to finish. You can also choose a surface here.</p><div className="surfacePicker">{(["carcass","fronts","left-side","right-side","plinth"] as JoineryPart[]).map(part=><button key={part} className={selectedPart===part?"active":""} onClick={()=>setSelectedPart(part)}>{part==="fronts"?"Doors / fronts":part==="left-side"?"Left side":part==="right-side"?"Right side":part[0].toUpperCase()+part.slice(1)}</button>)}{item.type==="Kitchen island"&&<button className={selectedPart==="worktop"?"active":""} onClick={()=>setSelectedPart("worktop")}>Worktop</button>}</div><label>Carcass<select value={item.carcassMaterialId??item.materialId} onChange={e=>patch("carcassMaterialId",e.target.value)}>{availableMaterials.map(m=><option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}</select></label><div className="fieldGrid2"><label>Left visible side<select value={item.leftSideMaterialId??item.sideMaterialId??item.carcassMaterialId??item.materialId} onChange={e=>patch("leftSideMaterialId",e.target.value)}>{availableMaterials.map(m=><option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}</select></label><label>Right visible side<select value={item.rightSideMaterialId??item.sideMaterialId??item.carcassMaterialId??item.materialId} onChange={e=>patch("rightSideMaterialId",e.target.value)}>{availableMaterials.map(m=><option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}</select></label></div><label>Doors / fronts<select value={item.doorMaterialId??item.materialId} onChange={e=>patch("doorMaterialId",e.target.value)}>{availableMaterials.map(m=><option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}</select></label><label>Plinth material<select value={item.plinthMaterialId??item.carcassMaterialId??item.materialId} onChange={e=>patch("plinthMaterialId",e.target.value)}>{availableMaterials.map(m=><option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}</select></label>{item.type==="Kitchen island"&&<label>Island worktop<select value={item.worktopMaterialId??"stone-light"} onChange={e=>patch("worktopMaterialId",e.target.value)}>{availableMaterials.filter(m=>m.category==="Worktop"||m.category==="Custom").map(m=><option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}</select></label>}<div className="materialPreview"><i style={{background:material(selectedPart?materialIdForPart(selectedPart):item.doorMaterialId??item.materialId,p.customMaterials??[]).colour}}/><span><b>{material(selectedPart?materialIdForPart(selectedPart):item.doorMaterialId??item.materialId,p.customMaterials??[]).code}</b>{material(selectedPart?materialIdForPart(selectedPart):item.doorMaterialId??item.materialId,p.customMaterials??[]).name}</span></div><label>Finish<input value={item.finish} onChange={e=>patch("finish",e.target.value)}/></label><label>Edge<select value={item.edgeBanding} onChange={e=>patch("edgeBanding",e.target.value)}>{["Matching 1mm","Matching 2mm","Contrast edge","None / raw"].map(x=><option key={x}>{x}</option>)}</select></label><label>Plinth style<select value={item.plinthStyle??"recessed"} onChange={e=>patch("plinthStyle",e.target.value)}>{["recessed","flush","none"].map(x=><option key={x} value={x}>{x[0].toUpperCase()+x.slice(1)}</option>)}</select></label>{(item.plinthStyle??"recessed")==="recessed"&&<label>Plinth recess (mm)<input type="number" min="0" max="250" value={item.plinthRecess??65} onChange={e=>patch("plinthRecess",Math.max(0,+e.target.value))}/></label>}</section>
         <section className="inspectorGroup"><h4>Notes</h4><textarea placeholder="Notes" value={item.notes} onChange={e=>patch("notes",e.target.value)}/></section>
         {issues.length>0&&<section className="issues"><b>Design checks</b>{issues.slice(0,6).map((x,i)=><p key={i}>{x}</p>)}</section>}
       </div>

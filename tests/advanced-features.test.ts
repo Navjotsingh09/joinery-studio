@@ -1,6 +1,6 @@
 import {describe,it,expect} from "vitest";
 import {newItem,newProject} from "@/lib/defaults";
-import {canPlace,findFreePlacement,isItemOnWall,wallItemRect,wallViewSize} from "@/lib/geometry";
+import {autoFaceNearestWall,canPlace,findFreePlacement,isItemOnWall,wallItemRect,wallViewSize} from "@/lib/geometry";
 
 describe("advanced showroom tools",()=>{
   it("creates backsplash, faucet and appliance variants",()=>{
@@ -32,4 +32,23 @@ describe("advanced showroom tools",()=>{
     expect(canPlace(p,free)).toBe(true);
     expect(free.x!==first.x||free.z!==first.z).toBe(true);
   });
+  it("gives kitchen cabinetry independent carcass front side and plinth finishes",()=>{
+    const i=newItem("Base cabinet");
+    expect(i.carcassMaterialId).toBe("h1180");
+    expect(i.doorMaterialId).toBe("u961");
+    expect(i.leftSideMaterialId).toBe("u961");
+    expect(i.rightSideMaterialId).toBe("u961");
+    expect(i.plinthMaterialId).toBe("u961");
+    expect(i.plinthStyle).toBe("recessed");
+  });
+
+  it("auto-faces a cabinet when it reaches a wall",()=>{
+    const p=newProject("Orientation");
+    p.rules={...p.rules,wallClearance:0};
+    const i={...newItem("Base cabinet"),x:0,z:900,rotation:0};
+    const q=autoFaceNearestWall(p,i);
+    expect(q.wallSide).toBe("left");
+    expect(q.rotation).toBe(90);
+  });
+
 });

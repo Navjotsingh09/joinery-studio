@@ -20,7 +20,7 @@ export function labelFor(i:JoineryItem,v:Exclude<ViewMode,"3d">){
   if(v==="top")return fp.width+" × "+fp.depth+" mm";
   return fp.depth+" × "+i.height+" mm"
 }
-const floatingTypes=new Set(["Wall cabinet","Microwave","Extractor hood","Window","Worktop","Ceiling bulkhead","Radiator","Socket","Switch","Mirror","Ceiling light","Pendant light","Tap","Arc mixer tap","Pull-out tap","Bridge tap","Backsplash","Single oven","Hanging rail","Internal drawers","Shoe rack","Loft box"]);
+const floatingTypes=new Set(["Wall cabinet","Microwave","Extractor hood","Window","Worktop","Ceiling bulkhead","Radiator","Socket","Switch","Mirror","Ceiling light","Pendant light","Tap","Arc mixer tap","Pull-out tap","Bridge tap","Square neck tap","Backsplash","Single oven","Hanging rail","Internal drawers","Shoe rack","Loft box"]);
 export const isWallMounted=(i:JoineryItem)=>floatingTypes.has(i.type);
 export function clampItemToRoom(i:JoineryItem,p:Project):JoineryItem{
   const rotation=normalizeRotation(i.rotation??0),candidate={...i,rotation},fp=footprint(candidate),step=Math.max(1,p.rules.snap),c=Math.max(0,p.rules.wallClearance);
@@ -86,17 +86,17 @@ export function snapItemToWall(p:Project,i:JoineryItem,wall:WallSide){
   return clampItemToRoom(q,p)
 }
 const autoWallTypes=new Set(["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Sink base","Hob base","Oven tower","Fridge housing","Corner cabinet","Filler panel","End panel","Wardrobe","Sliding wardrobe","Media unit","Shelving"]);
-export function autoFaceNearestWall(p:Project,i:JoineryItem,threshold=220){
+export function autoFaceNearestWall(p:Project,i:JoineryItem,threshold=160){
   if(!autoWallTypes.has(i.type))return i;
-  const fp=footprint(i),cx=i.x+fp.width/2,cz=i.z+fp.depth/2;
+  const clearance=wallClearances(p,i);
   const distances:{side:WallSide;distance:number}[]=[
-    {side:"back",distance:cz},
-    {side:"front",distance:p.roomDepth-cz},
-    {side:"left",distance:cx},
-    {side:"right",distance:p.roomWidth-cx}
+    {side:"back",distance:clearance.back},
+    {side:"front",distance:clearance.front},
+    {side:"left",distance:clearance.left},
+    {side:"right",distance:clearance.right}
   ];
   const nearest=distances.sort((a,b)=>a.distance-b.distance)[0];
-  if(nearest.distance>threshold)return i;
+  if(nearest.distance>threshold)return {...i,wallSide:undefined};
   const q=snapItemToWall(p,i,nearest.side);
   return {...q,wallSide:nearest.side};
 }
