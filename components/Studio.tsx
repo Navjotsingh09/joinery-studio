@@ -252,13 +252,13 @@ export default function Studio(){
     const raw=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(reader.error);reader.readAsDataURL(f)});
     const image=await new Promise<HTMLImageElement>((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(new Error("Image could not be read"));img.src=raw});
     if(image.width<64||image.height<64)throw new Error("Image is too small. Use at least 64 × 64 pixels.");
-    const maxEdge=1400,scale=Math.min(1,maxEdge/Math.max(image.width,image.height)),canvas=document.createElement("canvas");
+    const maxEdge=1100,scale=Math.min(1,maxEdge/Math.max(image.width,image.height)),canvas=document.createElement("canvas");
     canvas.width=Math.max(64,Math.round(image.width*scale));canvas.height=Math.max(64,Math.round(image.height*scale));
     const ctx=canvas.getContext("2d");if(!ctx)throw new Error("Your browser could not prepare the material image.");
     ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";ctx.drawImage(image,0,0,canvas.width,canvas.height);
-    for(const quality of [.84,.72,.6,.48]){
+    for(const quality of [.82,.7,.58,.46,.36]){
       const data=canvas.toDataURL("image/webp",quality);
-      if(data.length<850000)return data;
+      if(data.length<360000)return data;
     }
     throw new Error("The material image is still too large after optimisation. Crop it closer to the material sample.");
   };
