@@ -8,7 +8,7 @@ describe("geometry",()=>{
   it("labels top and side correctly",()=>{const i=newItem();expect(labelFor(i,"top")).toBe(i.width+" × "+i.depth+" mm");expect(labelFor(i,"side")).toBe(i.depth+" × "+i.height+" mm")});
   it("snap/clamp",()=>{expect(snap(126,50)).toBe(150);expect(clamp(12,20,100)).toBe(20)});
   it("contrasts dark fills",()=>expect(contrastText("#111111")).toBe("#ffffff"));
-  it("keeps floor units grounded and in-room",()=>{const p=newProject();const i=newItem("Wardrobe");i.x=-200;i.y=500;i.z=9999;const q=clampItemToRoom(i,p);expect(q.x).toBe(p.rules.wallClearance);expect(q.y).toBe(0);expect(q.z).toBe(p.roomDepth-i.depth)});
+  it("keeps XYZ movement inside the room",()=>{const p=newProject();const i=newItem("Wardrobe");i.x=-200;i.y=500;i.z=9999;const q=clampItemToRoom(i,p);expect(q.x).toBe(p.rules.wallClearance);expect(q.y).toBe(500);expect(q.z).toBe(p.roomDepth-i.depth)});
   it("keeps wall cabinets vertically movable",()=>{const p=newProject();const i=newItem("Wall cabinet");i.y=1450;expect(clampItemToRoom(i,p).y).toBe(1450)});
   it("swaps the occupied footprint at 90 degrees",()=>{const i=newItem("Base cabinet");i.rotation=90;expect(footprint(i)).toEqual({width:i.depth,depth:i.width});expect(normalizeRotation(450)).toBe(90)});
   it("maps rotated components correctly into plan and elevation views",()=>{const p=newProject();const i=newItem("Base cabinet");i.rotation=90;const top=itemRect(i,p,"top"),front=itemRect(i,p,"front");expect(top.width).toBe(i.depth);expect(top.height).toBe(i.width);expect(front.width).toBe(i.depth)});
