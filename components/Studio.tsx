@@ -52,6 +52,7 @@ function componentDescription(type:string){
     "Arc mixer tap":"High-arc kitchen mixer tap",
     "Pull-out tap":"Mixer tap with pull-out spray head",
     "Bridge tap":"Traditional two-post bridge tap",
+    "Square neck tap":"Angular contemporary mixer tap",
     "Backsplash":"Wall finish panel behind worktops",
     "Door opening":"Measured door opening and clearance zone",
     "Window":"Measured window opening",
