@@ -54,7 +54,8 @@ function kitchen(kind:string,w:number,h:number,d:number):JoineryItem[]{
     const q=(type:string,name:string,patch:Partial<JoineryItem>)=>item(type,name,{materialId:door,carcassMaterialId:carcass,doorMaterialId:door,sideMaterialId:side,leftSideMaterialId:side,rightSideMaterialId:side,plinthMaterialId:door,worktopMaterialId:"stone-light",plinthStyle:"recessed",plinthRecess:70,...patch});
     const lower=(type:string,name:string,patch:Partial<JoineryItem>)=>q(type,name,{doorMaterialId:carcass,sideMaterialId:carcass,leftSideMaterialId:carcass,rightSideMaterialId:carcass,...patch});
     const hasOven=w>=3200,hasPantry=w>=4000,cornerW=600,drawerW=hasOven?650:600,sinkW=700,dishW=600,ovenW=hasOven?600:0,pantryW=hasPantry?600:0;
-    const backTotal=cornerW+drawerW+sinkW+dishW+ovenW+pantryW,startX=Math.max(0,Math.min(100,(w-backTotal)/2));
+    // Keep the corner against the left wall so both cabinet runs meet.
+    const startX=0;
     const xDrawer=startX+cornerW,xSink=xDrawer+drawerW,xDish=xSink+sinkW,xOven=xDish+dishW,xPantry=xOven+ovenW;
     const back:JoineryItem[]=[
       lower("Corner cabinet","Corner cabinet",{x:startX,y:0,z:0,width:cornerW,height:870,depth:600,doors:1,shelves:1}),
@@ -81,7 +82,7 @@ function kitchen(kind:string,w:number,h:number,d:number):JoineryItem[]{
     ];
     const wallSide:JoineryItem[]=[
       q("Wall cabinet","Return wall 1",{x:0,y:1480,z:600,width:600,height:720,depth:350,doors:1,shelves:2,rotation:90,wallSide:"left"}),
-      q("Extractor hood","Extractor hood",{x:0,y:1550,z:Math.min(1380,Math.max(1200,sideEnd-620)),width:Math.min(800,Math.max(600,d-1400)),height:520,depth:420,doors:0,shelves:0,rotation:90,wallSide:"left",colourVariant:"Stainless steel"})
+      q("Extractor hood","Extractor hood",{x:0,y:1550,z:sideRun[1].z,width:sideRun[1].width,height:520,depth:420,doors:0,shelves:0,rotation:90,wallSide:"left",colourVariant:"Stainless steel"})
     ];
     const backWorktopWidth=xDish+dishW-startX;
     const sideWorktopSpan=Math.max(600,sideEnd-600);

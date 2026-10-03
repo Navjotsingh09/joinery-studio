@@ -4,6 +4,18 @@ import {newItem,newProject} from "@/lib/defaults";
 import {autoFaceNearestWall,validate} from "@/lib/geometry";
 
 describe("kitchen gold-standard contract",()=>{
+  it("joins the L runs at the wall and centres extraction over the hob",()=>{
+    for(const depth of [2200,3400,4200]){
+      const plan=createScenarioPlan("kitchen","l-shape",4200,2400,depth);
+      const corner=plan.items.find(i=>i.type==="Corner cabinet")!;
+      const returnBase=plan.items.find(i=>i.name==="Return base")!;
+      const hob=plan.items.find(i=>i.type==="Hob base")!;
+      const hood=plan.items.find(i=>i.type==="Extractor hood")!;
+      expect(corner.x).toBe(returnBase.x);
+      expect(corner.z+corner.depth).toBe(returnBase.z);
+      expect(hood.z+hood.width/2).toBe(hob.z+hob.width/2);
+    }
+  });
   it("ships the reference-style L kitchen with the complete visible system",()=>{
     const plan=createScenarioPlan("kitchen","l-shape",4200,2400,3400);
     const types=new Set(plan.items.map(i=>i.type));
