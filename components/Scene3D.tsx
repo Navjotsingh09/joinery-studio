@@ -140,8 +140,9 @@ function Handle({x,y,z,height,hardware,orientation="vertical"}:{x:number;y:numbe
   </group>;
 }
 
-function Plinth({w,d,h,colour}:{w:number;d:number;h:number;colour:string}){
-  const recess=Math.min(.065,d*.16);
+function Plinth({w,d,h,colour,style="recessed",recessMm=65}:{w:number;d:number;h:number;colour:string;style?:"recessed"|"flush"|"none";recessMm?:number}){
+  if(style==="none")return null;
+  const recess=style==="flush"?0:Math.min(mm(Math.max(0,recessMm)),d*.3);
   return <group>
     <Panel position={[0,h/2,-recess/2]} size={[Math.max(.05,w-.05),h,Math.max(.04,d-recess)]} colour={boardColour(colour,-.08)}/>
     <Panel position={[0,h-.009,d/2-.035]} size={[Math.max(.05,w-.04),.018,.05]} colour={boardColour(colour,-.12)}/>
@@ -165,6 +166,7 @@ function Carcass({w,h,d,colour,shelves=0,openBack=false}:{w:number;h:number;d:nu
 }
 
 function DoorFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number;colour:string}){
+  const faceMaterial=material(i.doorMaterialId??i.materialId),faceColour=faceMaterial.colour;
   const count=Math.max(1,i.doors),gap=mm(REVEAL),frontT=mm(BOARD);
   const faceW=(w-gap*(count+1))/count;
   const faceH=h-gap*2;
@@ -173,7 +175,7 @@ function DoorFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number;c
     const x=-w/2+gap+faceW/2+n*(faceW+gap);
     const handleX=i.hardware==="Handleless"?x+(n<count/2?faceW*.42:-faceW*.42):x+(n<count/2?faceW*.38:-faceW*.38);
     return <group key={n}>
-      <Panel position={[x,0,z]} size={[faceW,faceH,frontT]} colour={colour} front/>
+      <Panel position={[x,0,z]} size={[faceW,faceH,frontT]} colour={faceColour} front/>
       <Handle x={handleX} y={-.02} z={z+frontT/2+.014} height={faceH} hardware={i.hardware}/>
     </group>;
   })}</>;
@@ -184,7 +186,7 @@ function DrawerFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number
   return <>{Array.from({length:count},(_,n)=>{
     const y=-h/2+gap+faceH/2+n*(faceH+gap);
     return <group key={n}>
-      <Panel position={[0,y,z]} size={[faceW,faceH,frontT]} colour={colour} front/>
+      <Panel position={[0,y,z]} size={[faceW,faceH,frontT]} colour={faceColour} front/>
       <Handle x={0} y={y+faceH*.28} z={z+frontT/2+.014} height={faceW} hardware={i.hardware} orientation="horizontal"/>
     </group>;
   })}</>;
@@ -193,7 +195,7 @@ function DrawerFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number
 function Wardrobe({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
   const plinth=.08,bodyH=Math.max(.3,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
   return <group>
-    <Plinth w={w} d={d} h={plinth} colour={c}/>
+    <Plinth w={w} d={d} h={plinth} colour={c} style={i.plinthStyle} recessMm={i.plinthRecess}/>
     <group position={[0,bodyY,-mm(BOARD)/2]}>
       <Carcass w={w} h={bodyH} d={bodyD} colour={c} shelves={Math.max(1,i.shelves)}/>
       <mesh position={[0,bodyH*.16,bodyD*.18]} rotation={[0,0,Math.PI/2]} castShadow>
@@ -208,7 +210,7 @@ function Wardrobe({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string
 function BaseCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
   const plinth=.1,top=.025,bodyH=Math.max(.25,h-plinth-top),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
   return <group>
-    <Plinth w={w} d={d} h={plinth} colour={c}/>
+    <Plinth w={w} d={d} h={plinth} colour={c} style={i.plinthStyle} recessMm={i.plinthRecess}/>
     <group position={[0,bodyY,-mm(BOARD)/2]}>
       <Carcass w={w} h={bodyH} d={bodyD} colour={c} shelves={Math.max(0,i.shelves)}/>
       {i.doors>0&&<DoorFronts i={i} w={w} h={bodyH} d={bodyD} colour={c}/>}
@@ -220,7 +222,7 @@ function BaseCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:str
 function TallCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
   const plinth=.1,bodyH=Math.max(.4,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
   return <group>
-    <Plinth w={w} d={d} h={plinth} colour={c}/>
+    <Plinth w={w} d={d} h={plinth} colour={c} style={i.plinthStyle} recessMm={i.plinthRecess}/>
     <group position={[0,bodyY,-mm(BOARD)/2]}>
       <Carcass w={w} h={bodyH} d={bodyD} colour={c} shelves={Math.max(2,i.shelves)}/>
       {i.doors>0&&<DoorFronts i={i} w={w} h={bodyH} d={bodyD} colour={c}/>}
@@ -240,7 +242,7 @@ function WallCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:str
 function DrawerUnit({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
   const plinth=.1,bodyH=Math.max(.25,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
   return <group>
-    <Plinth w={w} d={d} h={plinth} colour={c}/>
+    <Plinth w={w} d={d} h={plinth} colour={c} style={i.plinthStyle} recessMm={i.plinthRecess}/>
     <group position={[0,bodyY,-mm(BOARD)/2]}>
       <Carcass w={w} h={bodyH} d={bodyD} colour={c}/>
       <DrawerFronts i={i} w={w} h={bodyH} d={bodyD} colour={c}/>
@@ -251,7 +253,7 @@ function DrawerUnit({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:stri
 function MediaUnit({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
   const plinth=.07,bodyH=Math.max(.22,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
   return <group>
-    <Plinth w={w} d={d} h={plinth} colour={c}/>
+    <Plinth w={w} d={d} h={plinth} colour={c} style={i.plinthStyle} recessMm={i.plinthRecess}/>
     <group position={[0,bodyY,-mm(BOARD)/2]}>
       <Carcass w={w} h={bodyH} d={bodyD} colour={c}/>
       <DrawerFronts i={i} w={w} h={bodyH} d={bodyD} colour={c}/>
@@ -267,7 +269,7 @@ function OpenShelving({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:st
 
 
 function Countertop({w,d,y,colour="#e8e4dc"}:{w:number;d:number;y:number;colour?:string}){
-  return <Panel position={[0,y,0]} size={[w+.025,.028,d+.025]} colour={colour} front/>;
+  return <Panel position={[0,y,0]} size={[w+.025,.028,d+.025]} colour={faceColour} front/>;
 }
 
 function Sink({w,d,y}:{w:number;d:number;y:number}){
@@ -428,7 +430,7 @@ function Bed({w,h,d,c}:{w:number;h:number;d:number;c:string}){
 function KitchenIsland({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
   const plinth=.09,bodyH=h-plinth-.035,bodyY=-h/2+plinth+bodyH/2;
   return <group>
-    <Plinth w={w} d={d} h={plinth} colour={c}/>
+    <Plinth w={w} d={d} h={plinth} colour={c} style={i.plinthStyle} recessMm={i.plinthRecess}/>
     <group position={[0,bodyY,0]}><Carcass w={w} h={bodyH} d={d-.04} colour={c}/><DrawerFronts i={{...i,doors:Math.max(3,i.doors)}} w={w} h={bodyH} d={d-.04} colour={c}/></group>
     <Countertop w={w+.06} d={d+.08} y={h/2-.014} colour="#ddd7cc"/>
   </group>;
@@ -458,7 +460,7 @@ function StairFlight({width,run,rise,count=13,position=[0,0,0],axis="z",reverse=
     const a=reverse?-along:along;
     const pos:[number,number,number]=axis==="z"?[0,-rise/2+stepH/2,a]:[a,-rise/2+stepH/2,0];
     const size:[number,number,number]=axis==="z"?[width,stepH,tread+.006]:[tread+.006,stepH,width];
-    return <Panel key={n} position={pos} size={size} colour={colour} front/>
+    return <Panel key={n} position={pos} size={size} colour={faceColour} front/>
   })}
   </group>;
 }
@@ -522,7 +524,7 @@ function PendantLight({w,h}:{w:number;h:number}){return <group><Metal position={
 function TapObject({w,h,d}:{w:number;h:number;d:number}){return <group><mesh position={[0,-h*.15,0]} castShadow><cylinderGeometry args={[Math.max(.012,w*.08),Math.max(.014,w*.09),h*.7,18]}/><meshStandardMaterial color="#777c7e" metalness={.82} roughness={.18}/></mesh><mesh position={[0,h*.18,d*.2]} rotation={[Math.PI/2,0,0]} castShadow><cylinderGeometry args={[Math.max(.01,w*.065),Math.max(.01,w*.065),Math.max(.08,d*.65),18]}/><meshStandardMaterial color="#777c7e" metalness={.82} roughness={.18}/></mesh></group>}
 
 function CabinetGeometry({i}:{i:JoineryItem}){
-  const c=material(i.materialId).colour,w=mm(i.width),h=mm(i.height),d=mm(i.depth);
+  const c=material(i.carcassMaterialId??i.materialId).colour,w=mm(i.width),h=mm(i.height),d=mm(i.depth);
   if(i.type==="Wall segment"||i.type==="Chimney breast"||i.type==="Column"||i.type==="Ceiling bulkhead"||i.type==="Filler panel"||i.type==="End panel"||i.type==="Worktop"||i.type==="Internal divider"||i.type==="Loft box")return <SimpleBlock w={w} h={h} d={d} c={c}/>;
   if(i.type==="Corner cabinet")return <BaseCabinet i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Hanging rail")return <HangingRail w={w}/>;
@@ -590,7 +592,7 @@ function ItemNode({i,project,selected,mode,onSelect,onMove,onRotate,onMoveStart}
     {selected&&<mesh><boxGeometry args={[mm(i.width)+.035,mm(i.height)+.035,mm(i.depth)+.035]}/><meshBasicMaterial color="#c8102e" wireframe transparent opacity={.55}/></mesh>}
   </group>;
   if(!selected||i.locked)return node;
-  return <TransformControls mode={mode} translationSnap={Math.max(1,project.rules.snap)/1000} rotationSnap={Math.PI/2} showX={mode==="translate"} showY={mode==="rotate"||isWallMounted(i)} showZ={mode==="translate"} onMouseDown={()=>onMoveStart?.()} onObjectChange={sync}>{node}</TransformControls>;
+  return <TransformControls mode={mode} translationSnap={Math.max(1,project.rules.snap)/1000} rotationSnap={Math.PI/2} showX={mode==="translate"} showY={mode==="translate"||mode==="rotate"} showZ={mode==="translate"} onMouseDown={()=>onMoveStart?.()} onObjectChange={sync}>{node}</TransformControls>;
 }
 
 
