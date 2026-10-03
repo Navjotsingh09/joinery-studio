@@ -60,6 +60,36 @@ function woodTexture(colour:string){
 }
 
 
+const stoneTextureCache=new Map<string,THREE.CanvasTexture>();
+function stoneTexture(id:string,colour:string){
+  if(typeof document==="undefined"||!(id==="stone-light"||id==="stone-dark"))return null;
+  const cached=stoneTextureCache.get(id);if(cached)return cached;
+  const canvas=document.createElement("canvas");canvas.width=384;canvas.height=384;
+  const ctx=canvas.getContext("2d");if(!ctx)return null;
+  ctx.fillStyle=colour;ctx.fillRect(0,0,384,384);
+  if(id==="stone-light"){
+    const wash=ctx.createLinearGradient(0,0,384,384);wash.addColorStop(0,"rgba(255,255,255,.24)");wash.addColorStop(.5,"rgba(202,194,184,.08)");wash.addColorStop(1,"rgba(255,255,255,.18)");ctx.fillStyle=wash;ctx.fillRect(0,0,384,384);
+    for(let k=0;k<7;k++){
+      ctx.beginPath();
+      for(let x=-20;x<=404;x+=6){
+        const y=42+k*48+Math.sin(x*.026+k*1.7)*18+Math.sin(x*.061+k*.8)*6;
+        if(x===-20)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+      }
+      ctx.strokeStyle=k%3===0?"rgba(130,122,114,.18)":"rgba(159,151,142,.1)";
+      ctx.lineWidth=k%3===0?1.15:.7;ctx.stroke();
+    }
+  }else{
+    for(let y=0;y<384;y+=13)for(let x=(y/13)%2?6:0;x<384;x+=17){
+      const a=.025+((x+y)%41)/1600;ctx.fillStyle="rgba(255,255,255,"+a+")";ctx.fillRect(x,y,2,2);
+    }
+    for(let k=0;k<5;k++){ctx.beginPath();for(let x=0;x<=384;x+=8){const y=55+k*66+Math.sin(x*.04+k)*11;if(x===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}ctx.strokeStyle="rgba(210,205,198,.08)";ctx.lineWidth=.8;ctx.stroke()}
+  }
+  const tex=new THREE.CanvasTexture(canvas);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(1.7,1.7);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=8;stoneTextureCache.set(id,tex);return tex;
+}
+function builtInSurfaceTexture(id:string|undefined,colour:string){
+  return id?stoneTexture(id,colour)??woodTexture(colour):woodTexture(colour);
+}
+
 const roomTextureCache=new Map<string,THREE.CanvasTexture>();
 function oakFloorTexture(){
   const key="oak-floor";
@@ -156,7 +186,7 @@ function Panel({position,size,colour,front=false,materialId,part}:{position:[num
     const repeatX=Math.max(1,Math.min(8,size[0]/.45)),repeatY=Math.max(1,Math.min(8,Math.max(size[1],size[2])/.45));
     uploaded.repeat.set(repeatX,repeatY);
   }
-  const tex=uploaded??woodTexture(baseColour);
+  const tex=uploaded??builtInSurfaceTexture(materialId,baseColour);
   const category=exact?.category??custom?.category??"";
   const isStone=category==="Worktop",isMetal=category==="Metal";
   const roughness=isMetal?.2:isStone?.26:front?.42:.64,metalness=isMetal?.78:0;
@@ -397,7 +427,7 @@ function OpenShelving({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:st
 function WorktopSurface({w,h,d,materialId,position=[0,0,0]}:{w:number;h:number;d:number;materialId:string;position?:[number,number,number]}){
   const picker=useContext(PartSelectionContext),m=sceneMaterial(materialId),uploaded=useDataTexture(m.textureDataUrl);
   if(uploaded){uploaded.repeat.set(Math.max(1,w/.5),Math.max(1,d/.5));}
-  const tex=uploaded??woodTexture(m.colour),picked=picker.selected&&picker.selectedPart==="worktop";
+  const tex=uploaded??builtInSurfaceTexture(materialId,m.colour),picked=picker.selected&&picker.selectedPart==="worktop";
   return <RoundedBox args={[w,h,d]} radius={Math.min(.007,h*.24)} smoothness={4} position={position} castShadow receiveShadow onClick={e=>{if(picker.selected){e.stopPropagation();picker.onSelectPart?.("worktop")}}}>
     <meshStandardMaterial map={tex??undefined} color={tex?"#ffffff":m.colour} roughness={m.category==="Worktop"?.22:.48} metalness={0}/>
     {picked&&<lineSegments><edgesGeometry args={[new THREE.BoxGeometry(w,h,d)]}/><lineBasicMaterial color="#c8102e"/></lineSegments>}
