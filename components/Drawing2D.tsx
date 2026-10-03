@@ -1,4 +1,5 @@
 "use client";
+import {stairPlan} from "@/lib/stairGeometry";
 import {useRef,useState} from "react";
 import {Project,ViewMode,JoineryItem,WallSide} from "@/types/model";
 import {itemRect,labelFor,viewSize,svgPoint,contrastText,clampItemToRoom,validate,normalizeRotation,wallClearances,wallViewSize,wallItemRect,isItemOnWall} from "@/lib/geometry";
@@ -167,8 +168,9 @@ export function Drawing2D({
           {faceView&&hasPlinth&&<><line x1="0" x2={rw} y1={rh-plinthPx} y2={rh-plinthPx} stroke={tc} opacity=".5"/><rect x={rw*.06} y={rh-plinthPx} width={rw*.88} height={plinthPx} fill={fill} opacity=".78"/></>}
           {faceView&&i.doors>0&&!isDrawer&&i.hardware!=="None"&&i.hardware!=="Push-to-open"&&Array.from({length:i.doors}).map((_,n)=>{const dw=rw/i.doors,x=dw*n+dw*(n<i.doors/2?.82:.18);return <line key={"h"+n} x1={x} x2={x} y1={(rh-plinthPx)*.42} y2={(rh-plinthPx)*.58} stroke={tc} strokeWidth="2.4" opacity=".85"/>})}
           {faceView&&isDrawer&&i.hardware!=="None"&&i.hardware!=="Push-to-open"&&Array.from({length:Math.max(1,i.doors)}).map((_,n)=>{const fh=(rh-plinthPx)/Math.max(1,i.doors),y=fh*n+fh*.32;return <line key={"dh"+n} x1={rw*.42} x2={rw*.58} y1={y} y2={y} stroke={tc} strokeWidth="2.4" opacity=".85"/>})}
-          {isStair&&view==="side"&&Array.from({length:13}).map((_,n)=>{const x=rw*n/13,y=rh-rh*(n+1)/13;return <path key={"st"+n} d={"M "+x+" "+rh+" V "+y+" H "+(rw*(n+1)/13)} fill="none" stroke={tc} strokeWidth="1.6" opacity=".9"/>})}
-          {isStair&&view==="top"&&Array.from({length:13}).map((_,n)=><line key={"pt"+n} x1="0" x2={rw} y1={rh*(n+1)/13} y2={rh*(n+1)/13} stroke={tc} strokeWidth="1.3" opacity=".75"/>)}
+          {isStair&&view==="side"&&Array.from({length:stairPlan(i).count}).map((_,n)=>{const count=stairPlan(i).count,x=rw*n/count,y=rh-rh*(n+1)/count;return <path key={"st"+n} d={"M "+x+" "+rh+" V "+y+" H "+(rw*(n+1)/stairPlan(i).count)} fill="none" stroke={tc} strokeWidth="1.6" opacity=".9"/>})}
+          {isStair&&view==="top"&&<g transform={`translate(${rw/2} ${rh/2}) rotate(${-rotation})`}>{stairPlan(i).flights.map((f,fi)=>Array.from({length:f.count},(_,n)=>{const along=(f.reverse?-1:1)*(-f.run/2+(n+1)*f.run/f.count),sx=f.position[0]*1000*scale,sz=f.position[2]*1000*scale;return <line key={`${fi}-${n}`} x1={sx+(f.axis==="z"?-f.width/2:along)*1000*scale} x2={sx+(f.axis==="z"?f.width/2:along)*1000*scale} y1={sz+(f.axis==="z"?along:-f.width/2)*1000*scale} y2={sz+(f.axis==="z"?along:f.width/2)*1000*scale} stroke={tc} strokeWidth="1.3"/>}))}{stairPlan(i).landings.map((l,n)=><rect key={n} x={(l.position[0]-l.size[0]/2)*1000*scale} y={(l.position[2]-l.size[2]/2)*1000*scale} width={l.size[0]*1000*scale} height={l.size[2]*1000*scale} fill="none" stroke={tc}/>)}</g>}
+
           {isBed&&view==="top"&&<><rect x={rw*.04} y={rh*.04} width={rw*.92} height={rh*.92} rx="8" fill="#f1eee8" stroke="#a79e91"/><rect x={rw*.12} y={rh*.08} width={rw*.34} height={rh*.18} rx="8" fill="#fff" stroke="#bbb4aa"/><rect x={rw*.54} y={rh*.08} width={rw*.34} height={rh*.18} rx="8" fill="#fff" stroke="#bbb4aa"/></>}
           {isSink&&view==="top"&&<ellipse cx={rw/2} cy={rh*.45} rx={rw*.28} ry={rh*.26} fill="#8f9699" stroke="#52585c" strokeWidth="1.5"/>}
           {isHob&&view==="top"&&<><rect x={rw*.2} y={rh*.18} width={rw*.6} height={rh*.64} rx="4" fill="#181a1c"/>{[[.35,.35],[.65,.35],[.35,.65],[.65,.65]].map((p,n)=><circle key={n} cx={rw*p[0]} cy={rh*p[1]} r={Math.min(rw,rh)*.08} fill="none" stroke="#5b6064" strokeWidth="2"/>)}</>}

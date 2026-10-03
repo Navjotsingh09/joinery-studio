@@ -34,7 +34,7 @@ const toItem=(i:any):JoineryItem=>{
     carcassMaterialId:m.carcassMaterialId,doorMaterialId:m.doorMaterialId,sideMaterialId:m.sideMaterialId,
     leftSideMaterialId:m.leftSideMaterialId,rightSideMaterialId:m.rightSideMaterialId,plinthMaterialId:m.plinthMaterialId,worktopMaterialId:m.worktopMaterialId,
     plinthStyle:m.plinthStyle,plinthRecess:m.plinthRecess,wallSide:m.wallSide,
-    productStyle:m.productStyle,colourVariant:m.colourVariant,openAmount:m.openAmount
+    plinthHeight:m.plinthHeight,wardrobeLayout:m.wardrobeLayout,stairRisers:m.stairRisers,stairRailHeight:m.stairRailHeight,stairRailing:m.stairRailing,treadMaterialId:m.treadMaterialId,riserMaterialId:m.riserMaterialId,railingMaterialId:m.railingMaterialId,productStyle:m.productStyle,colourVariant:m.colourVariant,openAmount:m.openAmount
   };
 };
 
@@ -84,7 +84,7 @@ export async function saveCloud(p:Project){
     const modernRows=p.items.map(i=>({
       id:i.id,project_id:p.id,name:i.name,type:i.type,x:i.x,y:i.y,z:i.z,width:i.width,height:i.height,depth:i.depth,
       shelves:i.shelves,doors:i.doors,material_id:i.materialId,finish:i.finish,
-      notes:encodeMeta(i.notes??"",ITEM_META,{carcassMaterialId:i.carcassMaterialId,doorMaterialId:i.doorMaterialId,sideMaterialId:i.sideMaterialId,leftSideMaterialId:i.leftSideMaterialId,rightSideMaterialId:i.rightSideMaterialId,plinthMaterialId:i.plinthMaterialId,worktopMaterialId:i.worktopMaterialId,plinthStyle:i.plinthStyle,plinthRecess:i.plinthRecess,wallSide:i.wallSide,productStyle:i.productStyle,colourVariant:i.colourVariant,openAmount:i.openAmount}),
+      notes:encodeMeta(i.notes??"",ITEM_META,{carcassMaterialId:i.carcassMaterialId,doorMaterialId:i.doorMaterialId,sideMaterialId:i.sideMaterialId,leftSideMaterialId:i.leftSideMaterialId,rightSideMaterialId:i.rightSideMaterialId,plinthMaterialId:i.plinthMaterialId,worktopMaterialId:i.worktopMaterialId,plinthStyle:i.plinthStyle,plinthRecess:i.plinthRecess,wallSide:i.wallSide,plinthHeight:i.plinthHeight,wardrobeLayout:i.wardrobeLayout,stairRisers:i.stairRisers,stairRailHeight:i.stairRailHeight,stairRailing:i.stairRailing,treadMaterialId:i.treadMaterialId,riserMaterialId:i.riserMaterialId,railingMaterialId:i.railingMaterialId,productStyle:i.productStyle,colourVariant:i.colourVariant,openAmount:i.openAmount}),
       locked:i.locked,hardware:i.hardware,edge_banding:i.edgeBanding,rotation:normalizeRotation(i.rotation??0),
       visible:i.visible!==false,layer:i.layer??"Joinery",group_id:i.groupId??null
     }));

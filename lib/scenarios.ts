@@ -141,8 +141,8 @@ function stairs(kind:string,w:number,h:number,d:number):JoineryItem[]{
   const stairW=Math.min(1000,Math.max(850,w*.28));
   const stairD=Math.min(d-100,Math.max(2600,d*.78));
   const sx=Math.max(50,(w-stairW)/2);
-  if(kind==="l-shape")return [item("L staircase","L-shaped staircase",{x:sx,y:0,z:50,width:Math.min(w-100,stairW*2.15),height:h,depth:stairD,doors:0,shelves:0,materialId:"h1180",hardware:"None"})];
-  if(kind==="u-shape")return [item("U staircase","U-shaped staircase",{x:Math.max(50,(w-stairW*2.2)/2),y:0,z:50,width:Math.min(w-100,stairW*2.2),height:h,depth:Math.min(d-100,stairD*.7),doors:0,shelves:0,materialId:"h1180",hardware:"None"})];
+  if(kind==="l-shape")return [item("L staircase","L-shaped staircase",{x:Math.max(50,(w-Math.min(w-100,stairW*2.15))/2),y:0,z:50,width:Math.min(w-100,stairW*2.15),height:h,depth:stairD,doors:0,shelves:0,materialId:"h1180",hardware:"None"})];
+  if(kind==="u-shape")return [item("U staircase","U-shaped staircase",{x:Math.max(50,(w-stairW*2.2)/2),y:0,z:50,width:Math.min(w-100,stairW*2.2),height:h,depth:Math.min(d-100,stairD),doors:0,shelves:0,materialId:"h1180",hardware:"None"})];
   const stair=item("Straight staircase","Straight staircase",{x:sx,y:0,z:50,width:stairW,height:h,depth:stairD,doors:0,shelves:0,materialId:"h1180",hardware:"None"});
   if(kind==="storage"){
     const sw=Math.min(stairW-80,900);

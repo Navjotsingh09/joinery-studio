@@ -8,6 +8,7 @@ import {material} from "@/lib/materials";
 import {sinkCutouts,SinkCutout,roomShellWalls,splashbackTextureUV} from "@/lib/renderGeometry";
 import {clampItemToRoom,isWallMounted,footprint,normalizeRotation} from "@/lib/geometry";
 
+import {stairPlan} from "@/lib/stairGeometry";
 const mm=(v:number)=>v/1000;
 const BOARD=18;
 const BACK=6;
@@ -287,6 +288,7 @@ function RoomDimensionOverlay({rw,rh,rd,project}:{rw:number;rh:number;rd:number;
 
 function ConstructionLabels({i}:{i:JoineryItem}){
   const w=mm(i.width),h=mm(i.height),d=mm(i.depth);
+  if(["Straight staircase","L staircase","U staircase"].includes(i.type))return <group><Html position={[0,0,0]} center distanceFactor={7}><span className="constructionLabel">Treads & risers</span></Html><Html position={[w/2+.1,h*.2,0]} center distanceFactor={7}><span className="constructionLabel">Stringers & railing</span></Html></group>;
   const hasDoors=i.doors>0,hasPlinth=!!i.plinthStyle&&i.plinthStyle!=="none";
   return <group>
     <Html position={[-w/2-.09,h*.18,0]} center distanceFactor={7}><span className="constructionLabel">Carcass</span></Html>
@@ -392,16 +394,22 @@ function DrawerFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number
     </group>;
   })}</>;
 }
+function WardrobeInternals({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
+  const layout=i.wardrobeLayout??"mixed",id=i.carcassMaterialId??i.materialId,c=sceneMaterial(id).colour;
+  if(layout==="shelves")return null;
+  return <group>
+    <group position={[layout==="mixed"?-w/4:0,h*.24,0]}><HangingRail w={layout==="mixed"?w/2-.06:w-.06}/></group>
+    <Panel position={[0,h/2-.15,0]} size={[w-.036,.018,d-.03]} colour={c} materialId={id} part="carcass"/>
+    {layout==="mixed"&&<><Panel position={[0,0,0]} size={[.018,h-.036,d-.03]} colour={c} materialId={id} part="carcass"/>{Array.from({length:Math.max(1,i.shelves)},(_,n)=><Panel key={n} position={[w/4,-h/2+(n+1)*(h-.18)/(Math.max(1,i.shelves)+1),0]} size={[w/2-.027,.018,d-.03]} colour={c} materialId={id} part="carcass"/>)}</>}
+  </group>;
+}
 function Wardrobe({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  const plinth=.08,bodyH=Math.max(.3,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
+  const plinth=i.plinthStyle==="none"?0:mm(i.plinthHeight??80),bodyH=Math.max(.3,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
   return <group>
     <Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/>
     <group position={[0,bodyY,-mm(BOARD)/2]}>
-      <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={Math.max(1,i.shelves)}/>
-      <mesh position={[0,bodyH*.16,bodyD*.18]} rotation={[0,0,Math.PI/2]} castShadow>
-        <cylinderGeometry args={[.011,.011,Math.max(.08,w-mm(90)),18]}/>
-        <meshStandardMaterial color="#9b9b98" metalness={.75} roughness={.25}/>
-      </mesh>
+      <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={i.wardrobeLayout==="shelves"?Math.max(1,i.shelves):0}/>
+      <WardrobeInternals i={i} w={w} h={bodyH} d={bodyD}/>
       {i.doors>0&&<DoorFronts i={i} w={w} h={bodyH} d={bodyD} colour={c}/>}
     </group>
   </group>;
@@ -660,17 +668,18 @@ function TimberBalustrade({w,h,d,c}:{w:number;h:number;d:number;c:string}){
 }
 
 function SlidingWardrobe({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  const bodyD=d-mm(BOARD),track=.028,gap=.012,count=Math.max(2,i.doors);
+  const bodyD=d-mm(BOARD),track=.028,gap=.012,count=Math.max(2,i.doors),open=activeConstructionView?.8:Math.max(0,Math.min(1,(i.openAmount??0)/100));
   return <group>
-    <Carcass i={i} w={w} h={h} d={bodyD} colour={c} shelves={Math.max(2,i.shelves)}/>
+    <Carcass i={i} w={w} h={h} d={bodyD} colour={c} shelves={i.wardrobeLayout==="shelves"?Math.max(1,i.shelves):0}/>
+    <WardrobeInternals i={i} w={w} h={h} d={bodyD}/>
     <Panel position={[0,-h/2+.018,d/2-.015]} size={[w,.036,.055]} colour="#797b7d"/>
     <Panel position={[0,h/2-.018,d/2-.015]} size={[w,.036,.055]} colour="#797b7d"/>
     {Array.from({length:count},(_,n)=>{
       const pw=(w-gap*(count+1))/count;
-      const x=-w/2+gap+pw/2+n*(pw+gap);
-      const z=d/2+.008+(n%2)*track;
+      const x=-w/2+gap+pw/2+n*(pw+gap)+(n<count/2?1:-1)*pw*.85*open;
+      const z=d/2+.008+n*track;
       return <group key={n}>
-        <Panel position={[x,0,z]} size={[pw,h-.045,.022]} colour={n===1&&count===3?"#cfd1d2":c} front/>
+        <Panel position={[x,0,z]} size={[pw,h-.045,.022]} colour={c} materialId={i.doorMaterialId??i.materialId} part="fronts" front/>
         <Metal position={[x+(n<count/2?pw*.43:-pw*.43),0,z+.018]} size={[.009,Math.min(.5,h*.28),.01]}/>
       </group>;
     })}
@@ -680,10 +689,10 @@ function SlidingWardrobe({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c
 function DressingTable({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
   const bodyH=Math.min(.34,h*.45),bodyY=-h/2+bodyH/2+.12;
   return <group>
-    <Panel position={[0,h/2-.018,0]} size={[w,.036,d]} colour={c} front/>
+    <Panel position={[0,h/2-.018,0]} size={[w,.036,d]} colour={c} materialId={i.carcassMaterialId??i.materialId} part="carcass" front/>
     <group position={[0,bodyY,0]}><Carcass i={i} w={w} h={bodyH} d={d-.02} colour={c}/><DrawerFronts i={{...i,doors:Math.max(2,i.doors)}} w={w} h={bodyH} d={d-.02} colour={c}/></group>
-    <Panel position={[-w/2+.04,-h/2+.12,0]} size={[.05,.24,d*.82]} colour={boardColour(c,-.04)}/>
-    <Panel position={[w/2-.04,-h/2+.12,0]} size={[.05,.24,d*.82]} colour={boardColour(c,-.04)}/>
+    <Panel position={[-w/2+.04,-h/2+.12,0]} size={[.05,.24,d*.82]} colour={c} materialId={i.carcassMaterialId??i.materialId} part="carcass"/>
+    <Panel position={[w/2-.04,-h/2+.12,0]} size={[.05,.24,d*.82]} colour={c} materialId={i.carcassMaterialId??i.materialId} part="carcass"/>
   </group>;
 }
 
@@ -691,11 +700,11 @@ function BedsideCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:
   return <group><Carcass i={i} w={w} h={h} d={d-.02} colour={c}/><DrawerFronts i={{...i,doors:Math.max(2,i.doors)}} w={w} h={h} d={d-.02} colour={c}/><Panel position={[0,h/2+.014,0]} size={[w+.015,.028,d+.015]} colour={boardColour(c,.04)} front/></group>;
 }
 
-function BedWall({w,h,d,c}:{w:number;h:number;d:number;c:string}){
-  const cols=6,rows=3,g=.012,pw=(w-g*(cols+1))/cols,ph=(h-g*(rows+1))/rows;
+function BedWall({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
+  const cols=i.productStyle==="Plain"?1:i.productStyle==="Vertical panels"?8:6,rows=i.productStyle==="Tufted"||!i.productStyle?3:1,g=.012,pw=(w-g*(cols+1))/cols,ph=(h-g*(rows+1))/rows;
   return <group>{Array.from({length:cols*rows},(_,n)=>{
     const col=n%cols,row=Math.floor(n/cols),x=-w/2+g+pw/2+col*(pw+g),y=-h/2+g+ph/2+row*(ph+g);
-    return <mesh key={n} position={[x,y,d/2]} castShadow><boxGeometry args={[pw,ph,Math.max(.04,d)]}/><meshStandardMaterial color={boardColour(c,row%2?.03:-.015)} roughness={.88}/></mesh>
+    return <Panel key={n} position={[x,y,0]} size={[pw,ph,Math.max(.04,d)]} colour={c} materialId={i.materialId} front/>
   })}</group>;
 }
 
@@ -769,57 +778,27 @@ function FridgeHousing({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:s
   </group>;
 }
 
-function StairFlight({width,run,rise,count=13,position=[0,0,0],axis="z",reverse=false,colour}:{width:number;run:number;rise:number;count?:number;position?:[number,number,number];axis?:"x"|"z";reverse?:boolean;colour:string}){
-  const tread=run/count,stepRise=rise/count;
-  return <group position={position}>{Array.from({length:count},(_,n)=>{
-    const level=n+1,stepH=stepRise*level;
-    const along=-run/2+tread/2+n*tread;
-    const a=reverse?-along:along;
-    const pos:[number,number,number]=axis==="z"?[0,-rise/2+stepH/2,a]:[a,-rise/2+stepH/2,0];
-    const size:[number,number,number]=axis==="z"?[width,stepH,tread+.006]:[tread+.006,stepH,width];
-    return <Panel key={n} position={pos} size={size} colour={colour} front/>
-  })}
-  </group>;
+function StairBeam({start,end,materialId,part,thickness=.045}:{start:[number,number,number];end:[number,number,number];materialId:string;part:JoineryPart;thickness?:number}){
+  const a=new THREE.Vector3(...start),b=new THREE.Vector3(...end),delta=b.clone().sub(a),q=new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),delta.clone().normalize());
+  return <group position={a.add(b).multiplyScalar(.5)} quaternion={q}><Panel position={[0,0,0]} size={[thickness,delta.length(),thickness]} colour={sceneMaterial(materialId).colour} materialId={materialId} part={part}/></group>;
 }
-
-function RailPosts({width,run,rise,axis="z",side=1,position=[0,0,0]}:{width:number;run:number;rise:number;axis?:"x"|"z";side?:number;position?:[number,number,number]}){
-  const count=6;
-  return <group position={position}>{Array.from({length:count},(_,n)=>{
-    const t=n/(count-1),along=-run/2+t*run,y=-rise/2+t*rise+.46;
-    const pos:[number,number,number]=axis==="z"?[side*(width/2-.035),y,along]:[along,y,side*(width/2-.035)];
-    return <Metal key={n} position={pos} size={[.026,.92,.026]}/>
-  })}</group>;
-}
-
-function StraightStaircase({w,h,d,c}:{w:number;h:number;d:number;c:string}){
-  const count=Math.max(11,Math.round(h/.18)),rise=h*.96,run=d*.94;
-  return <group>
-    <StairFlight width={w} run={run} rise={rise} count={count} colour={c}/>
-    <RailPosts width={w} run={run} rise={rise} side={1}/>
-    <RailPosts width={w} run={run} rise={rise} side={-1}/>
-    <Panel position={[0,rise/2+.015,-run/2-.035]} size={[w,.04,.11]} colour={boardColour(c,-.12)}/>
-  </group>;
-}
-
-function LStaircase({w,h,d,c}:{w:number;h:number;d:number;c:string}){
-  const flightW=Math.min(w*.46,1.0),half=h*.48,run1=d*.58,run2=w*.52;
-  return <group>
-    <StairFlight width={flightW} run={run1} rise={half} count={7} position={[-w*.25,-h*.24,d*.19]} colour={c}/>
-    <Panel position={[-w*.25,0,-d*.13]} size={[flightW,.08,flightW]} colour={c} front/>
-    <StairFlight width={flightW} run={run2} rise={half} count={7} axis="x" position={[w*.08,h*.24,-d*.13]} colour={c}/>
-    <RailPosts width={flightW} run={run1} rise={half} side={1} position={[-w*.25,-h*.24,d*.19]}/>
-  </group>;
-}
-
-function UStaircase({w,h,d,c}:{w:number;h:number;d:number;c:string}){
-  const fw=Math.min(.92,w*.42),gap=.14,half=h*.48,run=d*.72;
-  return <group>
-    <StairFlight width={fw} run={run} rise={half} count={7} position={[-fw/2-gap/2,-h*.24,0]} colour={c}/>
-    <StairFlight width={fw} run={run} rise={half} count={7} reverse position={[fw/2+gap/2,h*.24,0]} colour={c}/>
-    <Panel position={[0,0,-run/2+.04]} size={[fw*2+gap,.08,fw]} colour={c} front/>
-    <RailPosts width={fw} run={run} rise={half} side={-1} position={[-fw/2-gap/2,-h*.24,0]}/>
-    <RailPosts width={fw} run={run} rise={half} side={1} position={[fw/2+gap/2,h*.24,0]}/>
-  </group>;
+function Staircase({i}:{i:JoineryItem}){
+  const plan=stairPlan(i),treadId=i.treadMaterialId??i.materialId,riserId=i.riserMaterialId??i.materialId,railId=i.railingMaterialId??i.materialId,railH=mm(i.stairRailHeight??900),railing=i.stairRailing??"both";
+  return <group>{plan.flights.map((f,fi)=>{
+    const going=f.run/f.count,step=f.rise/f.count,sign=f.reverse?-1:1,t=.032;
+    const point=(along:number,y:number,side:number):[number,number,number]=>f.axis==="z"?[side,y,along]:[along,y,side];
+    return <group key={fi} position={f.position}>
+      {Array.from({length:f.count},(_,n)=>{const top=-f.rise/2+(n+1)*step,along=sign*(-f.run/2+(n+.5)*going),explode=activeConstructionView?.04:0;return <group key={n}>
+        <Panel position={point(along,top-t/2+explode,0)} size={f.axis==="z"?[f.width,t,going+.025]:[going+.025,t,f.width]} colour={sceneMaterial(treadId).colour} materialId={treadId} part="treads" front/>
+        <Panel position={point(along-sign*going/2,top-step/2-t/2,0)} size={f.axis==="z"?[f.width,Math.max(.02,step-t),.018]:[.018,Math.max(.02,step-t),f.width]} colour={sceneMaterial(riserId).colour} materialId={riserId} part="risers"/>
+      </group>})}
+      {[-1,1].map(side=><StairBeam key={side} start={point(-sign*f.run/2,-f.rise/2,side*(f.width/2-.025))} end={point(sign*f.run/2,f.rise/2-.08,side*(f.width/2-.025))} materialId={riserId} part="risers" thickness={.075}/>)}
+      {[-1,1].filter(side=>railing==="both"||railing===(side===-1?"left":"right")).map(side=>{const offset=side*(f.width/2-.025),start=point(-sign*f.run/2,-f.rise/2+step+railH,offset),end=point(sign*f.run/2,f.rise/2+railH,offset);return <group key={side}>
+        <StairBeam start={start} end={end} materialId={railId} part="railing"/>
+        {Array.from({length:f.count+1},(_,n)=>{const a=n/f.count,along=sign*(-f.run/2+a*f.run),base=-f.rise/2+step+a*(f.rise-step);return <Panel key={n} position={point(along,base+railH/2,offset)} size={[.026,railH,.026]} colour={sceneMaterial(railId).colour} materialId={railId} part="railing"/>})}
+      </group>})}
+    </group>;
+  })}{plan.landings.map((l,n)=><Panel key={n} position={l.position} size={l.size} colour={sceneMaterial(treadId).colour} materialId={treadId} part="treads" front/>)}</group>;
 }
 
 function UnderStairStorage({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
@@ -917,7 +896,7 @@ function CabinetGeometry({i,project,construction=false}:{i:JoineryItem;project:P
   if(i.type==="Sliding wardrobe")return <SlidingWardrobe i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Dressing table")return <DressingTable i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Bedside cabinet")return <BedsideCabinet i={i} w={w} h={h} d={d} c={c}/>;
-  if(i.type==="Bed wall")return <BedWall w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Bed wall")return <BedWall i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Bed")return <Bed w={w} h={h} d={d} c={c}/>;
   if(i.type==="Base cabinet")return <BaseCabinet i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Sink base")return <SinkBase i={i} w={w} h={h} d={d} c={c}/>;
@@ -929,9 +908,9 @@ function CabinetGeometry({i,project,construction=false}:{i:JoineryItem;project:P
   if(i.type==="Tall cabinet")return <TallCabinet i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Drawer unit")return <DrawerUnit i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Media unit")return <MediaUnit i={i} w={w} h={h} d={d} c={c}/>;
-  if(i.type==="Straight staircase")return <StraightStaircase w={w} h={h} d={d} c={c}/>;
-  if(i.type==="L staircase")return <LStaircase w={w} h={h} d={d} c={c}/>;
-  if(i.type==="U staircase")return <UStaircase w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Straight staircase")return <Staircase i={i}/>;
+  if(i.type==="L staircase")return <Staircase i={i}/>;
+  if(i.type==="U staircase")return <Staircase i={i}/>;
   if(i.type==="Under-stair storage")return <UnderStairStorage i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Dishwasher")return <Dishwasher i={i} w={w} h={h} d={d}/>;
   if(i.type==="Washing machine")return <WashingMachine i={i} w={w} h={h} d={d}/>;
