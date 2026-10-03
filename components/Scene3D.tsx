@@ -400,6 +400,44 @@ function BaseCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:str
   </group>;
 }
 
+function CornerCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
+  const plinth=.1,top=.025,bodyH=Math.max(.25,h-plinth-top),bodyY=-h/2+plinth+bodyH/2;
+  const carcassId=i.carcassMaterialId??i.materialId,faceId=i.doorMaterialId??i.materialId;
+  const carcassColour=sceneMaterial(carcassId).colour,faceColour=sceneMaterial(faceId).colour;
+  const t=mm(BOARD),legD=Math.max(.22,Math.min(d*.52,.5)),legW=Math.max(.22,Math.min(w*.52,.5)),explode=activeConstructionView;
+  const rearZ=-d/2+legD/2-(explode?.045:0),sideDepth=Math.max(.12,d-legD),sideZ=-d/2+legD+sideDepth/2;
+  const shelfT=Math.max(.012,t),doorW=Math.max(.22,Math.min(.5,Math.hypot(Math.max(.12,w-legW),Math.max(.12,d-legD))*.72));
+  const requested=Math.min(105,(i.openAmount??0)*1.05),open=THREE.MathUtils.degToRad(activeConstructionView?Math.max(72,requested):requested);
+  const doorZ=d*.18+(explode?.09:0),doorX=w*.18+(explode?.06:0);
+  const shelfLevels=Math.max(1,i.shelves||1);
+  return <group>
+    <group position={[0,explode?-.055:0,explode?.035:0]}>
+      <Plinth w={w} d={legD} h={plinth} colour={sceneMaterial(i.plinthMaterialId??carcassId).colour} materialId={i.plinthMaterialId??carcassId} style={i.plinthStyle} recessMm={i.plinthRecess}/>
+      <group position={[-w/2+legW/2,0,legD/2]}><Plinth w={legW} d={Math.max(.08,d-legD)} h={plinth} colour={sceneMaterial(i.plinthMaterialId??carcassId).colour} materialId={i.plinthMaterialId??carcassId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
+    </group>
+    <group position={[0,bodyY,0]}>
+      <Panel position={[0,0,rearZ]} size={[w,bodyH,legD]} colour={carcassColour} materialId={carcassId} part="carcass"/>
+      <Panel position={[-w/2+legW/2-(explode?.045:0),0,sideZ]} size={[legW,bodyH,sideDepth]} colour={sceneMaterial(i.leftSideMaterialId??i.sideMaterialId??carcassId).colour} materialId={i.leftSideMaterialId??i.sideMaterialId??carcassId} part="left-side"/>
+      {Array.from({length:shelfLevels},(_,n)=>{
+        const y=-bodyH/2+(bodyH*(n+1))/(shelfLevels+1);
+        return <group key={n} position={[0,y+(explode?(n%2?-.02:.02):0),0]}>
+          <Panel position={[0,0,rearZ]} size={[Math.max(.08,w-t*2),shelfT,Math.max(.08,legD-t*2)]} colour={boardColour(carcassColour,.015)} materialId={carcassId} part="carcass"/>
+          <Panel position={[-w/2+legW/2,0,sideZ]} size={[Math.max(.08,legW-t*2),shelfT,Math.max(.08,sideDepth-t*2)]} colour={boardColour(carcassColour,.015)} materialId={carcassId} part="carcass"/>
+        </group>
+      })}
+      <group position={[doorX,0,doorZ]} rotation={[0,-Math.PI/4-open,0]}>
+        <Panel position={[0,0,0]} size={[doorW,Math.max(.16,bodyH-mm(REVEAL*2)),t]} colour={faceColour} materialId={faceId} part="fronts" front/>
+        <Handle x={doorW*.32} y={-.02} z={t/2+.014} height={bodyH} hardware={i.hardware}/>
+        {(open>.08||activeConstructionView)&&<HingePair height={bodyH*.82} side={-1}/>}
+      </group>
+    </group>
+    <group position={[0,h/2-top/2+(explode?.055:0),0]}>
+      <Panel position={[0,0,-d/2+legD/2]} size={[w+.02,top,legD+.02]} colour={boardColour(c,.05)} materialId={i.worktopMaterialId??carcassId} part="worktop" front/>
+      <Panel position={[-w/2+legW/2,0,legD/2]} size={[legW+.02,top,Math.max(.08,d-legD)+.02]} colour={boardColour(c,.05)} materialId={i.worktopMaterialId??carcassId} part="worktop" front/>
+    </group>
+  </group>;
+}
+
 function TallCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
   const plinth=.1,bodyH=Math.max(.4,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD),explode=activeConstructionView;
   return <group>
@@ -809,7 +847,7 @@ function CabinetGeometry({i,construction=false}:{i:JoineryItem;construction?:boo
   i=renderItem;
   if(i.type==="Worktop"){const topId=i.worktopMaterialId??i.materialId;return <WorktopSurface w={w} h={h} d={d} materialId={topId}/>;}
   if(i.type==="Wall segment"||i.type==="Chimney breast"||i.type==="Column"||i.type==="Ceiling bulkhead"||i.type==="Filler panel"||i.type==="End panel"||i.type==="Internal divider"||i.type==="Loft box")return <SimpleBlock w={w} h={h} d={d} c={c} materialId={i.materialId}/>;
-  if(i.type==="Corner cabinet")return <BaseCabinet i={i} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Corner cabinet")return <CornerCabinet i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Hanging rail")return <HangingRail w={w}/>;
   if(i.type==="Internal drawers")return <DrawerUnit i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Shoe rack")return <OpenShelving i={i} w={w} h={h} d={d} c={c}/>;
