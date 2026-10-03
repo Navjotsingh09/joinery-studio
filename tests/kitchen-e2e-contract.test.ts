@@ -8,7 +8,7 @@ describe("kitchen end-to-end contract",()=>{
   it("creates a visually complete kitchen starter system",()=>{
     const plan=createScenarioPlan("kitchen","l-shape",4200,2400,3400);
     const types=new Set(plan.items.map(i=>i.type));
-    for(const t of ["Base cabinet","Drawer unit","Sink base","Hob base","Dishwasher","Tall cabinet","Wall cabinet","Extractor hood","Worktop","Backsplash","Pull-out tap"])expect(types.has(t),t).toBe(true);
+    for(const t of ["Base cabinet","Drawer unit","Sink base","Hob base","Dishwasher","Oven tower","Tall cabinet","Wall cabinet","Extractor hood","Worktop","Backsplash","Pull-out tap"])expect(types.has(t),t).toBe(true);
     expect(validate({
       id:"k",name:plan.name,customer:"",reference:"QA",status:"Draft",revision:1,
       roomWidth:plan.roomWidth,roomHeight:plan.roomHeight,roomDepth:plan.roomDepth,
