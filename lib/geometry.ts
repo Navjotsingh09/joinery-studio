@@ -85,7 +85,7 @@ export function snapItemToWall(p:Project,i:JoineryItem,wall:WallSide){
   if(wall==="right")q={...q,x:Math.max(c,p.roomWidth-c-fp.width)};
   return clampItemToRoom(q,p)
 }
-const autoWallTypes=new Set(["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Sink base","Hob base","Oven tower","Fridge housing","Corner cabinet","Filler panel","End panel","Wardrobe","Sliding wardrobe","Media unit","Shelving"]);
+const autoWallTypes=new Set(["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Sink base","Hob base","Oven tower","Fridge housing","Corner cabinet","Filler panel","End panel","Backsplash","Extractor hood","Microwave","Wardrobe","Sliding wardrobe","Media unit","Shelving"]);
 export function autoFaceNearestWall(p:Project,i:JoineryItem,threshold=160){
   if(!autoWallTypes.has(i.type))return i;
   const clearance=wallClearances(p,i);
