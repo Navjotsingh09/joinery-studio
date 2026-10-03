@@ -5,6 +5,7 @@ import {OrbitControls,Grid,GizmoHelper,GizmoViewport,TransformControls,ContactSh
 import * as THREE from "three";
 import {Project,JoineryItem,Material,JoineryPart} from "@/types/model";
 import {material} from "@/lib/materials";
+import {sinkCutouts,SinkCutout} from "@/lib/renderGeometry";
 import {clampItemToRoom,isWallMounted,footprint,normalizeRotation} from "@/lib/geometry";
 
 const mm=(v:number)=>v/1000;
@@ -51,7 +52,7 @@ function woodTexture(colour:string,force=false){
     const coarse=noise((x+drift)*.033,y*.003);
     const fine=noise((x+drift)*.31,y*.012);
     const pores=Math.pow(noise((x+drift)*.82,y*.021),5);
-    const factor=1+(coarse-.5)*.11+(fine-.5)*.06-pores*.035+(hash(x,y)-.5)*.01;
+    const factor=1+(coarse-.5)*.045+(fine-.5)*.035-pores*.025+(hash(x,y)-.5)*.01;
     const offset=(y*512+x)*4;
     pixels.data[offset]=Math.min(255,base.r*255*factor);
     pixels.data[offset+1]=Math.min(255,base.g*255*factor);
@@ -118,9 +119,9 @@ function oakFloorTexture(){
   const plankH=64;
   for(let row=0;row<8;row++){
     const y=row*plankH;
-    ctx.fillStyle=row%2?"rgba(110,73,42,.035)":"rgba(255,255,255,.045)";
+    ctx.fillStyle=`rgba(110,73,42,${.015+((row*7)%5)*.008})`;
     ctx.fillRect(0,y,512,plankH);
-    ctx.strokeStyle="rgba(80,54,35,.18)";ctx.lineWidth=1;
+    ctx.strokeStyle="rgba(80,54,35,.09)";ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(512,y);ctx.stroke();
     const offset=row%2?110:0;
     for(let x=-offset;x<512;x+=190){
@@ -132,10 +133,10 @@ function oakFloorTexture(){
         const wave=Math.sin((x+gy)*.036)*1.8+Math.sin(x*.09+row)*.8;
         if(x===0)ctx.moveTo(x,gy+wave);else ctx.lineTo(x,gy+wave);
       }
-      ctx.strokeStyle="rgba(91,61,39,.09)";ctx.lineWidth=.7;ctx.stroke();
+      ctx.strokeStyle="rgba(91,61,39,.025)";ctx.lineWidth=.7;ctx.stroke();
     }
   }
-  const tex=new THREE.CanvasTexture(canvas);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(4,4);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=8;
+  const tex=new THREE.CanvasTexture(canvas);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(1,1);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=8;
   roomTextureCache.set(key,tex);return tex;
 }
 
@@ -157,7 +158,7 @@ function builtInFloorTexture(id:string,colour:string){
     for(let p=0;p<=512;p+=tile){ctx.beginPath();ctx.moveTo(p,0);ctx.lineTo(p,512);ctx.stroke();ctx.beginPath();ctx.moveTo(0,p);ctx.lineTo(512,p);ctx.stroke()}
     for(let n=0;n<110;n++){const x=(n*79)%512,y=(n*137)%512;ctx.fillStyle="rgba(85,82,78,.035)";ctx.fillRect(x,y,18+(n%5)*5,2)}
   }
-  const tex=new THREE.CanvasTexture(canvas);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(4,4);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=8;roomTextureCache.set(key,tex);return tex;
+  const tex=new THREE.CanvasTexture(canvas);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(1,1);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=8;roomTextureCache.set(key,tex);return tex;
 }
 
 function RoomShell({rw,rh,rd,showWalls,realistic,floorMaterial,studioMode=false}:{rw:number;rh:number;rd:number;showWalls:boolean;realistic:boolean;floorMaterial:Material;studioMode?:boolean}){
@@ -185,11 +186,6 @@ function RoomShell({rw,rh,rd,showWalls,realistic,floorMaterial,studioMode=false}
         <mesh position={[-rw/2+.034,rh-.028,0]}><boxGeometry args={[.02,.035,rd]}/><meshStandardMaterial color="#faf9f6" roughness={.82}/></mesh>
       </>}
     </>}
-    {realistic&&<>
-      <pointLight position={[-rw*.24,Math.max(2.1,rh-.18),-rd*.22]} intensity={1.4} distance={4.4} decay={2} color="#fff4df"/>
-      <pointLight position={[rw*.12,Math.max(2.1,rh-.18),-rd*.18]} intensity={1.1} distance={4.2} decay={2} color="#fff8ea"/>
-      <pointLight position={[rw*.28,Math.max(2.1,rh-.18),rd*.18]} intensity={.8} distance={3.8} decay={2} color="#fff8ef"/>
-    </>}
   </group>;
 }
 
@@ -203,7 +199,7 @@ function Panel({position,size,colour,front=false,materialId,part}:{position:[num
   if(tex)tex.repeat.set(1,1);
   const category=exact?.category??custom?.category??"";
   const isStone=category==="Worktop",isMetal=category==="Metal";
-  const roughness=isMetal?.2:isStone?.26:front?.42:.64,metalness=isMetal?.78:0;
+  const roughness=isMetal?.2:isStone?.26:front?(category==="Woodgrain"?.7:.82):.72,metalness=isMetal?.78:0;
   const picked=!!part&&picker.selected&&picker.selectedPart===part;
   return <RoundedBox args={size} radius={Math.min(.0012,Math.min(...size)*.12)} smoothness={2} position={position} castShadow receiveShadow onUpdate={mesh=>physicalPanelUV(mesh,size)} onClick={part?e=>{e.stopPropagation();picker.onSelectPart?.(part)}:undefined}>
     <meshStandardMaterial map={tex??undefined} color={tex?"#ffffff":front?boardColour(baseColour,.025):baseColour} roughness={roughness} metalness={metalness} bumpMap={tex??undefined} bumpScale={category==="Woodgrain"?.00035:.00012}/>
@@ -338,7 +334,7 @@ function Carcass({i,w,h,d,colour,shelves=0,openBack=false}:{i:JoineryItem;w:numb
   return <group>
     <Panel position={[-w/2+t/2-explode,0,0]} size={[t,h,bodyD]} colour={leftColour} materialId={leftId} part="left-side"/>
     <Panel position={[w/2-t/2+explode,0,0]} size={[t,h,bodyD]} colour={rightColour} materialId={rightId} part="right-side"/>
-    <Panel position={[0,h/2-t/2+topExplode,0]} size={[innerW,t,bodyD]} colour={carcassColour} materialId={carcassId} part="carcass"/>
+    {i.type==="Sink base"?[-1,1].map(side=><Panel key={side} position={[0,h/2-t/2+topExplode,side*(bodyD/2-.025)]} size={[innerW,t,.05]} colour={carcassColour} materialId={carcassId} part="carcass"/>):<Panel position={[0,h/2-t/2+topExplode,0]} size={[innerW,t,bodyD]} colour={carcassColour} materialId={carcassId} part="carcass"/>}
     <Panel position={[0,-h/2+t/2-topExplode,0]} size={[innerW,t,bodyD]} colour={carcassColour} materialId={carcassId} part="carcass"/>
     {!openBack&&<Panel position={[0,0,-bodyD/2+back/2+.006-backExplode]} size={[innerW,innerH,back]} colour={boardColour(carcassColour,-.04)} materialId={carcassId} part="carcass"/>}
     {Array.from({length:Math.max(0,shelves)},(_,n)=>{
@@ -409,7 +405,7 @@ function BaseCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:str
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={Math.max(0,i.shelves)}/>
       {i.doors>0&&<DoorFronts i={i} w={w} h={bodyH} d={bodyD} colour={c}/>}
     </group>
-    <Panel position={[0,h/2-top/2+(explode?.055:0),.008+(explode?.025:0)]} size={[w+.02,top,d+.02]} colour={boardColour(c,.05)} materialId={i.carcassMaterialId??i.materialId} part="carcass" front/>
+    {i.type!=="Sink base"&&<Panel position={[0,h/2-top/2+(explode?.055:0),.008+(explode?.025:0)]} size={[w+.02,top,d+.02]} colour={boardColour(c,.05)} materialId={i.carcassMaterialId??i.materialId} part="carcass" front/>}
   </group>;
 }
 
@@ -474,7 +470,7 @@ function WallCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:str
     <Panel position={[0,-h/2+.008-(explode?.045:0),.012+(explode?.03:0)]} size={[Math.max(.03,w-.04),.01,Math.max(.03,d-.05)]} colour={boardColour(c,-.06)}/>
     {!activeConstructionView&&<>
       <mesh position={[0,-h/2-.006,d*.18]}><boxGeometry args={[Math.max(.08,w-.08),.012,.025]}/><meshStandardMaterial color="#fff1c8" emissive="#ffe7a8" emissiveIntensity={2.2} roughness={.35}/></mesh>
-      <pointLight position={[0,-h/2-.06,d*.2]} intensity={2.1} distance={1.55} decay={2} color="#ffe4aa"/>
+      <pointLight position={[0,-h/2-.06,d*.2]} intensity={.18} distance={1.55} decay={2} color="#ffe4aa"/>
     </>}
   </group>;
 }
@@ -508,11 +504,18 @@ function OpenShelving({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:st
 }
 
 
-function WorktopSurface({w,h,d,materialId,position=[0,0,0],edge="rounded",finish}:{w:number;h:number;d:number;materialId:string;position?:[number,number,number];edge?:"square"|"rounded";finish?:string}){
+function WorktopSurface({w,h,d,materialId,position=[0,0,0],edge="rounded",finish,cutouts=[]}:{w:number;h:number;d:number;materialId:string;position?:[number,number,number];edge?:"square"|"rounded";finish?:string;cutouts?:SinkCutout[]}){
   const picker=useContext(PartSelectionContext),m=sceneMaterial(materialId),uploaded=useDataTexture(m.textureDataUrl);
   if(uploaded)uploaded.repeat.set(1,1);
   const tex=uploaded??builtInSurfaceTexture(materialId,m.colour);if(tex)tex.repeat.set(1,1);
   const picked=picker.selected&&picker.selectedPart==="worktop";
+  if(cutouts.length){
+    const shape=new THREE.Shape();shape.moveTo(-w/2,-d/2);shape.lineTo(w/2,-d/2);shape.lineTo(w/2,d/2);shape.lineTo(-w/2,d/2);shape.closePath();
+    for(const hole of cutouts){const path=new THREE.Path(),x=hole.x,z=-hole.z,a=hole.width/2,b=hole.depth/2;path.moveTo(x-a,z-b);path.lineTo(x-a,z+b);path.lineTo(x+a,z+b);path.lineTo(x+a,z-b);path.closePath();shape.holes.push(path)}
+    return <group position={position}><mesh rotation={[-Math.PI/2,0,0]} position={[0,-h/2,0]} castShadow receiveShadow onClick={e=>{e.stopPropagation();picker.onSelectPart?.("worktop")}}>
+      <extrudeGeometry args={[shape,{depth:h,bevelEnabled:false}]}/><meshStandardMaterial map={tex??undefined} color={tex?"#ffffff":m.colour} roughness={.65}/>
+    </mesh></group>;
+  }
   return <RoundedBox args={[w,h,d]} radius={edge==="square"?.0001:Math.min(.007,h*.24)} smoothness={4} position={position} castShadow receiveShadow onUpdate={mesh=>physicalPanelUV(mesh,[w,h,d])} onClick={e=>{e.stopPropagation();picker.onSelectPart?.("worktop")}}>
     <meshStandardMaterial map={tex??undefined} color={tex?"#ffffff":m.colour} roughness={(finish??m.surfaceFinish)==="Gloss"?.12:(finish??m.surfaceFinish)==="Semi-gloss"?.28:(finish??m.surfaceFinish)==="Textured matt"?.8:.55} metalness={0}/>
     {picked&&<lineSegments><edgesGeometry args={[new THREE.BoxGeometry(w,h,d)]}/><lineBasicMaterial color="#c8102e"/></lineSegments>}
@@ -525,35 +528,24 @@ function Countertop({w,d,y,colour="#e8e4dc",materialId}:{w:number;d:number;y:num
 }
 
 function Sink({i,w,d,y}:{i:JoineryItem;w:number;d:number;y:number}){
-  const style=i.productStyle??"Inset stainless",sw=Math.min(.56,w*.72),sd=Math.min(.43,d*.7),rim=.026,basinH=.18;
-  const finish=i.colourVariant==="Black"?"#242729":i.colourVariant==="White ceramic"?"#efeeea":"#b7bcbd";
-  if(style==="Belfast ceramic"){
-    return <group position={[0,y-.055,d*.03]}>
-      <RoundedBox args={[Math.min(.62,w*.78),.24,Math.min(.46,d*.72)]} radius={.035} smoothness={4} castShadow receiveShadow>
-        <meshStandardMaterial color={i.colourVariant==="Black"?"#313131":"#f1efea"} roughness={.32}/>
-      </RoundedBox>
-      <RoundedBox args={[Math.min(.54,w*.68),.18,Math.min(.38,d*.6)]} radius={.03} smoothness={4} position={[0,.025,0]}>
-        <meshStandardMaterial color="#d8d5cf" roughness={.45}/>
-      </RoundedBox>
-      <mesh position={[0,-.095,0]} rotation={[-Math.PI/2,0,0]}><cylinderGeometry args={[.025,.025,.01,28]}/><meshStandardMaterial color="#9ca1a3" metalness={.76} roughness={.18}/></mesh>
-    </group>;
-  }
-  if(style==="Undermount"){
-    return <group position={[0,y-.018,d*.03]}>
-      <RoundedBox args={[sw-rim*1.2,basinH,sd-rim*1.2]} radius={.026} smoothness={4} position={[0,-basinH/2,0]} castShadow receiveShadow>
-        <meshStandardMaterial color={finish} roughness={.18} metalness={i.colourVariant==="White ceramic"?0:.72}/>
-      </RoundedBox>
-      <mesh position={[0,-basinH+.018,0]} rotation={[-Math.PI/2,0,0]}><cylinderGeometry args={[.024,.024,.008,28]}/><meshStandardMaterial color="#b9bec0" metalness={.84} roughness={.14}/></mesh>
-    </group>;
-  }
-  return <group position={[0,y,d*.03]}>
-    <mesh position={[0,-basinH/2+.004,0]} receiveShadow castShadow><boxGeometry args={[sw-rim*2,basinH,sd-rim*2]}/><meshStandardMaterial color={i.colourVariant==="Black"?"#2f3436":"#6f777a"} roughness={.2} metalness={.72}/></mesh>
-    <mesh position={[0,.003,0]} receiveShadow castShadow><boxGeometry args={[sw,.012,sd]}/><meshStandardMaterial color={finish} roughness={.12} metalness={i.colourVariant==="White ceramic"?0:.82}/></mesh>
-    <mesh position={[0,.01,0]}><boxGeometry args={[sw-rim*2,.014,sd-rim*2]}/><meshStandardMaterial color={i.colourVariant==="White ceramic"?"#d8d5cf":"#303639"} roughness={.22} metalness={i.colourVariant==="White ceramic"?0:.52}/></mesh>
-    <mesh position={[0,-basinH+.018,0]} rotation={[-Math.PI/2,0,0]}><cylinderGeometry args={[.024,.024,.008,28]}/><meshStandardMaterial color="#b9bec0" metalness={.84} roughness={.14}/></mesh>
-    <mesh position={[0,-basinH+.024,0]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[.034,.003,8,28]}/><meshStandardMaterial color="#5d6467" metalness={.7} roughness={.2}/></mesh>
+  const ceramic=i.productStyle==="Belfast ceramic"||i.colourVariant==="White ceramic",under=i.productStyle==="Undermount",sw=Math.min(.56,w*.72),sd=Math.min(.43,d*.7),rim=.026,basinH=ceramic?.22:.18;
+  const finish=i.colourVariant==="Black"?"#292e30":ceramic?"#edece7":"#aab1b4",metalness=ceramic?0:.85;
+  const mat=<meshStandardMaterial color={finish} roughness={ceramic?.3:.32} metalness={metalness}/>;
+  return <group position={[0,y-(under?.025:0),d*.03]}>
+    {[-1,1].map(side=><group key={side}>
+      <RoundedBox args={[sw,.009,rim]} position={[0,0,side*(sd-rim)/2]} radius={.003} smoothness={2} castShadow receiveShadow>{mat}</RoundedBox>
+      <RoundedBox args={[rim,.009,sd-rim*2]} position={[side*(sw-rim)/2,0,0]} radius={.003} smoothness={2} castShadow receiveShadow>{mat}</RoundedBox>
+      <RoundedBox args={[sw-rim*2,basinH,.012]} position={[0,-basinH/2,side*(sd-rim*2)/2]} radius={.005} smoothness={2} castShadow receiveShadow>{mat}</RoundedBox>
+      <RoundedBox args={[.012,basinH,sd-rim*2]} position={[side*(sw-rim*2)/2,-basinH/2,0]} radius={.005} smoothness={2} castShadow receiveShadow>{mat}</RoundedBox>
+    </group>)}
+    <RoundedBox args={[sw-rim*2,.012,sd-rim*2]} position={[0,-basinH,0]} radius={.005} smoothness={2} receiveShadow>{mat}</RoundedBox>
+    {ceramic&&<RoundedBox args={[sw,.1,.028]} position={[0,-.055,sd/2]} radius={.012} smoothness={3} castShadow>{mat}</RoundedBox>}
+    <mesh position={[0,-basinH+.008,0]}><cylinderGeometry args={[.025,.025,.004,32]}/><meshStandardMaterial color="#51585b" metalness={.8} roughness={.3}/></mesh>
+    <mesh position={[0,-basinH+.011,0]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[.028,.003,10,32]}/>{mat}</mesh>
+    {[-1,0,1].map(n=><mesh key={n} position={[n*.012,-basinH+.011,0]}><boxGeometry args={[.002,.002,.033]}/>{mat}</mesh>)}
   </group>;
 }
+
 function Hob({w,d,y}:{w:number;d:number;y:number}){
   const hw=Math.min(.6,w*.72),hd=Math.min(.52,d*.72);
   return <group position={[0,y,.015]}>
@@ -569,12 +561,13 @@ function ApplianceGlass({position,size}:{position:[number,number,number];size:[n
 
 function applianceFinish(name="Stainless steel"){return name==="Black"?"#202225":name==="White"?"#eeeeeb":name==="Graphite"?"#4c4f52":name==="Cream"?"#e5dccb":"#b9bec0"}
 function Dishwasher({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
-  const finish=applianceFinish(i.colourVariant),style=i.productStyle??"Contemporary",professional=style==="Professional",minimal=style==="Minimal";
+  const finish=applianceFinish(i.colourVariant),minimal=i.productStyle==="Minimal",toe=.1,bodyH=h-toe;
   return <group>
-    <mesh castShadow receiveShadow><boxGeometry args={[w,h,d]}/><meshStandardMaterial color={finish} metalness={i.colourVariant==="White"?.05:.42} roughness={minimal?.24:.36}/></mesh>
-    {!minimal&&<ApplianceGlass position={[0,h*.23,d/2+.012]} size={[w-.08,.13,.024]}/>}
-    <Metal position={[0,h*(professional?.32:.37),d/2+.028]} size={[w*(professional?.78:.7),professional?.028:.018,.018]}/>
-    {style==="Classic"&&[-.24,0,.24].map((x,n)=><mesh key={n} position={[x*w,h*.29,d/2+.03]}><cylinderGeometry args={[.014,.014,.012,16]}/><meshStandardMaterial color="#444" metalness={.45}/></mesh>)}
+    <RoundedBox args={[w-.006,bodyH,d-.028]} position={[0,toe/2,-.014]} radius={.003} smoothness={2} castShadow receiveShadow><meshStandardMaterial color={finish} metalness={i.colourVariant==="White"?.05:.55} roughness={.5}/></RoundedBox>
+    <mesh position={[0,-h/2+toe/2,-.04]}><boxGeometry args={[w-.012,toe,d-.1]}/><meshStandardMaterial color="#292b2c" roughness={.8}/></mesh>
+    <mesh position={[0,h/2-.045,d/2-.011]}><boxGeometry args={[w-.022,.065,.008]}/><meshStandardMaterial color={minimal?finish:"#303336"} metalness={.35} roughness={.45}/></mesh>
+    {!minimal&&<><mesh position={[w*.2,h/2-.042,d/2-.005]}><boxGeometry args={[.07,.018,.002]}/><meshStandardMaterial color="#163333" roughness={.35}/></mesh>{[-.28,-.2,-.12].map(x=><mesh key={x} position={[w*x,h/2-.042,d/2-.004]} rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[.004,.004,.003,12]}/><meshStandardMaterial color="#babec0" metalness={.6} roughness={.4}/></mesh>)}</>}
+    <Metal position={[0,h/2-.1,d/2+.012]} size={[w*.66,.014,.016]}/>
   </group>;
 }
 
@@ -852,11 +845,15 @@ function TapObject({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
     <mesh position={[0,h*.2,d*.39]} castShadow><boxGeometry args={[r*2.2,h*.14,r*2.2]}/>{mat}</mesh>
     <mesh position={[w*.14,-h*.02,0]} rotation={[0,0,-.55]} castShadow><boxGeometry args={[r*1.5,h*.22,r*1.5]}/>{mat}</mesh>
   </group>;
+  const points=[new THREE.Vector3(0,-h/2,0),new THREE.Vector3(0,h*.12,0),new THREE.Vector3(0,h*.42,d*.12),new THREE.Vector3(0,h*.28,d*.36),new THREE.Vector3(0,h*.06,d*.4)];
+  const curve=new THREE.CatmullRomCurve3(points);
   return <group>
-    <mesh position={[0,-h*.14,0]} castShadow><cylinderGeometry args={[r,r*1.05,h*.68,20]}/>{mat}</mesh>
-    <mesh position={[0,h*.16,d*.12]} rotation={[Math.PI/2,0,0]} castShadow><torusGeometry args={[Math.max(.06,h*.22),r,12,32,Math.PI]}/>{mat}</mesh>
-    {style==="Pull-out"&&<><mesh position={[0,h*.22,d*.34]} castShadow><cylinderGeometry args={[r*1.55,r*1.25,Math.max(.06,d*.24),18]}/>{mat}</mesh><mesh position={[w*.15,-h*.02,0]} rotation={[0,0,-.55]} castShadow><cylinderGeometry args={[r*.7,r*.7,h*.2,14]}/>{mat}</mesh></>}
-  </group>
+    <mesh castShadow><tubeGeometry args={[curve,48,r,16,false]}/>{mat}</mesh>
+    <mesh position={[0,-h/2+.012,0]}><cylinderGeometry args={[r*2,r*2,.024,24]}/>{mat}</mesh>
+    <mesh position={[w*.12,-h*.2,0]} rotation={[0,0,-.55]} castShadow><cylinderGeometry args={[r*.55,r*.55,h*.18,16]}/>{mat}</mesh>
+    <mesh position={[0,h*.04,d*.4]} castShadow><cylinderGeometry args={[r*(style==="Pull-out"?1.45:1.1),r*1.15,.045,24]}/>{mat}</mesh>
+    <mesh position={[0,h*.04-.024,d*.4]}><cylinderGeometry args={[r*.8,r*.8,.002,20]}/><meshStandardMaterial color="#343638" roughness={.75}/></mesh>
+  </group>;
 }
 
 function FreestandingFridge({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
@@ -889,11 +886,11 @@ function RangeCooker({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
 }
 function Backsplash({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){const m=sceneMaterial(i.materialId);return <group><Panel position={[0,0,0]} size={[w,h,Math.max(.012,d)]} colour={m.colour} materialId={i.materialId} part="backsplash" front/><lineSegments position={[0,0,d/2+.004]}><edgesGeometry args={[new THREE.BoxGeometry(w,h,.008)]}/><lineBasicMaterial color="#918a82"/></lineSegments></group>}
 
-function CabinetGeometry({i,construction=false}:{i:JoineryItem;construction?:boolean}){
+function CabinetGeometry({i,project,construction=false}:{i:JoineryItem;project:Project;construction?:boolean}){
   const renderItem=construction?{...i,openAmount:Math.max(72,i.openAmount??0)}:i;
   const c=sceneMaterial(renderItem.carcassMaterialId??renderItem.materialId).colour,w=mm(renderItem.width),h=mm(renderItem.height),d=mm(renderItem.depth);
   i=renderItem;
-  if(i.type==="Worktop"){const topId=i.worktopMaterialId??i.materialId;return <WorktopSurface w={w} h={h} d={d} materialId={topId} edge={i.worktopEdge} finish={i.finish}/>;}
+  if(i.type==="Worktop"){const topId=i.worktopMaterialId??i.materialId;return <WorktopSurface w={w} h={h} d={d} materialId={topId} edge={i.worktopEdge} finish={i.finish} cutouts={sinkCutouts(i,project.items)}/>;}
   if(i.type==="Wall segment"||i.type==="Chimney breast"||i.type==="Column"||i.type==="Ceiling bulkhead"||i.type==="Filler panel"||i.type==="End panel"||i.type==="Internal divider"||i.type==="Loft box")return <SimpleBlock w={w} h={h} d={d} c={c} materialId={i.materialId}/>;
   if(i.type==="Corner cabinet")return <CornerCabinet i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Hanging rail")return <HangingRail w={w}/>;
@@ -946,8 +943,8 @@ function ItemNode({i,project,selected,selectedPart,mode,construction,onSelect,on
   const position:[number,number,number]=[mm(i.x+fp.width/2-project.roomWidth/2),mm(i.y+i.height/2),mm(i.z+fp.depth/2-project.roomDepth/2)];
   const sync=()=>{const g=group.current;if(!g)return;if(mode==="rotate"){const accepted=onRotate?.(i.id,normalizeRotation(THREE.MathUtils.radToDeg(g.rotation.y)));if(accepted===false)g.rotation.y=THREE.MathUtils.degToRad(rotation);return}const current={...i,rotation},box=footprint(current);const raw={...current,x:(g.position.x+mm(project.roomWidth)/2)*1000-box.width/2,y:g.position.y*1000-i.height/2,z:(g.position.z+mm(project.roomDepth)/2)*1000-box.depth/2};const q=clampItemToRoom(raw,project);const accepted=onMove?.(i.id,q.x,q.y,q.z);if(accepted===false){g.position.set(...position);g.rotation.y=THREE.MathUtils.degToRad(rotation)}};
   const node=<group ref={group} position={position} rotation={[0,THREE.MathUtils.degToRad(rotation),0]} onClick={e=>{e.stopPropagation();onSelect?.(i.id)}}>
-    {i.type==="Wall cabinet"&&<group position={[0,-mm(i.height)/2-.012,mm(i.depth)*.35]}><mesh rotation={[-Math.PI/2,0,0]}><planeGeometry args={[Math.max(.1,mm(i.width)-.06),.012]}/><meshStandardMaterial color="#ffe5b2" emissive="#ffe1a2" emissiveIntensity={2} toneMapped={false}/></mesh><pointLight color="#ffdf9f" intensity={.35} distance={1.5} decay={2}/></group>}
-    <PartSelectionContext.Provider value={{selected,selectedPart,onSelectPart:part=>onSelectPart?.(i.id,part)}}><CabinetGeometry i={i} construction={construction}/></PartSelectionContext.Provider>
+    {i.type==="Wall cabinet"&&<group position={[0,-mm(i.height)/2-.012,mm(i.depth)*.35]}><mesh rotation={[-Math.PI/2,0,0]}><planeGeometry args={[Math.max(.1,mm(i.width)-.06),.012]}/><meshStandardMaterial color="#ffe5b2" emissive="#ffe1a2" emissiveIntensity={2} toneMapped={false}/></mesh><pointLight color="#ffdf9f" intensity={.12} distance={1.5} decay={2}/></group>}
+    <PartSelectionContext.Provider value={{selected,selectedPart,onSelectPart:part=>onSelectPart?.(i.id,part)}}><CabinetGeometry i={i} project={project} construction={construction}/></PartSelectionContext.Provider>
     {selected&&construction&&<><DimensionOverlay i={i}/><ConstructionLabels i={i}/></>}
     {selected&&!selectedPart&&<mesh><boxGeometry args={[mm(i.width)+.035,mm(i.height)+.035,mm(i.depth)+.035]}/><meshBasicMaterial color="#c8102e" wireframe transparent opacity={.4}/></mesh>}
   </group>;
@@ -989,7 +986,7 @@ function CameraRig({preset,rw,rh,rd}:{preset:CameraPreset;rw:number;rh:number;rd
   return null;
 }
 
-export function Scene3D({project,selected,selectedPart,transformMode="translate",onSelect,onSelectPart,onDropType,onMove,onRotate,onMoveStart}:{project:Project;selected?:string|null;selectedPart?:JoineryPart|null;transformMode?:"translate"|"rotate";onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onDropType?:(type:string,x:number,y:number,z:number)=>void;onMove?:(id:string,x:number,y:number,z:number)=>boolean|void;onRotate?:(id:string,rotation:number)=>boolean|void;onMoveStart?:()=>void}){
+export function Scene3D({project,presentationOnly=false,selected,selectedPart,transformMode="translate",onSelect,onSelectPart,onDropType,onMove,onRotate,onMoveStart}:{project:Project;presentationOnly?:boolean;selected?:string|null;selectedPart?:JoineryPart|null;transformMode?:"translate"|"rotate";onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onDropType?:(type:string,x:number,y:number,z:number)=>void;onMove?:(id:string,x:number,y:number,z:number)=>boolean|void;onRotate?:(id:string,rotation:number)=>boolean|void;onMoveStart?:()=>void}){
   activeCustomMaterials=project.customMaterials??[];
   const rw=mm(project.roomWidth),rh=mm(project.roomHeight),rd=mm(project.roomDepth),roomMax=Math.max(rw,rh,rd),floorMaterial=sceneMaterial(project.floorMaterialId??"floor-oak");
   const [preset,setPreset]=useState<CameraPreset>("iso"),[showGrid,setShowGrid]=useState(false),[showWalls,setShowWalls]=useState(true),[renderMode,setRenderMode]=useState<"presentation"|"technical"|"construction">("presentation"),[dropReady,setDropReady]=useState(false),[explodePanels,setExplodePanels]=useState(false);
@@ -1014,9 +1011,9 @@ export function Scene3D({project,selected,selectedPart,transformMode="translate"
 {showGrid&&<Grid position={[0,.002,0]} args={[Math.max(rw,rd)*1.25,Math.max(rw,rd)*1.25]} cellSize={.1} sectionSize={.5} cellColor="#cbc6bf" sectionColor="#aaa49b" fadeDistance={15} fadeStrength={1.5}/>}
 
     {construction&&<RoomDimensionOverlay rw={rw} rh={rh} rd={rd} project={project}/>}
-    {project.items.filter(i=>i.visible!==false).map(i=><ItemNode key={i.id} i={i} project={project} selected={selected===i.id} selectedPart={selected===i.id?selectedPart:null} mode={transformMode} construction={construction} onSelect={onSelect} onSelectPart={onSelectPart} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>)}
+    {project.items.filter(i=>i.visible!==false).map(i=><ItemNode key={i.id} i={i} project={project} selected={!presentationOnly&&selected===i.id} selectedPart={!presentationOnly&&selected===i.id?selectedPart:null} mode={transformMode} construction={construction} onSelect={presentationOnly?undefined:onSelect} onSelectPart={presentationOnly?undefined:onSelectPart} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>)}
     <ContactShadows position={[0,.003,0]} opacity={construction?.52:realistic?.42:.32} scale={Math.max(5,roomMax*1.8)} blur={construction?2.4:realistic?3.2:2.6} far={Math.max(5,roomMax*1.8)}/>
     <OrbitControls makeDefault target={[0,Math.min(1.15,rh*.48),0]} enableDamping dampingFactor={.08} enablePan enableZoom minDistance={1} maxDistance={Math.max(8,roomMax*4)}/>
-    <GizmoHelper alignment="bottom-right" margin={[70,70]}><GizmoViewport axisColors={["#c8102e","#2f8f5b","#315fa8"]} labelColor="#222"/></GizmoHelper>
+    {!presentationOnly&&<GizmoHelper alignment="bottom-right" margin={[70,70]}><GizmoViewport axisColors={["#c8102e","#2f8f5b","#315fa8"]} labelColor="#222"/></GizmoHelper>}
   </Canvas></div>;
 }
