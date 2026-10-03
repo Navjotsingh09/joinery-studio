@@ -202,6 +202,9 @@ export default function Studio(){
   if(showLauncher||!p.items.length){
     return <ScenarioStart
       continueName={p.items.length?p.name:undefined}
+      projects={s.projects}
+      activeId={p.id}
+      onOpenProject={id=>{s.setActive(id);setShowLauncher(false)}}
       onContinue={p.items.length?()=>setShowLauncher(false):undefined}
       onCreate={(plan:ScenarioPlan)=>{
         if(p.items.length){
