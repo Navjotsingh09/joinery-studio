@@ -144,8 +144,9 @@ export function ScenarioStart({onCreate,onContinue,continueName,projects=[],acti
           <p>These are realistic starting points, not locked templates. Every object remains editable.</p>
         </section>
         <section className="premiumScenarioGrid">
-          {choice?.scenarios.map((s,n)=><button key={s.id} className="premiumScenarioCard" onClick={()=>setScenario(s.id)}>
+          {choice?.scenarios.map((s,n)=><button key={s.id} className={"premiumScenarioCard "+(kind==="kitchen"&&s.id==="l-shape"?"recommendedScenario":"")} onClick={()=>setScenario(s.id)}>
             <ScenarioDiagram kind={kind} scenario={s.id}/>
+            {kind==="kitchen"&&s.id==="l-shape"&&<span className="recommendedBadge">Recommended · reference kitchen</span>}
             <div className="scenarioCopy"><span className="scenarioIndex">0{n+1}</span><div><b>{s.title}</b><p>{s.description}</p></div><Icon name="chevron-right" size={18}/></div>
           </button>)}
         </section>
