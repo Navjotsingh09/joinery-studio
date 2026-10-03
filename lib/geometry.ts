@@ -20,7 +20,7 @@ export function labelFor(i:JoineryItem,v:Exclude<ViewMode,"3d">){
   if(v==="top")return fp.width+" × "+fp.depth+" mm";
   return fp.depth+" × "+i.height+" mm"
 }
-const floatingTypes=new Set(["Wall cabinet","Microwave","Extractor hood","Window","Worktop","Ceiling bulkhead","Radiator","Socket","Switch","Mirror","Ceiling light","Pendant light","Tap","Arc mixer tap","Pull-out tap","Bridge tap","Backsplash","Single oven","Hanging rail","Internal drawers","Shoe rack","Loft box"]);
+const floatingTypes=new Set(["Wall cabinet","Microwave","Extractor hood","Window","Worktop","Ceiling bulkhead","Radiator","Socket","Switch","Mirror","Ceiling light","Pendant light","Tap","Arc mixer tap","Pull-out tap","Bridge tap","Square neck tap","Backsplash","Single oven","Hanging rail","Internal drawers","Shoe rack","Loft box"]);
 export const isWallMounted=(i:JoineryItem)=>floatingTypes.has(i.type);
 export function clampItemToRoom(i:JoineryItem,p:Project):JoineryItem{
   const rotation=normalizeRotation(i.rotation??0),candidate={...i,rotation},fp=footprint(candidate),step=Math.max(1,p.rules.snap),c=Math.max(0,p.rules.wallClearance);
