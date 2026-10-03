@@ -74,20 +74,22 @@ export function Drawing2D({
       if(view==="top")candidate={...candidate,x:i.x+dx,z:i.z-dy};
       if(view==="side")candidate={...candidate,y:i.y-dy,z:i.z+dx};
       candidate=clampItemToRoom(candidate,project);
-      let r=itemRect(candidate,project,view);
+      let r=rectFor(candidate);
       const others=project.items.filter(o=>o.id!==i.id&&o.visible!==false);
       let gx:number|undefined,gy:number|undefined,label:string|undefined;
       const threshold=Math.max(20,project.rules.snap*.6);
       let bestX=threshold+1,bestY=threshold+1,deltaX=0,deltaY=0;
       const cx=[r.left,r.left+r.width/2,r.left+r.width],cy=[r.top,r.top+r.height/2,r.top+r.height];
       for(const o of others){
-        const or=itemRect(o,project,view);
+        const or=rectFor(o);
         const xs=[or.left,or.left+or.width/2,or.left+or.width],ys=[or.top,or.top+or.height/2,or.top+or.height];
         for(const a of cx)for(const b of xs){const d=b-a;if(Math.abs(d)<bestX&&Math.abs(d)<=threshold){bestX=Math.abs(d);deltaX=d;gx=b;label="Snap"}}
         for(const a of cy)for(const b of ys){const d=b-a;if(Math.abs(d)<bestY&&Math.abs(d)<=threshold){bestY=Math.abs(d);deltaY=d;gy=b;label="Snap"}}
       }
       if(bestX<=threshold){
-        if(view==="front"||view==="top")candidate.x+=deltaX;
+        if(elevation&&(wallSide==="left"||wallSide==="right"))candidate.z+=wallSide==="left"?-deltaX:deltaX;
+        else if(elevation&&wallSide==="front")candidate.x-=deltaX;
+        else if(view==="front"||view==="top")candidate.x+=deltaX;
         else candidate.z+=deltaX;
       }
       if(bestY<=threshold){
@@ -95,7 +97,7 @@ export function Drawing2D({
         else candidate.z-=deltaY;
       }
       candidate=clampItemToRoom(candidate,project);
-      r=itemRect(candidate,project,view);
+      r=rectFor(candidate);
       setGuides({x:gx,y:gy,label});
       onMove(i.id,candidate.x,candidate.y,candidate.z);
       return;
@@ -152,12 +154,12 @@ export function Drawing2D({
       {guides.y!==undefined&&<><line className="snapGuide" x1="0" x2={size.w*scale} y1={guides.y*scale} y2={guides.y*scale}/><text className="snapHint" x="8" y={guides.y*scale-8}>{guides.label}</text></>}
       {visibleItems.map(i=>{
         const planOverlay=view==="top"&&(i.y>1000||["Worktop","Backsplash"].includes(i.type));
-        const r=rectFor(i),sel=i.id===selected,invalid=issueNames.has(i.id),rotation=normalizeRotation(i.rotation??0),quarter=rotation===90||rotation===270,faceView=(view==="front"&&!quarter)||(view==="side"&&quarter),drawMaterialId=i.type==="Worktop"?(i.worktopMaterialId??i.materialId):(faceView&&i.doors>0?(i.doorMaterialId??i.materialId):i.materialId),fill=material(drawMaterialId,project.customMaterials??[]).colour,tc=contrastText(fill),rw=r.width*scale,rh=r.height*scale,isDrawer=i.type==="Drawer unit"||i.type==="Media unit",hasPlinth=["Wardrobe","Base cabinet","Tall cabinet","Drawer unit","Media unit","Sink base","Hob base","Kitchen island","Corner cabinet"].includes(i.type),plinthPx=hasPlinth?Math.min(rh*.14,100*scale):0,isStair=["Straight staircase","L staircase","U staircase"].includes(i.type),isBed=i.type==="Bed",isSink=i.type==="Sink base",isHob=i.type==="Hob base",isOven=i.type==="Oven tower",isDish=i.type==="Dishwasher",isWasher=i.type==="Washing machine",isMicrowave=i.type==="Microwave",isExtractor=i.type==="Extractor hood",isDoor=i.type==="Door opening",isWindow=i.type==="Window",isGlassBal=i.type==="Glass balustrade",isTimberBal=i.type==="Timber balustrade",clear=wallClearances(project,i);
+        const r=rectFor(i),sel=i.id===selected,invalid=issueNames.has(i.id),rotation=normalizeRotation(i.rotation??0),quarter=rotation===90||rotation===270,faceView=elevation?((wallSide==="left"||wallSide==="right")?quarter:!quarter):(view==="front"&&!quarter)||(view==="side"&&quarter),drawMaterialId=i.type==="Worktop"?(i.worktopMaterialId??i.materialId):(faceView&&i.doors>0?(i.doorMaterialId??i.materialId):i.materialId),fill=material(drawMaterialId,project.customMaterials??[]).colour,tc=contrastText(fill),rw=r.width*scale,rh=r.height*scale,isDrawer=i.type==="Drawer unit"||i.type==="Media unit",hasPlinth=["Wardrobe","Base cabinet","Tall cabinet","Drawer unit","Media unit","Sink base","Hob base","Kitchen island","Corner cabinet"].includes(i.type),plinthPx=hasPlinth?Math.min(rh*.14,100*scale):0,isStair=["Straight staircase","L staircase","U staircase"].includes(i.type),isBed=i.type==="Bed",isSink=i.type==="Sink base",isHob=i.type==="Hob base",isOven=i.type==="Oven tower",isDish=i.type==="Dishwasher",isWasher=i.type==="Washing machine",isMicrowave=i.type==="Microwave",isExtractor=i.type==="Extractor hood",isDoor=i.type==="Door opening",isWindow=i.type==="Window",isGlassBal=i.type==="Glass balustrade",isTimberBal=i.type==="Timber balustrade",clear=wallClearances(project,i);
         return <g key={i.id} className={"drawingItem "+(sel?"selected ":"")+(invalid?"invalid ":"")} transform={"translate("+(r.left*scale)+","+(r.top*scale)+")"}
           onPointerDown={e=>begin(e,i.id,"move")}
           onContextMenu={e=>{e.preventDefault();e.stopPropagation();onContext(e,i.id)}}
           style={{cursor:i.locked?"not-allowed":drag?.id===i.id?"grabbing":"grab"}}>
-          <title>{i.name+" · "+labelFor(i,view)}</title>
+          <title>{i.name+" · "+r.width+" × "+r.height+" mm"}</title>
           <rect className="itemBody" width={rw} height={rh} rx="2" fill={planOverlay?"none":fill} strokeDasharray={planOverlay?"5 4":undefined} pointerEvents={planOverlay?"stroke":undefined} stroke={invalid?"#e15544":sel?"#c8102e":i.edgeBanding==="None / raw"?"#777":"#292929"} strokeWidth={sel?4:invalid?3:i.edgeBanding.includes("2mm")?3:1.5} filter={sel?"url(#selectionShadow)":undefined}/>
           {faceView&&i.doors===0&&Array.from({length:Math.max(0,i.shelves)}).map((_,n)=><line key={"s"+n} x1="0" x2={rw} y1={rh*(n+1)/(i.shelves+1)} y2={rh*(n+1)/(i.shelves+1)} stroke={tc} opacity=".58"/>)}
           {faceView&&!isDrawer&&i.doors>1&&Array.from({length:i.doors-1}).map((_,n)=><line key={"d"+n} y1="2" y2={rh-plinthPx-2} x1={rw*(n+1)/i.doors} x2={rw*(n+1)/i.doors} stroke={tc} opacity=".72"/>)}
@@ -181,11 +183,11 @@ export function Drawing2D({
           {(isGlassBal||isTimberBal)&&faceView&&<>{Array.from({length:7}).map((_,n)=><line key={"bal"+n} x1={rw*n/6} x2={rw*n/6} y1={rh*.12} y2={rh*.92} stroke={isGlassBal?"#7795a1":tc} strokeWidth={isGlassBal?2:3} opacity={isGlassBal?.65:.9}/>)}<line x1="0" x2={rw} y1={rh*.1} y2={rh*.1} stroke={isGlassBal?"#555":tc} strokeWidth="4"/></>}
           {(sel||(!planOverlay&&rw>=65&&rh>=45))&&<g pointerEvents="none">
             <text x={rw/2} y={Math.max(15,rh/2-2)} textAnchor="middle" className="itemLabel" fill={planOverlay?"#292929":tc} textLength={i.name.length*6>rw-12?Math.max(40,rw-12):undefined} lengthAdjust="spacingAndGlyphs">{i.name}</text>
-            {rh>=55&&<text x={rw/2} y={Math.max(30,rh/2+15)} textAnchor="middle" className="itemSub" fill={planOverlay?"#292929":tc}>{labelFor(i,view)}</text>}
+            {rh>=55&&<text x={rw/2} y={Math.max(30,rh/2+15)} textAnchor="middle" className="itemSub" fill={planOverlay?"#292929":tc}>{r.width} × {r.height} mm</text>}
           </g>}
           {sel&&<>
-            <line x1="0" y1={rh+11} x2={rw} y2={rh+11} stroke="#c8102e"/><text x={rw/2} y={rh+27} textAnchor="middle" className="dim selectionDim">{view==="side"?i.depth:i.width} mm</text>
-            <line x1={rw+11} y1="0" x2={rw+11} y2={rh} stroke="#c8102e"/><text x={rw+27} y={rh/2} textAnchor="middle" className="dim selectionDim" transform={"rotate(-90 "+(rw+27)+" "+(rh/2)+")"}>{view==="top"?i.depth:i.height} mm</text>
+            <line x1="0" y1={rh+11} x2={rw} y2={rh+11} stroke="#c8102e"/><text x={rw/2} y={rh+27} textAnchor="middle" className="dim selectionDim">{r.width} mm</text>
+            <line x1={rw+11} y1="0" x2={rw+11} y2={rh} stroke="#c8102e"/><text x={rw+27} y={rh/2} textAnchor="middle" className="dim selectionDim" transform={"rotate(-90 "+(rw+27)+" "+(rh/2)+")"}>{r.height} mm</text>
             <text x="4" y="-10" className="dim selectionDim">{view==="front"?"X "+i.x+" · Y "+i.y:view==="top"?"X "+i.x+" · Z "+i.z:"Z "+i.z+" · Y "+i.y}</text>
             {view==="top"&&<text x="4" y="-24" className="dim clearanceDim">L {clear.left} · R {clear.right} · Back {clear.back} · Front {clear.front} mm</text>}
             <g className="rotationBadge" transform={"translate("+(rw-6)+",-18)"}><rect x="-42" y="-13" width="42" height="18" rx="5" fill="#fff" stroke="#c8102e"/><text x="-21" y="0" textAnchor="middle" className="rotationText">{rotation}°</text></g>
