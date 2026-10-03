@@ -349,7 +349,7 @@ function DoorFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number;c
 function LiftUpFront({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
   const faceId=i.doorMaterialId??i.materialId,faceColour=sceneMaterial(faceId).colour,gap=mm(REVEAL),frontT=mm(BOARD);
   const faceW=w-gap*2,faceH=h-gap*2,baseOpen=Math.min(100,(i.openAmount??0)),open=THREE.MathUtils.degToRad(activeConstructionView?Math.max(72,baseOpen):baseOpen);
-  const z=d/2-frontT/2+(activeConstructionView?.08:0);
+  const z=d/2-frontT/2+(activeConstructionView ? .08 : 0:0);
   return <group position={[0,h/2-gap,z]} rotation={[-open,0,0]}>
     <Panel position={[0,-faceH/2,0]} size={[faceW,faceH,frontT]} colour={faceColour} materialId={faceId} part="fronts" front/>
     <Metal position={[-faceW*.32,-.02,-.018]} size={[.045,.018,.025]}/>
