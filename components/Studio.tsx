@@ -252,6 +252,16 @@ export default function Studio(){
     throw new Error("The material image is still too large after optimisation. Crop it closer to the material sample.");
   };
 
+  const removeCustomMaterial=(id:string)=>{
+    const fields=(i:typeof p.items[number])=>[i.materialId,i.carcassMaterialId,i.doorMaterialId,i.sideMaterialId,i.leftSideMaterialId,i.rightSideMaterialId,i.plinthMaterialId,i.worktopMaterialId];
+    const usedBy=p.items.find(i=>fields(i).includes(id));
+    if(p.floorMaterialId===id||usedBy){setNotice("That material is still in use"+(usedBy?" on "+usedBy.name:" as the floor")+". Change those finishes before removing it.");return}
+    const target=(p.customMaterials??[]).find(m=>m.id===id);if(!target)return;
+    if(!confirm('Remove custom material "'+target.name+'"?'))return;
+    s.updateProject({customMaterials:(p.customMaterials??[]).filter(m=>m.id!==id)});
+    setNotice(target.name+" removed.");
+  };
+
   const uploadMaterial=async(e:React.ChangeEvent<HTMLInputElement>)=>{
     const f=e.target.files?.[0];if(!f)return;
     if(!f.type.startsWith("image/")){setNotice("Choose an image file for the material.");e.target.value="";return}
@@ -364,7 +374,7 @@ export default function Studio(){
           })}</section>
         </>}
         {tab==="items"&&<section className="itemManager">{p.items.map(i=><button key={i.id} className={s.selectedId===i.id?"activeItem":""} onClick={()=>s.select(i.id)}><ComponentIcon type={i.type}/><span><b>{i.name}</b><small>{i.width} × {i.height} × {i.depth} mm</small></span><span className="itemState">{i.locked?"●":""}</span></button>)}{!p.items.length&&<small className="muted">No joinery yet.</small>}</section>}
-        {tab==="materials"&&<section className="materials"><div className="materialTools"><button onClick={()=>materialFile.current?.click()}>Upload material image</button><input ref={materialFile} hidden type="file" accept="image/*" onChange={uploadMaterial}/><label>Floor material<select value={p.floorMaterialId??"floor-oak"} onChange={e=>s.updateProject({floorMaterialId:e.target.value})}>{availableFloors.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>{item&&<small className="materialTarget">Applying to: {selectedPart?selectedPart.replace("-"," "):"whole object"}</small>}</div>{availableMaterials.map(m=><button key={m.id} className={(item&&(selectedPart?materialIdForPart(selectedPart):item.materialId)===m.id)?"selectedMaterial":""} disabled={!item} onClick={()=>applyMaterial(m.id)}><i style={{background:m.colour,backgroundImage:m.textureDataUrl?`url(${m.textureDataUrl})`:undefined,backgroundSize:"cover"}}/><span><b>{m.code}</b>{m.name}<small>{m.category} · {m.thickness} mm</small></span></button>)}</section>}
+        {tab==="materials"&&<section className="materials"><div className="materialTools"><button onClick={()=>materialFile.current?.click()}>Upload material image</button><input ref={materialFile} hidden type="file" accept="image/*" onChange={uploadMaterial}/><label>Floor material<select value={p.floorMaterialId??"floor-oak"} onChange={e=>s.updateProject({floorMaterialId:e.target.value})}>{availableFloors.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>{item&&<small className="materialTarget">Applying to: {selectedPart?selectedPart.replace("-"," "):"whole object"}</small>}</div>{availableMaterials.map(m=><button key={m.id} className={(item&&(selectedPart?materialIdForPart(selectedPart):item.materialId)===m.id)?"selectedMaterial":""} disabled={!item} onClick={()=>applyMaterial(m.id)}><i style={{background:m.colour,backgroundImage:m.textureDataUrl?`url(${m.textureDataUrl})`:undefined,backgroundSize:"cover"}}/><span><b>{m.code}</b>{m.name}<small>{m.category} · {m.thickness} mm</small></span></button>)}{!!(p.customMaterials??[]).length&&<div className="customMaterialManager"><b>Custom materials</b>{(p.customMaterials??[]).map(m=><div key={m.id}><span>{m.name}</span><button onClick={()=>removeCustomMaterial(m.id)}>Remove</button></div>)}</div>}</section>}
         {tab==="revisions"&&<section className="revisionList">{[...p.revisions].reverse().map(r=><div key={r.id}><span><b>Revision {r.revision}</b><small>{new Date(r.createdAt).toLocaleString()}</small></span><button onClick={()=>confirm("Restore revision "+r.revision+"?")&&s.restoreRevision(r.id)}>Restore</button></div>)}{!p.revisions.length&&<small className="muted">No saved revisions yet.</small>}</section>}
         {tab==="professional"&&<ProfessionalPanel project={p}/>}
       </div>
