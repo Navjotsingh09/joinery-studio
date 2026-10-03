@@ -43,8 +43,8 @@ function addSchedule(doc:jsPDF,p:Project){
     heads.forEach((h,n)=>doc.text(h,cols[n]+1,y0+6));
     doc.setFont("helvetica","normal");
     items.slice(start,start+rows).forEach((i,n)=>{
-      const y=y0+rowH*(n+1),m=material(i.worktopMaterialId??i.materialId,p.customMaterials??[]),carcass=material(i.carcassMaterialId??i.materialId,p.customMaterials??[]),front=material(i.doorMaterialId??i.materialId,p.customMaterials??[]);doc.setDrawColor(210);doc.line(15,y+rowH,399,y+rowH);
-      const materialSummary=i.carcassMaterialId||i.doorMaterialId?"C:"+carcass.code+" F:"+front.code:m.code+" "+m.name;
+      const y=y0+rowH*(n+1),m=material(i.worktopMaterialId??i.materialId,p.customMaterials??[]),carcass=material(i.carcassMaterialId??i.materialId,p.customMaterials??[]),front=material(i.doorMaterialId??i.materialId,p.customMaterials??[]),left=material(i.leftSideMaterialId??i.sideMaterialId??i.carcassMaterialId??i.materialId,p.customMaterials??[]),right=material(i.rightSideMaterialId??i.sideMaterialId??i.carcassMaterialId??i.materialId,p.customMaterials??[]),plinth=material(i.plinthMaterialId??i.carcassMaterialId??i.materialId,p.customMaterials??[]);doc.setDrawColor(210);doc.line(15,y+rowH,399,y+rowH);
+      const materialSummary=i.type==="Worktop"?"W:"+m.code:i.carcassMaterialId||i.doorMaterialId?"C:"+carcass.code+" F:"+front.code+" L:"+left.code+" R:"+right.code+(i.plinthStyle&&i.plinthStyle!=="none"?" P:"+plinth.code:""):m.code+" "+m.name;
       const values=[String(start+n+1),i.name,i.type,String(i.width),String(i.height),String(i.depth),String(i.x),i.y+" / "+i.z,normalizeRotation(i.rotation??0)+"°",materialSummary+" · "+(i.layer??"Joinery")];
       values.forEach((v,k)=>doc.text(String(v).slice(0,k===9?38:22),cols[k]+1,y+6));
     });
