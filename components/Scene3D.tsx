@@ -92,9 +92,30 @@ function oakFloorTexture(){
   roomTextureCache.set(key,tex);return tex;
 }
 
+function builtInFloorTexture(id:string,colour:string){
+  if(id==="floor-oak")return oakFloorTexture();
+  const key="floor-"+id,existing=roomTextureCache.get(key);if(existing)return existing;
+  if(typeof document==="undefined")return null;
+  const canvas=document.createElement("canvas");canvas.width=512;canvas.height=512;
+  const ctx=canvas.getContext("2d");if(!ctx)return null;
+  ctx.fillStyle=colour;ctx.fillRect(0,0,512,512);
+  if(id==="floor-walnut"){
+    for(let row=0;row<8;row++){
+      const y=row*64;ctx.strokeStyle="rgba(38,23,15,.25)";ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(512,y);ctx.stroke();
+      const offset=row%2?90:0;for(let x=-offset;x<512;x+=180){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+64);ctx.stroke()}
+      for(let gy=y+10;gy<y+59;gy+=9){ctx.beginPath();for(let x=0;x<=512;x+=8){const wave=Math.sin((x+gy)*.04)*1.6;if(x===0)ctx.moveTo(x,gy+wave);else ctx.lineTo(x,gy+wave)}ctx.strokeStyle="rgba(30,17,10,.11)";ctx.stroke()}
+    }
+  }else{
+    const tile=128;ctx.strokeStyle="rgba(75,72,68,.18)";ctx.lineWidth=2;
+    for(let p=0;p<=512;p+=tile){ctx.beginPath();ctx.moveTo(p,0);ctx.lineTo(p,512);ctx.stroke();ctx.beginPath();ctx.moveTo(0,p);ctx.lineTo(512,p);ctx.stroke()}
+    for(let n=0;n<110;n++){const x=(n*79)%512,y=(n*137)%512;ctx.fillStyle="rgba(85,82,78,.035)";ctx.fillRect(x,y,18+(n%5)*5,2)}
+  }
+  const tex=new THREE.CanvasTexture(canvas);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(4,4);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=8;roomTextureCache.set(key,tex);return tex;
+}
+
 function RoomShell({rw,rh,rd,showWalls,realistic,floorMaterial}:{rw:number;rh:number;rd:number;showWalls:boolean;realistic:boolean;floorMaterial:Material}){
   const uploadedFloor=useDataTexture(floorMaterial.textureDataUrl);
-  const floor=realistic?(uploadedFloor??(floorMaterial.id==="floor-oak"?oakFloorTexture():null)):null;
+  const floor=realistic?(uploadedFloor??builtInFloorTexture(floorMaterial.id,floorMaterial.colour)):null;
   const skirting=.095,skirtingD=.018;
   return <group>
     <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.014,0]} receiveShadow>
@@ -349,15 +370,13 @@ function Countertop({w,d,y,colour="#e8e4dc",materialId}:{w:number;d:number;y:num
 }
 
 function Sink({w,d,y}:{w:number;d:number;y:number}){
-  const sw=Math.min(.55,w*.7),sd=Math.min(.42,d*.68);
+  const sw=Math.min(.56,w*.72),sd=Math.min(.43,d*.7);
   return <group position={[0,y,d*.03]}>
-    <mesh receiveShadow castShadow><boxGeometry args={[sw,.035,sd]}/><meshStandardMaterial color="#8f9699" roughness={.18} metalness={.72}/></mesh>
-    <mesh position={[0,.023,0]}><boxGeometry args={[sw-.045,.022,sd-.045]}/><meshStandardMaterial color="#40474b" roughness={.3} metalness={.45}/></mesh>
-    <mesh position={[sw*.28,.13,-sd*.2]} castShadow><cylinderGeometry args={[.012,.012,.24,18]}/><meshStandardMaterial color="#5b6063" metalness={.75} roughness={.22}/></mesh>
-    <mesh position={[sw*.28,.245,-sd*.1]} rotation={[Math.PI/2,0,0]} castShadow><cylinderGeometry args={[.012,.012,.18,18]}/><meshStandardMaterial color="#5b6063" metalness={.75} roughness={.22}/></mesh>
+    <mesh receiveShadow castShadow><boxGeometry args={[sw,.022,sd]}/><meshStandardMaterial color="#a7adaf" roughness={.16} metalness={.76}/></mesh>
+    <mesh position={[0,.014,0]}><boxGeometry args={[sw-.05,.024,sd-.05]}/><meshStandardMaterial color="#353c40" roughness={.28} metalness={.5}/></mesh>
+    <mesh position={[0,.029,0]} rotation={[-Math.PI/2,0,0]}><cylinderGeometry args={[.026,.026,.006,24]}/><meshStandardMaterial color="#8f9699" metalness={.78} roughness={.18}/></mesh>
   </group>;
 }
-
 function Hob({w,d,y}:{w:number;d:number;y:number}){
   const hw=Math.min(.6,w*.72),hd=Math.min(.52,d*.72);
   return <group position={[0,y,.015]}>
@@ -373,11 +392,12 @@ function ApplianceGlass({position,size}:{position:[number,number,number];size:[n
 
 function applianceFinish(name="Stainless steel"){return name==="Black"?"#202225":name==="White"?"#eeeeeb":name==="Graphite"?"#4c4f52":name==="Cream"?"#e5dccb":"#b9bec0"}
 function Dishwasher({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
-  const finish=applianceFinish(i.colourVariant);
+  const finish=applianceFinish(i.colourVariant),style=i.productStyle??"Contemporary",professional=style==="Professional",minimal=style==="Minimal";
   return <group>
-    <mesh castShadow receiveShadow><boxGeometry args={[w,h,d]}/><meshStandardMaterial color={finish} metalness={i.colourVariant==="White"?.05:.42} roughness={.36}/></mesh>
-    <ApplianceGlass position={[0,h*.23,d/2+.012]} size={[w-.08,.13,.024]}/>
-    <Metal position={[0,h*.37,d/2+.028]} size={[w-.14,.018,.018]}/>
+    <mesh castShadow receiveShadow><boxGeometry args={[w,h,d]}/><meshStandardMaterial color={finish} metalness={i.colourVariant==="White"?.05:.42} roughness={minimal?.24:.36}/></mesh>
+    {!minimal&&<ApplianceGlass position={[0,h*.23,d/2+.012]} size={[w-.08,.13,.024]}/>}
+    <Metal position={[0,h*(professional?.32:.37),d/2+.028]} size={[w*(professional?.78:.7),professional?.028:.018,.018]}/>
+    {style==="Classic"&&[-.24,0,.24].map((x,n)=><mesh key={n} position={[x*w,h*.29,d/2+.03]}><cylinderGeometry args={[.014,.014,.012,16]}/><meshStandardMaterial color="#444" metalness={.45}/></mesh>)}
   </group>;
 }
 
@@ -604,9 +624,26 @@ function CeilingLight({w,h,d}:{w:number;h:number;d:number}){return <mesh rotatio
 function PendantLight({w,h}:{w:number;h:number}){return <group><Metal position={[0,h*.25,0]} size={[.012,h*.5,.012]}/><mesh position={[0,-h*.2,0]} castShadow><coneGeometry args={[Math.max(.08,w/2),Math.max(.12,h*.35),32,1,true]}/><meshStandardMaterial color="#3d3a36" metalness={.35} roughness={.35} side={THREE.DoubleSide}/></mesh><pointLight position={[0,-h*.35,0]} intensity={2.2} distance={2.2} color="#fff0d2"/></group>}
 function metalFinish(name="Chrome"){return name==="Matt black"?"#202224":name==="Brass"?"#b18a45":name==="Brushed steel"?"#8d9395":"#b9bec0"}
 function TapObject({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
-  const style=i.productStyle??(i.type==="Bridge tap"?"Bridge":i.type==="Pull-out tap"?"Pull-out":"Arc mixer"),finish=metalFinish(i.colourVariant),r=Math.max(.01,w*.055);
-  if(style==="Bridge")return <group><mesh position={[-w*.22,-h*.12,0]} castShadow><cylinderGeometry args={[r,r,h*.58,18]}/><meshStandardMaterial color={finish} metalness={.82} roughness={.18}/></mesh><mesh position={[w*.22,-h*.12,0]} castShadow><cylinderGeometry args={[r,r,h*.58,18]}/><meshStandardMaterial color={finish} metalness={.82} roughness={.18}/></mesh><mesh position={[0,h*.1,0]} rotation={[0,0,Math.PI/2]} castShadow><cylinderGeometry args={[r,r,w*.5,18]}/><meshStandardMaterial color={finish} metalness={.82} roughness={.18}/></mesh><mesh position={[0,h*.24,d*.18]} rotation={[Math.PI/2,0,0]} castShadow><cylinderGeometry args={[r,r,d*.72,18]}/><meshStandardMaterial color={finish} metalness={.82} roughness={.18}/></mesh></group>;
-  return <group><mesh position={[0,-h*.14,0]} castShadow><cylinderGeometry args={[r,r*1.05,h*.68,20]}/><meshStandardMaterial color={finish} metalness={.82} roughness={.18}/></mesh><mesh position={[0,h*.16,d*.12]} rotation={[Math.PI/2,0,0]} castShadow><torusGeometry args={[Math.max(.06,h*.22),r,12,32,Math.PI]}/><meshStandardMaterial color={finish} metalness={.82} roughness={.18}/></mesh>{style==="Pull-out"&&<mesh position={[0,h*.22,d*.34]} castShadow><cylinderGeometry args={[r*1.5,r*1.25,Math.max(.06,d*.24),18]}/><meshStandardMaterial color={finish} metalness={.82} roughness={.18}/></mesh>}</group>
+  const style=i.productStyle??(i.type==="Bridge tap"?"Bridge":i.type==="Pull-out tap"?"Pull-out":"Arc mixer"),finish=metalFinish(i.colourVariant),r=Math.max(.009,w*.05);
+  const mat=<meshStandardMaterial color={finish} metalness={.84} roughness={i.colourVariant==="Brushed steel"?.28:.16}/>;
+  if(style==="Bridge")return <group>
+    <mesh position={[-w*.22,-h*.12,0]} castShadow><cylinderGeometry args={[r,r,h*.58,18]}/>{mat}</mesh>
+    <mesh position={[w*.22,-h*.12,0]} castShadow><cylinderGeometry args={[r,r,h*.58,18]}/>{mat}</mesh>
+    <mesh position={[0,h*.1,0]} rotation={[0,0,Math.PI/2]} castShadow><cylinderGeometry args={[r,r,w*.5,18]}/>{mat}</mesh>
+    <mesh position={[0,h*.24,d*.18]} rotation={[Math.PI/2,0,0]} castShadow><cylinderGeometry args={[r,r,d*.72,18]}/>{mat}</mesh>
+    <mesh position={[-w*.22,h*.02,d*.12]}><sphereGeometry args={[r*1.8,16,16]}/>{mat}</mesh><mesh position={[w*.22,h*.02,d*.12]}><sphereGeometry args={[r*1.8,16,16]}/>{mat}</mesh>
+  </group>;
+  if(style==="Square neck")return <group>
+    <mesh position={[0,-h*.1,0]} castShadow><boxGeometry args={[r*2.2,h*.62,r*2.2]}/>{mat}</mesh>
+    <mesh position={[0,h*.2,d*.16]} castShadow><boxGeometry args={[r*2.2,r*2.2,d*.48]}/>{mat}</mesh>
+    <mesh position={[0,h*.2,d*.39]} castShadow><boxGeometry args={[r*2.2,h*.14,r*2.2]}/>{mat}</mesh>
+    <mesh position={[w*.14,-h*.02,0]} rotation={[0,0,-.55]} castShadow><boxGeometry args={[r*1.5,h*.22,r*1.5]}/>{mat}</mesh>
+  </group>;
+  return <group>
+    <mesh position={[0,-h*.14,0]} castShadow><cylinderGeometry args={[r,r*1.05,h*.68,20]}/>{mat}</mesh>
+    <mesh position={[0,h*.16,d*.12]} rotation={[Math.PI/2,0,0]} castShadow><torusGeometry args={[Math.max(.06,h*.22),r,12,32,Math.PI]}/>{mat}</mesh>
+    {style==="Pull-out"&&<><mesh position={[0,h*.22,d*.34]} castShadow><cylinderGeometry args={[r*1.55,r*1.25,Math.max(.06,d*.24),18]}/>{mat}</mesh><mesh position={[w*.15,-h*.02,0]} rotation={[0,0,-.55]} castShadow><cylinderGeometry args={[r*.7,r*.7,h*.2,14]}/>{mat}</mesh></>}
+  </group>
 }
 
 function FreestandingFridge({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){const finish=applianceFinish(i.colourVariant);return <group><mesh castShadow receiveShadow><boxGeometry args={[w,h,d]}/><meshStandardMaterial color={finish} metalness={.32} roughness={.34}/></mesh><lineSegments position={[0,0,d/2+.006]}><edgesGeometry args={[new THREE.BoxGeometry(w-.025,h-.025,.01)]}/><lineBasicMaterial color="#555"/></lineSegments><Metal position={[w*.32,0,d/2+.025]} size={[.018,h*.42,.018]}/></group>}
