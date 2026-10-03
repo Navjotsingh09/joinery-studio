@@ -44,8 +44,8 @@ function kitchen(kind:string,w:number,h:number,d:number):JoineryItem[]{
   ];
   const wallUnits=[wall(start+m*2,"Wall cabinet"),wall(start+m*3,"Wall cabinet"),wall(start+m*4,"Wall cabinet")];
   if(kind==="l-shape"){
-    const door="u705",carcass="w1000",side="u705",unit=600;
-    const q=(type:string,name:string,patch:Partial<JoineryItem>)=>item(type,name,{materialId:door,carcassMaterialId:carcass,doorMaterialId:door,sideMaterialId:side,plinthStyle:"recessed",plinthRecess:70,...patch});
+    const door="u961",carcass="h1180",side="u961",unit=600;
+    const q=(type:string,name:string,patch:Partial<JoineryItem>)=>item(type,name,{materialId:door,carcassMaterialId:carcass,doorMaterialId:door,sideMaterialId:side,leftSideMaterialId:side,rightSideMaterialId:side,plinthMaterialId:door,worktopMaterialId:"stone-light",plinthStyle:"recessed",plinthRecess:70,...patch});
     const back=[
       q("Base cabinet","Corner base",{x:0,y:0,z:0,width:unit,height:870,depth:600,doors:1,shelves:1}),
       q("Drawer unit","Wide drawers",{x:600,y:0,z:0,width:900,height:870,depth:600,doors:3,shelves:0,hardware:"Bar handle"}),
