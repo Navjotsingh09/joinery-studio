@@ -262,7 +262,7 @@ function Carcass({i,w,h,d,colour,shelves=0,openBack=false}:{i:JoineryItem;w:numb
   const rightId=i.rightSideMaterialId??i.sideMaterialId??carcassId;
   const leftColour=sceneMaterial(leftId).colour,rightColour=sceneMaterial(rightId).colour,carcassColour=sceneMaterial(carcassId).colour;
   const t=mm(BOARD),back=mm(BACK),innerW=Math.max(.02,w-2*t),innerH=Math.max(.02,h-2*t),bodyD=Math.max(.04,d);
-  const shelfD=Math.max(.03,bodyD-t*.7),explode=activeConstructionView ? .055 : 0,topExplode=activeConstructionView ? .045 : 0,backExplode=activeConstructionView ? .045 : 0;
+  const shelfD=Math.max(.03,bodyD-t*.7),explode=activeConstructionView ? .11 : 0,topExplode=activeConstructionView ? .075 : 0,backExplode=activeConstructionView ? .08 : 0;
   return <group>
     <Panel position={[-w/2+t/2-explode,0,0]} size={[t,h,bodyD]} colour={leftColour} materialId={leftId} part="left-side"/>
     <Panel position={[w/2-t/2+explode,0,0]} size={[t,h,bodyD]} colour={rightColour} materialId={rightId} part="right-side"/>
@@ -288,7 +288,7 @@ function DoorFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number;c
   const faceId=i.doorMaterialId??i.materialId,faceColour=sceneMaterial(faceId).colour;
   const count=Math.max(1,i.doors),gap=mm(REVEAL),frontT=mm(BOARD);
   const baseOpen=Math.min(110,(i.openAmount??0)*1.1),constructionOpen=activeConstructionView?Math.max(78,baseOpen):baseOpen,open=THREE.MathUtils.degToRad(constructionOpen);
-  const faceW=(w-gap*(count+1))/count,faceH=h-gap*2,z=d/2-frontT/2+(activeConstructionView ? .055 : 0);
+  const faceW=(w-gap*(count+1))/count,faceH=h-gap*2,z=d/2-frontT/2+(activeConstructionView ? .09 : 0);
   return <>{Array.from({length:count},(_,n)=>{
     const x=-w/2+gap+faceW/2+n*(faceW+gap);
     const leftHinge=n<count/2,pivot=x+(leftHinge?-faceW/2:faceW/2),localX=leftHinge?faceW/2:-faceW/2;
