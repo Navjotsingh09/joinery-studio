@@ -75,7 +75,9 @@ export function mirrorItem(p:Project,i:JoineryItem,axis:"x"|"z"){
   return clampItemToRoom(axis==="x"?{...i,x:p.roomWidth-i.x-fp.width}:{...i,z:p.roomDepth-i.z-fp.depth},p)
 }
 export function stairMetrics(i:JoineryItem){
-  const risers=Math.max(2,Math.round(i.height/180)),rise=i.height/risers,goings=Math.max(1,risers-1),going=i.depth/goings,pitch=Math.atan2(rise,going)*180/Math.PI,comfort=2*rise+going;
+  const risers=Math.max(2,Math.round(i.height/180)),rise=i.height/risers,goings=Math.max(1,risers-1);
+  const effectiveRun=i.type==="U staircase"?i.depth*1.8:i.type==="L staircase"?i.depth+i.width*.45:i.depth;
+  const going=effectiveRun/goings,pitch=Math.atan2(rise,going)*180/Math.PI,comfort=2*rise+going;
   return{risers,rise:Math.round(rise),goings,going:Math.round(going),pitch:Math.round(pitch*10)/10,comfort:Math.round(comfort),review:rise<150||rise>220||going<220||pitch>42}
 }
 const stairTypesForValidation=new Set(["Straight staircase","L staircase","U staircase"]);
