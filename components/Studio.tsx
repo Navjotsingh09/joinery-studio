@@ -209,7 +209,14 @@ export default function Studio(){
   };
   const applyMaterial=(materialId:string)=>{
     if(!item)return;
-    if(selectedPart)s.updateItem(item.id,{[materialFieldForPart(selectedPart)]:materialId});
+    if(selectedPart){s.updateItem(item.id,{[materialFieldForPart(selectedPart)]:materialId});return}
+    const cabinetTypes=new Set(["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Sink base","Hob base","Oven tower","Fridge housing","Kitchen island","Corner cabinet"]);
+    if(cabinetTypes.has(item.type)){
+      s.updateItem(item.id,{materialId,carcassMaterialId:materialId,doorMaterialId:materialId,sideMaterialId:materialId,leftSideMaterialId:materialId,rightSideMaterialId:materialId,plinthMaterialId:materialId});
+      setNotice("Applied to the whole cabinet. Select a surface to use different finishes by part.");
+      return;
+    }
+    if(item.type==="Worktop")s.updateItem(item.id,{materialId,worktopMaterialId:materialId});
     else s.updateItem(item.id,{materialId});
   };
 
