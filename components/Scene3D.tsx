@@ -82,16 +82,16 @@ function RoomShell({rw,rh,rd,showWalls,realistic}:{rw:number;rh:number;rd:number
   return <group>
     <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.014,0]} receiveShadow>
       <boxGeometry args={[rw,rd,.028]}/>
-      <meshStandardMaterial map={floor??undefined} color={floor?"#ffffff":"#d8d3cb"} roughness={realistic?.72:.9}/>
+      <meshStandardMaterial map={floor??undefined} color={floor?"#ffffff":"#d8d3cb"} roughness={realistic ? .72 : .9}/>
     </mesh>
     {showWalls&&<>
       <mesh position={[0,rh/2,-rd/2]} receiveShadow>
         <boxGeometry args={[rw,rh,.05]}/>
-        <meshStandardMaterial color={realistic?"#eeeae2":"#f7f6f3"} roughness={realistic?.93:.96}/>
+        <meshStandardMaterial color={realistic?"#eeeae2":"#f7f6f3"} roughness={realistic ? .93 : .96}/>
       </mesh>
       <mesh position={[-rw/2,rh/2,0]} receiveShadow>
         <boxGeometry args={[.05,rh,rd]}/>
-        <meshStandardMaterial color={realistic?"#f4f1eb":"#f4f3f0"} roughness={realistic?.93:.96}/>
+        <meshStandardMaterial color={realistic?"#f4f1eb":"#f4f3f0"} roughness={realistic ? .93 : .96}/>
       </mesh>
       {realistic&&<>
         <mesh position={[0,skirting/2,-rd/2+.032]} receiveShadow><boxGeometry args={[rw,skirting,skirtingD]}/><meshStandardMaterial color="#f8f7f3" roughness={.78}/></mesh>
@@ -597,14 +597,14 @@ export function Scene3D({project,selected,transformMode="translate",onSelect,onM
   return <div className="three"><div className="sceneToolbar"><div className="cameraPresets">{(["iso","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={preset===v?"active":""} onClick={()=>setPreset(v)}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles"><button className={realistic?"active":""} onClick={()=>setRealistic(v=>!v)}>{realistic?"Realistic":"Technical"}</button><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button><button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button></div></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(2.2,rh*.78),Math.max(4.3,rd*1.35)],fov:38}} dpr={[1,1.75]} shadows gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:1.08}}>
     <CameraRig preset={preset} rw={rw} rh={rh} rd={rd}/>
     <color attach="background" args={[realistic?"#e7e2da":"#f2f1ee"]}/>
-    <ambientLight intensity={realistic?.5:.72}/>
-    <hemisphereLight args={["#fffaf0",realistic?"#8f826f":"#b6afa5",realistic?.9:1.25]}/>
+    <ambientLight intensity={realistic ? .5 : .72}/>
+    <hemisphereLight args={["#fffaf0",realistic?"#8f826f":"#b6afa5",realistic ? .9 : 1.25]}/>
     <directionalLight castShadow position={[3.5,6.5,4.5]} intensity={realistic?2.7:2.15} color={realistic?"#fff6e8":"#ffffff"} shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-bias={-0.00018}/>
     <RoomShell rw={rw} rh={rh} rd={rd} showWalls={showWalls} realistic={realistic}/>
 {showGrid&&<Grid position={[0,.002,0]} args={[Math.max(rw,rd)*1.25,Math.max(rw,rd)*1.25]} cellSize={.1} sectionSize={.5} cellColor="#cbc6bf" sectionColor="#aaa49b" fadeDistance={15} fadeStrength={1.5}/>}
 
     {project.items.map(i=><ItemNode key={i.id} i={i} project={project} selected={selected===i.id} mode={transformMode} onSelect={onSelect} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>)}
-    <ContactShadows position={[0,.003,0]} opacity={realistic?.42:.32} scale={Math.max(5,roomMax*1.8)} blur={realistic?3.2:2.6} far={Math.max(5,roomMax*1.8)}/>
+    <ContactShadows position={[0,.003,0]} opacity={realistic ? .42 : .32} scale={Math.max(5,roomMax*1.8)} blur={realistic?3.2:2.6} far={Math.max(5,roomMax*1.8)}/>
     <OrbitControls makeDefault target={[0,Math.min(1.15,rh*.48),0]} enableDamping dampingFactor={.08} enablePan enableZoom minDistance={1} maxDistance={Math.max(8,roomMax*4)}/>
     <GizmoHelper alignment="bottom-right" margin={[70,70]}><GizmoViewport axisColors={["#c8102e","#2f8f5b","#315fa8"]} labelColor="#222"/></GizmoHelper>
   </Canvas></div>;
