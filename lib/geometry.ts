@@ -35,6 +35,7 @@ export function allowedOverlap(a:JoineryItem,b:JoineryItem){
   if(wardrobeInternal.has(a.type)&&wardrobeInternal.has(b.type))return true;
   if(pair.includes("Worktop")&&pair.some(t=>baseKitchen.has(t)))return true;
   if(pair.includes("Tap")&&pair.some(t=>t==="Sink base"||t==="Worktop"))return true;
+  if(pair.some(t=>t==="Door opening"||t==="Window")&&pair.includes("Wall segment"))return true;
   return false;
 }
 export function itemsCollide(a:JoineryItem,b:JoineryItem,gap=0){
@@ -77,6 +78,8 @@ export function stairMetrics(i:JoineryItem){
   const risers=Math.max(2,Math.round(i.height/180)),rise=i.height/risers,goings=Math.max(1,risers-1),going=i.depth/goings,pitch=Math.atan2(rise,going)*180/Math.PI,comfort=2*rise+going;
   return{risers,rise:Math.round(rise),goings,going:Math.round(going),pitch:Math.round(pitch*10)/10,comfort:Math.round(comfort),review:rise<150||rise>220||going<220||pitch>42}
 }
+const stairTypesForValidation=new Set(["Straight staircase","L staircase","U staircase"]);
+const standardCabinetTypes=new Set(["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Sink base","Hob base","Oven tower","Fridge housing"]);
 export function validate(p:Project){
   const issues:string[]=[],c=p.rules.wallClearance,g=p.rules.componentGap;
   p.items.forEach(i=>{
@@ -85,7 +88,9 @@ export function validate(p:Project){
     if(i.x<c||i.x+fp.width>p.roomWidth-c)issues.push(i.name+": violates left/right wall clearance.");
     if(i.y<0||i.y+i.height>p.roomHeight)issues.push(i.name+": outside room height.");
     if(i.z<0||i.z+fp.depth>p.roomDepth)issues.push(i.name+": outside room depth.");
-    if(!isWallMounted(i)&&i.y!==0)issues.push(i.name+": floor-standing component must sit on the floor.")
+    if(!isWallMounted(i)&&i.y!==0)issues.push(i.name+": floor-standing component must sit on the floor.");
+    if(standardCabinetTypes.has(i.type)&&(i.width<250||i.width>1400))issues.push(i.name+": cabinet width is outside the normal configurable range.");
+    if(stairTypesForValidation.has(i.type)&&stairMetrics(i).review)issues.push(i.name+": stair rise/going/pitch needs design review before manufacture.")
   });
   for(let a=0;a<p.items.length;a++)for(let b=a+1;b<p.items.length;b++){const A=p.items[a],B=p.items[b];if(itemsCollide(A,B,g))issues.push(A.name+" clashes with "+B.name+".")}
   return [...new Set(issues)]
