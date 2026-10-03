@@ -66,7 +66,7 @@ function kitchen(kind:string,w:number,h:number,d:number):JoineryItem[]{
       q("Base cabinet","Return base",{x:0,y:0,z:600,width:600,height:870,depth:600,doors:1,shelves:1,rotation:90,wallSide:"left"}),
       q("Hob base","Hob drawers",{x:0,y:0,z:1200,width:Math.min(800,Math.max(600,d-1400)),height:870,depth:600,doors:3,shelves:0,rotation:90,wallSide:"left",hardware:"Bar handle"})
     ];
-    let sideEnd=1200+footprint(sideRun[1]).depth;
+    let sideEnd=1200+sideRun[1].width;
     if(d-sideEnd>=500){
       const storageW=Math.min(600,d-sideEnd);
       sideRun.push(q("Base cabinet","Return storage",{x:0,y:0,z:sideEnd,width:storageW,height:870,depth:600,doors:2,shelves:1,rotation:90,wallSide:"left"}));
