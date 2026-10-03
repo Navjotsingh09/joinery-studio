@@ -1,7 +1,7 @@
 import {jsPDF} from "jspdf";
-import {Project} from "@/types/model";
+import {Project,WallSide} from "@/types/model";
 import {material} from "./materials";
-import {itemRect,viewSize,contrastText,labelFor,normalizeRotation} from "./geometry";
+import {itemRect,viewSize,contrastText,labelFor,normalizeRotation,wallItemRect,wallViewSize,isItemOnWall} from "./geometry";
 
 const visible=(p:Project)=>p.items.filter(i=>i.visible!==false);
 export function exportPdf(p:Project){
@@ -27,6 +27,7 @@ export function exportPdf(p:Project){
   doc.setTextColor(20);doc.rect(300,235,100,38);doc.setFont("helvetica","bold");doc.text("TITLE BLOCK",304,241);doc.setFont("helvetica","normal");
   doc.text("Project: "+p.name,304,247);doc.text("Customer: "+(p.customer||"-"),304,252);doc.text("Reference: "+p.reference,304,257);doc.text("Revision: "+p.revision+"  Status: "+p.status,304,262);doc.text("All dimensions in mm. Verify site dimensions.",304,268);
   if(p.notes){const note=doc.splitTextToSize("Notes: "+p.notes,94).slice(0,2);doc.text(note,304,273)}
+  addWallElevations(doc,p);
   addSchedule(doc,p);
   doc.save(p.reference+"-rev-"+p.revision+".pdf")
 }
@@ -49,4 +50,24 @@ function addSchedule(doc:jsPDF,p:Project){
     doc.setFontSize(6);doc.text("Hidden objects are excluded. Dimensions are design values; verify site dimensions before manufacture.",15,285);
     if(start+rows>=items.length)break;
   }
+}
+
+
+function addWallElevations(doc:jsPDF,p:Project){
+  doc.addPage("a3","landscape");
+  doc.setFont("helvetica","bold");doc.setFontSize(15);doc.text("FOUR WALL ELEVATIONS",15,15);
+  doc.setFont("helvetica","normal");doc.setFontSize(7);doc.text(p.name+" · "+p.reference+" · Revision "+p.revision,15,21);
+  const walls:WallSide[]=["back","right","front","left"];
+  const boxes=[[15,34],[215,34],[15,162],[215,162]] as const;
+  walls.forEach((wall,index)=>{
+    const [x,y]=boxes[index],w=185,h=96,sz=wallViewSize(p,wall),sc=Math.min(w/sz.w,h/sz.h);
+    doc.setFont("helvetica","bold");doc.setFontSize(7);doc.text(wall.toUpperCase()+" WALL",x,y-3);
+    doc.setDrawColor(55);doc.rect(x,y,sz.w*sc,sz.h*sc);
+    visible(p).filter(i=>isItemOnWall(p,i,wall)).forEach((i,n)=>{
+      const r=wallItemRect(i,p,wall),m=material(i.materialId,p.customMaterials??[]),hex=m.colour.slice(1),rgb=[0,2,4].map(k=>parseInt(hex.slice(k,k+2),16));
+      doc.setFillColor(rgb[0],rgb[1],rgb[2]);doc.rect(x+r.left*sc,y+r.top*sc,r.width*sc,r.height*sc,"FD");
+      doc.setTextColor(contrastText(m.colour)==="#ffffff"?255:20);doc.setFontSize(4.4);doc.text(String(n+1)+" "+i.name,x+r.left*sc+1,y+r.top*sc+4);
+    });
+    doc.setTextColor(20);doc.setFont("helvetica","normal");doc.setFontSize(5.5);doc.text(sz.w+" mm",x+sz.w*sc/2-6,y+sz.h*sc+8);
+  });
 }
