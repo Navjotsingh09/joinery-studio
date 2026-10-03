@@ -52,24 +52,26 @@ function kitchen(kind:string,w:number,h:number,d:number):JoineryItem[]{
   if(kind==="l-shape"){
     const door="u961",carcass="h1180",side="u961";
     const q=(type:string,name:string,patch:Partial<JoineryItem>)=>item(type,name,{materialId:door,carcassMaterialId:carcass,doorMaterialId:door,sideMaterialId:side,leftSideMaterialId:side,rightSideMaterialId:side,plinthMaterialId:door,worktopMaterialId:"stone-light",plinthStyle:"recessed",plinthRecess:70,...patch});
-    const roomyBack=w>=3200,cornerW=600,drawerW=roomyBack?700:600,sinkW=700,dishW=600,tallW=roomyBack?600:0;
-    const backTotal=cornerW+drawerW+sinkW+dishW+tallW,startX=Math.max(0,Math.min(100,(w-backTotal)/2));
-    const xDrawer=startX+cornerW,xSink=xDrawer+drawerW,xDish=xSink+sinkW,xTall=xDish+dishW;
+    const lower=(type:string,name:string,patch:Partial<JoineryItem>)=>q(type,name,{doorMaterialId:carcass,sideMaterialId:carcass,leftSideMaterialId:carcass,rightSideMaterialId:carcass,...patch});
+    const hasOven=w>=3200,hasPantry=w>=4000,cornerW=600,drawerW=hasOven?650:600,sinkW=700,dishW=600,ovenW=hasOven?600:0,pantryW=hasPantry?600:0;
+    const backTotal=cornerW+drawerW+sinkW+dishW+ovenW+pantryW,startX=Math.max(0,Math.min(100,(w-backTotal)/2));
+    const xDrawer=startX+cornerW,xSink=xDrawer+drawerW,xDish=xSink+sinkW,xOven=xDish+dishW,xPantry=xOven+ovenW;
     const back:JoineryItem[]=[
-      q("Base cabinet","Corner base",{x:startX,y:0,z:0,width:cornerW,height:870,depth:600,doors:1,shelves:1}),
-      q("Drawer unit","Wide drawers",{x:xDrawer,y:0,z:0,width:drawerW,height:870,depth:600,doors:3,shelves:0,hardware:"Bar handle"}),
-      q("Sink base","Sink base",{x:xSink,y:0,z:0,width:sinkW,height:870,depth:600,doors:2,shelves:0}),
+      lower("Base cabinet","Corner base",{x:startX,y:0,z:0,width:cornerW,height:870,depth:600,doors:1,shelves:1}),
+      lower("Drawer unit","Wide drawers",{x:xDrawer,y:0,z:0,width:drawerW,height:870,depth:600,doors:3,shelves:0,hardware:"Bar handle"}),
+      lower("Sink base","Sink base",{x:xSink,y:0,z:0,width:sinkW,height:870,depth:600,doors:2,shelves:0}),
       q("Dishwasher","Dishwasher",{x:xDish,y:0,z:0,width:dishW,height:870,depth:600,doors:0,shelves:0,colourVariant:"Stainless steel"})
     ];
-    if(roomyBack)back.push(q("Tall cabinet","Tall pantry",{x:xTall,y:0,z:0,width:tallW,height:Math.min(2250,h-80),depth:600,doors:2,shelves:5}));
+    if(hasOven)back.push(q("Oven tower","Integrated oven tower",{x:xOven,y:0,z:0,width:ovenW,height:Math.min(2250,h-80),depth:600,doors:2,shelves:4}));
+    if(hasPantry)back.push(q("Tall cabinet","Tall pantry",{x:xPantry,y:0,z:0,width:pantryW,height:Math.min(2250,h-80),depth:600,doors:2,shelves:5}));
     const sideRun:JoineryItem[]=[
-      q("Base cabinet","Return base",{x:0,y:0,z:600,width:600,height:870,depth:600,doors:1,shelves:1,rotation:90,wallSide:"left"}),
-      q("Hob base","Hob drawers",{x:0,y:0,z:1200,width:Math.min(800,Math.max(600,d-1400)),height:870,depth:600,doors:3,shelves:0,rotation:90,wallSide:"left",hardware:"Bar handle"})
+      lower("Base cabinet","Return base",{x:0,y:0,z:600,width:600,height:870,depth:600,doors:1,shelves:1,rotation:90,wallSide:"left"}),
+      lower("Hob base","Hob drawers",{x:0,y:0,z:1200,width:Math.min(800,Math.max(600,d-1400)),height:870,depth:600,doors:3,shelves:0,rotation:90,wallSide:"left",hardware:"Bar handle"})
     ];
     let sideEnd=1200+sideRun[1].width;
     if(d-sideEnd>=500){
       const storageW=Math.min(600,d-sideEnd);
-      sideRun.push(q("Base cabinet","Return storage",{x:0,y:0,z:sideEnd,width:storageW,height:870,depth:600,doors:2,shelves:1,rotation:90,wallSide:"left"}));
+      sideRun.push(lower("Base cabinet","Return storage",{x:0,y:0,z:sideEnd,width:storageW,height:870,depth:600,doors:2,shelves:1,rotation:90,wallSide:"left"}));
       sideEnd+=storageW;
     }
     const wallBack:JoineryItem[]=[
