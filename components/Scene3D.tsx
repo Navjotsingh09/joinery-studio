@@ -389,22 +389,22 @@ function Wardrobe({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string
 }
 
 function BaseCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  const plinth=.1,top=.025,bodyH=Math.max(.25,h-plinth-top),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
+  const plinth=.1,top=.025,bodyH=Math.max(.25,h-plinth-top),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD),explode=activeConstructionView;
   return <group>
-    <Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/>
-    <group position={[0,bodyY,-mm(BOARD)/2]}>
+    <group position={[0,explode?-.055:0,explode?.035:0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
+    <group position={[0,bodyY,-mm(BOARD)/2+(explode?-.045:0)]}>
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={Math.max(0,i.shelves)}/>
       {i.doors>0&&<DoorFronts i={i} w={w} h={bodyH} d={bodyD} colour={c}/>}
     </group>
-    <Panel position={[0,h/2-top/2,.008]} size={[w+.02,top,d+.02]} colour={boardColour(c,.05)} materialId={i.carcassMaterialId??i.materialId} part="carcass" front/>
+    <Panel position={[0,h/2-top/2+(explode?.055:0),.008+(explode?.025:0)]} size={[w+.02,top,d+.02]} colour={boardColour(c,.05)} materialId={i.carcassMaterialId??i.materialId} part="carcass" front/>
   </group>;
 }
 
 function TallCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  const plinth=.1,bodyH=Math.max(.4,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
+  const plinth=.1,bodyH=Math.max(.4,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD),explode=activeConstructionView;
   return <group>
-    <Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/>
-    <group position={[0,bodyY,-mm(BOARD)/2]}>
+    <group position={[0,explode?-.06:0,explode?.04:0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
+    <group position={[0,bodyY+(explode?.025:0),-mm(BOARD)/2+(explode?-.05:0)]}>
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={Math.max(2,i.shelves)}/>
       <KitchenShelfProps w={w} h={bodyH} d={bodyD} levels={Math.min(4,Math.max(2,i.shelves))}/>
       {i.doors>0&&<DoorFronts i={i} w={w} h={bodyH} d={bodyD} colour={c}/>}
@@ -413,12 +413,14 @@ function TallCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:str
 }
 
 function WallCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  const bodyD=d-mm(BOARD);
+  const bodyD=d-mm(BOARD),explode=activeConstructionView;
   return <group position={[0,0,-mm(BOARD)/2]}>
-    <Carcass i={i} w={w} h={h} d={bodyD} colour={c} shelves={Math.max(1,i.shelves)}/>
-    <KitchenShelfProps w={w} h={h} d={bodyD} levels={Math.min(3,Math.max(1,i.shelves))}/>
+    <group position={[0,0,explode?-.045:0]}>
+      <Carcass i={i} w={w} h={h} d={bodyD} colour={c} shelves={Math.max(1,i.shelves)}/>
+      <KitchenShelfProps w={w} h={h} d={bodyD} levels={Math.min(3,Math.max(1,i.shelves))}/>
+    </group>
     {i.doors>0&&<DoorFronts i={i} w={w} h={h} d={bodyD} colour={c}/>}
-    <Panel position={[0,-h/2+.008,.012]} size={[Math.max(.03,w-.04),.01,Math.max(.03,d-.05)]} colour={boardColour(c,-.06)}/>
+    <Panel position={[0,-h/2+.008-(explode?.045:0),.012+(explode?.03:0)]} size={[Math.max(.03,w-.04),.01,Math.max(.03,d-.05)]} colour={boardColour(c,-.06)}/>
     {!activeConstructionView&&<>
       <mesh position={[0,-h/2-.006,d*.18]}><boxGeometry args={[Math.max(.08,w-.08),.012,.025]}/><meshStandardMaterial color="#fff1c8" emissive="#ffe7a8" emissiveIntensity={2.2} roughness={.35}/></mesh>
       <pointLight position={[0,-h/2-.06,d*.2]} intensity={2.1} distance={1.55} decay={2} color="#ffe4aa"/>
@@ -427,10 +429,10 @@ function WallCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:str
 }
 
 function DrawerUnit({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  const plinth=.1,bodyH=Math.max(.25,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
+  const plinth=.1,bodyH=Math.max(.25,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD),explode=activeConstructionView;
   return <group>
-    <Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/>
-    <group position={[0,bodyY,-mm(BOARD)/2]}>
+    <group position={[0,explode?-.055:0,explode?.035:0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
+    <group position={[0,bodyY,-mm(BOARD)/2+(explode?-.045:0)]}>
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c}/>
       <DrawerFronts i={i} w={w} h={bodyH} d={bodyD} colour={c}/>
     </group>
