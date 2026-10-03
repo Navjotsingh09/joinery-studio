@@ -43,6 +43,71 @@ function woodTexture(colour:string){
   const tex=new THREE.CanvasTexture(canvas);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(1,2.4);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=4;textureCache.set(colour,tex);return tex;
 }
 
+
+const roomTextureCache=new Map<string,THREE.CanvasTexture>();
+function oakFloorTexture(){
+  const key="oak-floor";
+  const cached=roomTextureCache.get(key);if(cached)return cached;
+  if(typeof document==="undefined")return null;
+  const canvas=document.createElement("canvas");canvas.width=512;canvas.height=512;
+  const ctx=canvas.getContext("2d");if(!ctx)return null;
+  ctx.fillStyle="#c7ad8b";ctx.fillRect(0,0,512,512);
+  const plankH=64;
+  for(let row=0;row<8;row++){
+    const y=row*plankH;
+    ctx.fillStyle=row%2?"rgba(110,73,42,.035)":"rgba(255,255,255,.045)";
+    ctx.fillRect(0,y,512,plankH);
+    ctx.strokeStyle="rgba(80,54,35,.18)";ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(512,y);ctx.stroke();
+    const offset=row%2?110:0;
+    for(let x=-offset;x<512;x+=190){
+      ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x,y+plankH);ctx.stroke();
+    }
+    for(let gy=y+9;gy<y+plankH-5;gy+=10){
+      ctx.beginPath();
+      for(let x=0;x<=512;x+=8){
+        const wave=Math.sin((x+gy)*.036)*1.8+Math.sin(x*.09+row)*.8;
+        if(x===0)ctx.moveTo(x,gy+wave);else ctx.lineTo(x,gy+wave);
+      }
+      ctx.strokeStyle="rgba(91,61,39,.09)";ctx.lineWidth=.7;ctx.stroke();
+    }
+  }
+  const tex=new THREE.CanvasTexture(canvas);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(4,4);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=8;
+  roomTextureCache.set(key,tex);return tex;
+}
+
+function RoomShell({rw,rh,rd,showWalls,realistic}:{rw:number;rh:number;rd:number;showWalls:boolean;realistic:boolean}){
+  const floor=realistic?oakFloorTexture():null;
+  const skirting=.095,skirtingD=.018;
+  return <group>
+    <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.014,0]} receiveShadow>
+      <boxGeometry args={[rw,rd,.028]}/>
+      <meshStandardMaterial map={floor??undefined} color={floor?"#ffffff":"#d8d3cb"} roughness={realistic?.72:.9}/>
+    </mesh>
+    {showWalls&&<>
+      <mesh position={[0,rh/2,-rd/2]} receiveShadow>
+        <boxGeometry args={[rw,rh,.05]}/>
+        <meshStandardMaterial color={realistic?"#eeeae2":"#f7f6f3"} roughness={realistic?.93:.96}/>
+      </mesh>
+      <mesh position={[-rw/2,rh/2,0]} receiveShadow>
+        <boxGeometry args={[.05,rh,rd]}/>
+        <meshStandardMaterial color={realistic?"#f4f1eb":"#f4f3f0"} roughness={realistic?.93:.96}/>
+      </mesh>
+      {realistic&&<>
+        <mesh position={[0,skirting/2,-rd/2+.032]} receiveShadow><boxGeometry args={[rw,skirting,skirtingD]}/><meshStandardMaterial color="#f8f7f3" roughness={.78}/></mesh>
+        <mesh position={[-rw/2+.032,skirting/2,0]} receiveShadow><boxGeometry args={[skirtingD,skirting,rd]}/><meshStandardMaterial color="#f8f7f3" roughness={.78}/></mesh>
+        <mesh position={[0,rh-.028,-rd/2+.034]}><boxGeometry args={[rw,.035,.02]}/><meshStandardMaterial color="#faf9f6" roughness={.82}/></mesh>
+        <mesh position={[-rw/2+.034,rh-.028,0]}><boxGeometry args={[.02,.035,rd]}/><meshStandardMaterial color="#faf9f6" roughness={.82}/></mesh>
+      </>}
+    </>}
+    {realistic&&<>
+      <pointLight position={[-rw*.24,Math.max(2.1,rh-.18),-rd*.22]} intensity={9} distance={4.4} decay={2} color="#fff4df"/>
+      <pointLight position={[rw*.12,Math.max(2.1,rh-.18),-rd*.18]} intensity={7} distance={4.2} decay={2} color="#fff8ea"/>
+      <pointLight position={[rw*.28,Math.max(2.1,rh-.18),rd*.18]} intensity={5} distance={3.8} decay={2} color="#fff8ef"/>
+    </>}
+  </group>;
+}
+
 function Panel({position,size,colour,front=false}:{position:[number,number,number];size:[number,number,number];colour:string;front?:boolean}){
   const tex=woodTexture(colour);
   return <mesh position={position} castShadow receiveShadow>
@@ -528,18 +593,18 @@ function CameraRig({preset,rw,rh,rd}:{preset:CameraPreset;rw:number;rh:number;rd
 
 export function Scene3D({project,selected,transformMode="translate",onSelect,onMove,onRotate,onMoveStart}:{project:Project;selected?:string|null;transformMode?:"translate"|"rotate";onSelect?:(id:string|null)=>void;onMove?:(id:string,x:number,y:number,z:number)=>void;onRotate?:(id:string,rotation:number)=>void;onMoveStart?:()=>void}){
   const rw=mm(project.roomWidth),rh=mm(project.roomHeight),rd=mm(project.roomDepth),roomMax=Math.max(rw,rh,rd);
-  const [preset,setPreset]=useState<CameraPreset>("iso"),[showGrid,setShowGrid]=useState(true),[showWalls,setShowWalls]=useState(true);
-  return <div className="three"><div className="sceneToolbar"><div className="cameraPresets">{(["iso","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={preset===v?"active":""} onClick={()=>setPreset(v)}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles"><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button><button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button></div></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(2.2,rh*.78),Math.max(4.3,rd*1.35)],fov:38}} shadows gl={{antialias:true}}>
+  const [preset,setPreset]=useState<CameraPreset>("iso"),[showGrid,setShowGrid]=useState(false),[showWalls,setShowWalls]=useState(true),[realistic,setRealistic]=useState(true);
+  return <div className="three"><div className="sceneToolbar"><div className="cameraPresets">{(["iso","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={preset===v?"active":""} onClick={()=>setPreset(v)}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles"><button className={realistic?"active":""} onClick={()=>setRealistic(v=>!v)}>{realistic?"Realistic":"Technical"}</button><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button><button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button></div></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(2.2,rh*.78),Math.max(4.3,rd*1.35)],fov:38}} dpr={[1,1.75]} shadows gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:1.08}}>
     <CameraRig preset={preset} rw={rw} rh={rh} rd={rd}/>
-    <color attach="background" args={["#f2f1ee"]}/>
-    <ambientLight intensity={.72}/>
-    <hemisphereLight args={["#ffffff","#b6afa5",1.25]}/>
-    <directionalLight castShadow position={[3.5,6.5,4.5]} intensity={2.15} shadow-mapSize-width={2048} shadow-mapSize-height={2048}/>
-    <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.012,0]} receiveShadow><boxGeometry args={[rw,rd,.024]}/><meshStandardMaterial color="#d8d3cb" roughness={.9}/></mesh>
+    <color attach="background" args={[realistic?"#e7e2da":"#f2f1ee"]}/>
+    <ambientLight intensity={realistic?.5:.72}/>
+    <hemisphereLight args={["#fffaf0",realistic?"#8f826f":"#b6afa5",realistic?.9:1.25]}/>
+    <directionalLight castShadow position={[3.5,6.5,4.5]} intensity={realistic?2.7:2.15} color={realistic?"#fff6e8":"#ffffff"} shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-bias={-0.00018}/>
+    <RoomShell rw={rw} rh={rh} rd={rd} showWalls={showWalls} realistic={realistic}/>
 {showGrid&&<Grid position={[0,.002,0]} args={[Math.max(rw,rd)*1.25,Math.max(rw,rd)*1.25]} cellSize={.1} sectionSize={.5} cellColor="#cbc6bf" sectionColor="#aaa49b" fadeDistance={15} fadeStrength={1.5}/>}
-{showWalls&&<><mesh position={[0,rh/2,-rd/2]} receiveShadow><boxGeometry args={[rw,rh,.035]}/><meshStandardMaterial color="#f7f6f3" roughness={.96}/></mesh><mesh position={[-rw/2,rh/2,0]} receiveShadow><boxGeometry args={[.035,rh,rd]}/><meshStandardMaterial color="#f4f3f0" roughness={.96}/></mesh></>}
+
     {project.items.map(i=><ItemNode key={i.id} i={i} project={project} selected={selected===i.id} mode={transformMode} onSelect={onSelect} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>)}
-    <ContactShadows position={[0,.003,0]} opacity={.32} scale={Math.max(5,roomMax*1.8)} blur={2.6} far={Math.max(5,roomMax*1.8)}/>
+    <ContactShadows position={[0,.003,0]} opacity={realistic?.42:.32} scale={Math.max(5,roomMax*1.8)} blur={realistic?3.2:2.6} far={Math.max(5,roomMax*1.8)}/>
     <OrbitControls makeDefault target={[0,Math.min(1.15,rh*.48),0]} enableDamping dampingFactor={.08} enablePan enableZoom minDistance={1} maxDistance={Math.max(8,roomMax*4)}/>
     <GizmoHelper alignment="bottom-right" margin={[70,70]}><GizmoViewport axisColors={["#c8102e","#2f8f5b","#315fa8"]} labelColor="#222"/></GizmoHelper>
   </Canvas></div>;
