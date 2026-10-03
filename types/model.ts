@@ -2,7 +2,7 @@ export type ViewMode="front"|"top"|"side"|"3d";
 export type ProjectStatus="Draft"|"Presented"|"Accepted"|"Rejected";
 export type ItemLayer="Joinery"|"Architecture"|"Services"|"Decor";
 export type Material={id:string;code:string;name:string;colour:string;thickness:number;category:string;textureDataUrl?:string};
-export type WallSide="north"|"east"|"south"|"west";
+export type WallSide="back"|"front"|"left"|"right";
 export type PlinthStyle="recessed"|"flush"|"none";
 export type JoineryItem={
   id:string;name:string;type:string;x:number;y:number;z:number;width:number;height:number;depth:number;
