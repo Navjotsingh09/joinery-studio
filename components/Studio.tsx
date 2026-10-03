@@ -5,7 +5,7 @@ import {newItem} from "@/lib/defaults";
 import {MATERIALS,material,floorMaterials} from "@/lib/materials";
 import {Drawing2D} from "./Drawing2D";
 import {Scene3D} from "./Scene3D";
-import {validate,findFreePlacement,clampItemToRoom,canPlace,footprint,normalizeRotation} from "@/lib/geometry";
+import {validate,findFreePlacement,clampItemToRoom,canPlace,footprint,normalizeRotation,autoFaceNearestWall} from "@/lib/geometry";
 import {exportPdf} from "@/lib/pdf";
 import {hasSupabase} from "@/lib/supabase";
 import * as cloud from "@/lib/cloud";
@@ -163,6 +163,14 @@ export default function Studio(){
 
   const rotateSelected=(delta=90)=>{if(item)rotateItem(item.id,(item.rotation??0)+delta)};
 
+  const moveSafely=(id:string,x:number,y:number,z:number)=>{
+    const current=p.items.find(v=>v.id===id);if(!current||current.locked)return;
+    let candidate=clampItemToRoom({...current,x,y,z},p);
+    candidate=autoFaceNearestWall(p,candidate);
+    if(canPlace(p,candidate,id)){s.moveItem(id,candidate);if(notice.startsWith("Placement blocked"))setNotice("")}
+    else setNotice("Placement blocked — that unit would overlap another object or leave the room.");
+  };
+
   const patch=(k:string,v:any)=>{
     if(!item)return;
     if(!["x","y","z","width","height","depth"].includes(k)){s.updateItem(item.id,{[k]:v});return}
@@ -301,7 +309,7 @@ export default function Studio(){
     </aside>
 
     <section className="workspace">
-      <div className="stage">{s.view==="3d"?<Scene3D project={p} selected={s.selectedId} transformMode={transformMode} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint}/>:<Drawing2D project={p} view={s.view} selected={s.selectedId} onSelect={s.select} onMove={(id,x,y,z)=>s.moveItem(id,{x,y,z})} onResize={(id,patch)=>s.moveItem(id,patch)} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onContext={(e,id)=>{s.select(id);setMenu({x:e.clientX,y:e.clientY,id})}}/>}</div>
+      <div className="stage">{s.view==="3d"?<Scene3D project={p} selected={s.selectedId} transformMode={transformMode} onSelect={s.select} onMove={moveSafely} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint}/>:<Drawing2D project={p} view={s.view} selected={s.selectedId} onSelect={s.select} onMove={moveSafely} onResize={(id,patch)=>s.moveItem(id,patch)} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onContext={(e,id)=>{s.select(id);setMenu({x:e.clientX,y:e.clientY,id})}}/>}</div>
 
       {item&&<div className="selectionBar" onClick={e=>e.stopPropagation()}>
         <span className="selectionName">{item.name}</span>
