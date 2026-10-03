@@ -152,11 +152,18 @@ function Panel({position,size,colour,front=false,materialId,part}:{position:[num
   const baseColour=exact?.colour??colour;
   const custom=exact?.textureDataUrl?exact:activeCustomMaterials.find(m=>m.colour===baseColour&&m.textureDataUrl);
   const uploaded=useDataTexture(custom?.textureDataUrl);
+  if(uploaded){
+    const repeatX=Math.max(1,Math.min(8,size[0]/.45)),repeatY=Math.max(1,Math.min(8,Math.max(size[1],size[2])/.45));
+    uploaded.repeat.set(repeatX,repeatY);
+  }
   const tex=uploaded??woodTexture(baseColour);
+  const category=exact?.category??custom?.category??"";
+  const isStone=category==="Worktop",isMetal=category==="Metal";
+  const roughness=isMetal?.2:isStone?.26:front?.42:.64,metalness=isMetal?.78:0;
   const picked=!!part&&picker.selected&&picker.selectedPart===part;
   return <mesh position={position} castShadow receiveShadow onClick={part?e=>{if(picker.selected){e.stopPropagation();picker.onSelectPart?.(part)}}:undefined}>
     <boxGeometry args={size}/>
-    <meshStandardMaterial map={tex??undefined} color={tex?"#ffffff":front?boardColour(baseColour,.025):baseColour} roughness={front?.42:.64} metalness={0}/>
+    <meshStandardMaterial map={tex??undefined} color={tex?"#ffffff":front?boardColour(baseColour,.025):baseColour} roughness={roughness} metalness={metalness}/>
     {picked&&<lineSegments><edgesGeometry args={[new THREE.BoxGeometry(...size)]}/><lineBasicMaterial color="#c8102e"/></lineSegments>}
   </mesh>
 }
