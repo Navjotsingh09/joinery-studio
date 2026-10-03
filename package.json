@@ -4,7 +4,7 @@
   "private":true,
   "scripts":{
     "dev":"next dev",
-    "build":"vitest run tests/projectMerge.test.ts tests/scenarios.test.ts tests/v1Workflow.test.ts && next build",
+    "build":"vitest run tests/projectMerge.test.ts && next build",
     "start":"next start",
     "typecheck":"tsc --noEmit",
     "test":"vitest run",
