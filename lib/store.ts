@@ -4,11 +4,11 @@ import {Project,JoineryItem,ViewMode,ProjectSnapshot,Revision} from "@/types/mod
 import {newProject} from "./defaults";import {findFreePlacement,canPlace} from "./geometry";
 type Core={projects:Project[];activeId:string;selectedId:string|null;view:ViewMode};
 type ItemPatch=Partial<JoineryItem>|((item:JoineryItem)=>Partial<JoineryItem>);
-type State=Core&{past:Core[];future:Core[];setView:(v:ViewMode)=>void;setActive:(id:string)=>void;select:(id:string|null)=>void;addProject:()=>void;duplicateProject:()=>void;deleteProject:()=>void;replaceAll:(p:Project[])=>void;configureActive:(patch:Partial<Project>&{items:JoineryItem[]})=>void;updateProject:(patch:Partial<Project>)=>void;addItem:(i:JoineryItem)=>void;updateItem:(id:string,patch:Partial<JoineryItem>)=>void;updateItems:(ids:string[],patch:ItemPatch)=>void;moveItem:(id:string,patch:Partial<JoineryItem>)=>void;checkpoint:()=>void;deleteItem:(id:string)=>void;deleteItems:(ids:string[])=>void;duplicateItem:(id:string)=>void;saveRevision:()=>void;restoreRevision:(id:string)=>void;undo:()=>void;redo:()=>void};
+type State=Core&{past:Core[];future:Core[];clipboard:JoineryItem[];setView:(v:ViewMode)=>void;setActive:(id:string)=>void;select:(id:string|null)=>void;addProject:()=>void;duplicateProject:()=>void;deleteProject:()=>void;replaceAll:(p:Project[])=>void;configureActive:(patch:Partial<Project>&{items:JoineryItem[]})=>void;updateProject:(patch:Partial<Project>)=>void;addItem:(i:JoineryItem)=>void;updateItem:(id:string,patch:Partial<JoineryItem>)=>void;updateItems:(ids:string[],patch:ItemPatch)=>void;moveItem:(id:string,patch:Partial<JoineryItem>)=>void;checkpoint:()=>void;deleteItem:(id:string)=>void;deleteItems:(ids:string[])=>void;duplicateItem:(id:string)=>void;copyItems:(ids:string[])=>void;pasteItems:()=>void;saveRevision:()=>void;restoreRevision:(id:string)=>void;undo:()=>void;redo:()=>void};
 const first=newProject("Showroom concept"),core=(s:State):Core=>({projects:structuredClone(s.projects),activeId:s.activeId,selectedId:s.selectedId,view:s.view});
 const mutate=(set:any,fn:(s:State)=>Partial<State>)=>set((s:State)=>({...fn(s),past:[...s.past.slice(-79),core(s)],future:[]}));
 const snapshot=(p:Project):ProjectSnapshot=>({name:p.name,customer:p.customer,reference:p.reference,status:p.status,roomWidth:p.roomWidth,roomHeight:p.roomHeight,roomDepth:p.roomDepth,rules:structuredClone(p.rules),items:structuredClone(p.items),address:p.address,notes:p.notes,archived:p.archived});
-export const useStudio=create<State>()(persist((set,get)=>({projects:[first],activeId:first.id,selectedId:null,view:"front",past:[],future:[],
+export const useStudio=create<State>()(persist((set,get)=>({projects:[first],activeId:first.id,selectedId:null,view:"front",past:[],future:[],clipboard:[],
 setView:view=>set({view}),setActive:activeId=>set({activeId,selectedId:null}),select:selectedId=>set({selectedId}),
 addProject:()=>mutate(set,s=>{const p=newProject();return{projects:[...s.projects,p],activeId:p.id,selectedId:null}}),
 duplicateProject:()=>mutate(set,s=>{const source=s.projects.find(p=>p.id===s.activeId);if(!source)return{};const now=new Date().toISOString(),copy=structuredClone(source);copy.id=crypto.randomUUID();copy.name=source.name+" copy";copy.reference="JS-"+String(Date.now()).slice(-5);copy.revision=1;copy.revisions=[];copy.createdAt=now;copy.updatedAt=now;copy.items=copy.items.map(i=>({...i,id:crypto.randomUUID()}));return{projects:[...s.projects,copy],activeId:copy.id,selectedId:null}}),
@@ -19,11 +19,22 @@ updateProject:patch=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeI
 addItem:i=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,items:[...p.items,{visible:true,layer:"Joinery",...i}],updatedAt:new Date().toISOString()}:p),selectedId:i.id})),
 updateItem:(id,patch)=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,items:p.items.map(i=>i.id===id?{...i,...patch}:i),updatedAt:new Date().toISOString()}:p)})),
 updateItems:(ids,patch)=>mutate(set,s=>{const wanted=new Set(ids);return{projects:s.projects.map(p=>p.id===s.activeId?{...p,items:p.items.map(i=>wanted.has(i.id)?{...i,...(typeof patch==="function"?patch(i):patch)}:i),updatedAt:new Date().toISOString()}:p)}}),
-moveItem:(id,patch)=>set((s:State)=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,items:p.items.map(i=>i.id===id?{...i,...patch}:i),updatedAt:new Date().toISOString()}:p)})),
+moveItem:(id,patch)=>set((s:State)=>({projects:s.projects.map(p=>{
+  if(p.id!==s.activeId)return p;
+  const source=p.items.find(i=>i.id===id);if(!source)return p;
+  const dx=typeof patch.x==="number"?patch.x-source.x:0,dy=typeof patch.y==="number"?patch.y-source.y:0,dz=typeof patch.z==="number"?patch.z-source.z:0,groupId=source.groupId;
+  return{...p,items:p.items.map(i=>{
+    if(i.id===id)return{...i,...patch};
+    if(groupId&&i.groupId===groupId&&(dx||dy||dz))return{...i,x:i.x+dx,y:i.y+dy,z:i.z+dz};
+    return i
+  }),updatedAt:new Date().toISOString()}
+}:p)})),
 checkpoint:()=>set((s:State)=>({past:[...s.past.slice(-79),core(s)],future:[]})),
 deleteItem:id=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,items:p.items.filter(i=>i.id!==id),updatedAt:new Date().toISOString()}:p),selectedId:null})),
 deleteItems:ids=>mutate(set,s=>{const wanted=new Set(ids);return{projects:s.projects.map(p=>p.id===s.activeId?{...p,items:p.items.filter(i=>!wanted.has(i.id)),updatedAt:new Date().toISOString()}:p),selectedId:s.selectedId&&wanted.has(s.selectedId)?null:s.selectedId}}),
 duplicateItem:id=>{const p=get().projects.find(x=>x.id===get().activeId),i=p?.items.find(x=>x.id===id);if(i&&p){const q=findFreePlacement(p,{...i,id:crypto.randomUUID(),name:i.name+" copy",x:i.x+Math.max(50,p.rules.snap),groupId:undefined});if(canPlace(p,q))get().addItem(q)}},
+copyItems:ids=>set(s=>({clipboard:structuredClone(s.projects.find(p=>p.id===s.activeId)?.items.filter(i=>ids.includes(i.id))??[])})),
+pasteItems:()=>mutate(set,s=>{const p=s.projects.find(x=>x.id===s.activeId);if(!p||!s.clipboard.length)return{};const temp={...p,items:[...p.items]},copies:JoineryItem[]=[];for(const original of s.clipboard){let candidate={...structuredClone(original),id:crypto.randomUUID(),name:original.name+" copy",x:original.x+Math.max(50,p.rules.snap),z:original.z+Math.max(50,p.rules.snap),groupId:undefined};candidate=findFreePlacement(temp,candidate);temp.items.push(candidate);copies.push(candidate)}return{projects:s.projects.map(x=>x.id===p.id?{...x,items:[...x.items,...copies],updatedAt:new Date().toISOString()}:x),selectedId:copies.at(-1)?.id??s.selectedId}}),
 saveRevision:()=>mutate(set,s=>({projects:s.projects.map(p=>{if(p.id!==s.activeId)return p;const n=p.revision+1,r:Revision={id:crypto.randomUUID(),revision:n,createdAt:new Date().toISOString(),snapshot:snapshot(p)};return{...p,revision:n,revisions:[...p.revisions,r],updatedAt:new Date().toISOString()}})})),
 restoreRevision:id=>mutate(set,s=>({projects:s.projects.map(p=>{if(p.id!==s.activeId)return p;const r=p.revisions.find(x=>x.id===id);return r?{...p,...structuredClone(r.snapshot),rules:{serviceClearance:50,...p.rules,...structuredClone(r.snapshot.rules)},updatedAt:new Date().toISOString()}:p}),selectedId:null})),
 undo:()=>set(s=>{const prev=s.past.at(-1);if(!prev)return s;return{...prev,past:s.past.slice(0,-1),future:[core(s),...s.future].slice(0,80)}}),

@@ -19,6 +19,11 @@ export function ProfessionalPanel({project}:{project:Project}){
   const primary=picked[0]??project.items.find(i=>i.id===s.selectedId);
   const clear=primary?wallClearances(project,primary):null;
   const stairs=primary&&stairTypes.has(primary.type)?stairMetrics(primary):null;
+  const pairGap=useMemo(()=>{
+    if(picked.length!==2)return null;const [a,b]=picked,A=footprint(a),B=footprint(b);
+    const gapX=Math.max(0,b.x-(a.x+A.width),a.x-(b.x+B.width)),gapZ=Math.max(0,b.z-(a.z+A.depth),a.z-(b.z+B.depth));
+    return{gapX,gapZ,centre:Math.round(Math.hypot((a.x+A.width/2)-(b.x+B.width/2),(a.z+A.depth/2)-(b.z+B.depth/2)))}
+  },[picked]);
   const toggle=(id:string)=>{setIds(v=>v.includes(id)?v.filter(x=>x!==id):[...v,id]);s.select(id)};
   const apply=(fn:(i:JoineryItem)=>Partial<JoineryItem>)=>{if(!picked.length)return; s.updateItems(picked.map(i=>i.id),fn);setMessage("Updated "+picked.length+" item"+(picked.length===1?"":"s")+".")};
   const wall=(side:WallSide)=>{
@@ -37,7 +42,8 @@ export function ProfessionalPanel({project}:{project:Project}){
   const distribute=()=>{
     if(picked.length<3)return setMessage("Select at least three items to distribute.");
     const ordered=[...picked].sort((a,b)=>a.x-b.x),first=ordered[0],last=ordered[ordered.length-1],span=last.x-first.x;
-    ordered.forEach((i,n)=>s.updateItem(i.id,{x:Math.round(first.x+span*n/(ordered.length-1))}));
+    const positions=new Map(ordered.map((i,n)=>[i.id,Math.round(first.x+span*n/(ordered.length-1))]));
+    s.updateItems(ordered.map(i=>i.id),i=>({x:positions.get(i.id)??i.x}));
     setMessage("Distributed "+ordered.length+" items evenly across X.");
   };
   const copyAlongWall=()=>{
@@ -80,11 +86,12 @@ export function ProfessionalPanel({project}:{project:Project}){
     <details open><summary>Place & measure</summary>
       {primary?<><div className="proPrimary"><b>{primary.name}</b><small>{primary.width} × {primary.height} × {primary.depth} mm</small></div>
       {clear&&<div className="clearanceGrid"><span>Left<b>{clear.left} mm</b></span><span>Right<b>{clear.right} mm</b></span><span>Back<b>{clear.back} mm</b></span><span>Front<b>{clear.front} mm</b></span><span>Top<b>{clear.top} mm</b></span><span>Floor<b>{clear.bottom} mm</b></span></div>}
+      {pairGap&&<div className="pairMeasure"><b>Between selected objects</b><span>X gap {pairGap.gapX} mm · Z gap {pairGap.gapZ} mm · centre-to-centre {pairGap.centre} mm</span></div>}
       <small className="proLabel">Snap to room wall</small><div className="proButtonGrid"><button onClick={()=>wall("back")}>Back</button><button onClick={()=>wall("front")}>Front</button><button onClick={()=>wall("left")}>Left</button><button onClick={()=>wall("right")}>Right</button></div>
-      <div className="proButtonRow"><button onClick={()=>mirror("x")}>Mirror L/R</button><button onClick={()=>mirror("z")}>Mirror F/B</button><button onClick={copyAlongWall}>Copy along wall</button></div></>:<small className="muted">Select an object to see clearances.</small>}
+      <div className="proButtonRow"><button onClick={()=>mirror("x")}>Mirror L/R</button><button onClick={()=>mirror("z")}>Mirror F/B</button><button onClick={copyAlongWall}>Auto-fill wall</button></div></>:<small className="muted">Select an object to see clearances.</small>}
     </details>
     <details><summary>Batch edit</summary>
-      <div className="proButtonGrid"><button onClick={()=>apply(i=>({x:picked[0]?.x??i.x}))}>Align X</button><button onClick={()=>apply(i=>({z:picked[0]?.z??i.z}))}>Align Z</button><button onClick={distribute}>Distribute X</button><button onClick={group}>Group</button><button onClick={()=>apply(()=>({groupId:undefined}))}>Ungroup</button><button onClick={()=>apply(()=>({locked:true}))}>Lock</button><button onClick={()=>apply(()=>({locked:false}))}>Unlock</button><button onClick={()=>apply(()=>({visible:false}))}>Hide</button><button onClick={()=>apply(()=>({visible:true}))}>Show</button></div>
+      <div className="proButtonGrid"><button onClick={()=>apply(i=>({x:picked[0]?.x??i.x}))}>Align X</button><button onClick={()=>apply(i=>({z:picked[0]?.z??i.z}))}>Align Z</button><button onClick={distribute}>Distribute X</button><button onClick={group}>Group</button><button onClick={()=>apply(()=>({groupId:undefined}))}>Ungroup</button><button onClick={()=>apply(()=>({locked:true}))}>Lock</button><button onClick={()=>apply(()=>({locked:false}))}>Unlock</button><button onClick={()=>apply(()=>({visible:false}))}>Hide</button><button onClick={()=>apply(()=>({visible:true}))}>Show</button><button onClick={()=>{s.copyItems(picked.map(i=>i.id));setMessage("Copied "+picked.length+" item"+(picked.length===1?"":"s")+" to the project clipboard.")}}>Copy</button><button onClick={()=>{s.pasteItems();setMessage("Pasted clipboard items into this project.")}}>Paste</button></div>
       <button className="proDanger" onClick={()=>{if(picked.length&&confirm("Delete "+picked.length+" selected item"+(picked.length===1?"":"s")+"?")){s.deleteItems(picked.map(i=>i.id));setIds([])}}}>Delete selected</button>
     </details>
     <details open><summary>Joinery intelligence</summary>

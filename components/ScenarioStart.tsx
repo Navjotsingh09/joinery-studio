@@ -1,6 +1,7 @@
 "use client";
 import {useMemo,useState} from "react";
-import {createScenarioPlan,DESIGN_KINDS,DesignKind,ScenarioPlan} from "@/lib/scenarios";
+import {createScenarioPlan,DESIGN_KINDS,DesignKind,ScenarioPlan,inferDesignKind} from "@/lib/scenarios";
+import {Project} from "@/types/model";
 import {Icon} from "./Icon";
 
 function DesignPreview({kind}:{kind:DesignKind}){
@@ -77,10 +78,11 @@ function ScenarioDiagram({kind,scenario}:{kind:DesignKind;scenario:string}){
   </div>;
 }
 
-export function ScenarioStart({onCreate,onContinue,continueName}:{onCreate:(plan:ScenarioPlan)=>void;onContinue?:()=>void;continueName?:string}){
+export function ScenarioStart({onCreate,onContinue,continueName,projects=[],activeId,onOpenProject}:{onCreate:(plan:ScenarioPlan)=>void;onContinue?:()=>void;continueName?:string;projects?:Project[];activeId?:string;onOpenProject?:(id:string)=>void}){
   const [kind,setKind]=useState<DesignKind|null>(null);
   const [scenario,setScenario]=useState<string|null>(null);
   const [room,setRoom]=useState({width:4200,height:2400,depth:3200});
+  const [showArchived,setShowArchived]=useState(false);
   const choice=useMemo(()=>DESIGN_KINDS.find(x=>x.id===kind),[kind]);
   const step=scenario?3:kind?2:1;
 
@@ -121,7 +123,14 @@ export function ScenarioStart({onCreate,onContinue,continueName}:{onCreate:(plan
           </button>)}
         </section>
 
-        {onContinue&&<section className="recentDesign">
+        {!!projects.length&&<section className="projectLibrary">
+          <div className="projectLibraryHead"><div><p className="eyebrow">YOUR PROJECTS</p><h2>Continue a design.</h2></div><button onClick={()=>setShowArchived(v=>!v)}>{showArchived?"Hide archived":"Show archived"}</button></div>
+          <div className="projectGrid">{projects.filter(p=>showArchived||!p.archived).map(pr=>{const pk=inferDesignKind(pr.items);return <button key={pr.id} className={"projectCard "+(pr.id===activeId?"activeProject ":"")+(pr.archived?"archivedProject":"")} onClick={()=>onOpenProject?.(pr.id)}>
+            <div className="projectThumb"><DesignPreview kind={pk}/><span>{pk}</span></div>
+            <div className="projectCardCopy"><small>{pr.reference} · Rev {pr.revision}</small><b>{pr.name}</b><p>{pr.customer||"No customer yet"}{pr.address?" · "+pr.address:""}</p><div><span className={"projectStatus "+pr.status.toLowerCase()}>{pr.status}</span><em>{pr.items.length} objects</em></div></div>
+          </button>})}</div>
+        </section>}
+        {onContinue&&!projects.length&&<section className="recentDesign">
           <div><span className="recentIcon"><Icon name="box"/></span><div><small>CURRENT DESIGN</small><b>{continueName||"Untitled design"}</b><p>Continue exactly where you left off.</p></div></div>
           <button onClick={onContinue}>Continue editing <Icon name="chevron-right" size={16}/></button>
         </section>}

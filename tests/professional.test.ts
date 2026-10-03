@@ -26,3 +26,8 @@ describe("professional design helpers",()=>{
     expect(itemsCollide(base,top,2)).toBe(false);
   });
 });
+
+it("allows doors and windows to sit inside editable wall segments",()=>{
+  const wall=newItem("Wall segment"),opening=newItem("Window");wall.x=opening.x=100;wall.z=opening.z=0;opening.y=900;
+  expect(itemsCollide(wall,opening)).toBe(false);
+});
