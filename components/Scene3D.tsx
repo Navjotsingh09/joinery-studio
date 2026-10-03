@@ -254,6 +254,18 @@ function DimensionOverlay({i}:{i:JoineryItem}){
   </group>
 }
 
+function RoomDimensionOverlay({rw,rh,rd,project}:{rw:number;rh:number;rd:number;project:Project}){
+  const line="#5b554e",off=.24;
+  return <group>
+    <Line points={[[-rw/2,.025,-rd/2-off],[rw/2,.025,-rd/2-off]]} color={line} lineWidth={1}/>
+    <Line points={[[rw/2+off,.025,-rd/2],[rw/2+off,.025,rd/2]]} color={line} lineWidth={1}/>
+    <Line points={[[-rw/2-off,0,-rd/2],[-rw/2-off,rh,-rd/2]]} color={line} lineWidth={1}/>
+    <Html position={[0,.025,-rd/2-off-.03]} center distanceFactor={8}><span className="modelDimension">Room {project.roomWidth} mm</span></Html>
+    <Html position={[rw/2+off+.03,.025,0]} center distanceFactor={8}><span className="modelDimension">{project.roomDepth} mm</span></Html>
+    <Html position={[-rw/2-off-.03,rh/2,-rd/2]} center distanceFactor={8}><span className="modelDimension">{project.roomHeight} mm</span></Html>
+  </group>;
+}
+
 function ConstructionLabels({i}:{i:JoineryItem}){
   const w=mm(i.width),h=mm(i.height),d=mm(i.depth);
   const hasDoors=i.doors>0,hasPlinth=!!i.plinthStyle&&i.plinthStyle!=="none";
@@ -885,6 +897,7 @@ export function Scene3D({project,selected,selectedPart,transformMode="translate"
     <RoomShell rw={rw} rh={rh} rd={rd} showWalls={showWalls&&!construction} realistic={realistic} floorMaterial={floorMaterial} studioMode={construction}/>
 {showGrid&&<Grid position={[0,.002,0]} args={[Math.max(rw,rd)*1.25,Math.max(rw,rd)*1.25]} cellSize={.1} sectionSize={.5} cellColor="#cbc6bf" sectionColor="#aaa49b" fadeDistance={15} fadeStrength={1.5}/>}
 
+    {construction&&<RoomDimensionOverlay rw={rw} rh={rh} rd={rd} project={project}/>}
     {project.items.filter(i=>i.visible!==false).map(i=><ItemNode key={i.id} i={i} project={project} selected={selected===i.id} selectedPart={selected===i.id?selectedPart:null} mode={transformMode} construction={construction} onSelect={onSelect} onSelectPart={onSelectPart} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>)}
     <ContactShadows position={[0,.003,0]} opacity={construction?.52:realistic?.42:.32} scale={Math.max(5,roomMax*1.8)} blur={construction?2.4:realistic?3.2:2.6} far={Math.max(5,roomMax*1.8)}/>
     <OrbitControls makeDefault target={[0,Math.min(1.15,rh*.48),0]} enableDamping dampingFactor={.08} enablePan enableZoom minDistance={1} maxDistance={Math.max(8,roomMax*4)}/>
