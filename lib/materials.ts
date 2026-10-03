@@ -17,4 +17,4 @@ export const MATERIALS:Material[]=[
 {id:"floor-walnut",code:"FL02",name:"Walnut Floor",colour:"#8c6546",thickness:14,category:"Floor"},
 {id:"floor-stone",code:"FL03",name:"Light Stone Tile",colour:"#d8d4cc",thickness:10,category:"Floor"}];
 export const material=(id:string,custom:Material[]=[])=>([...custom,...MATERIALS].find(m=>m.id===id)??MATERIALS[0]);
-export const floorMaterials=(custom:Material[]=[])=>([...custom,...MATERIALS].filter(m=>m.category==="Floor"));
+export const floorMaterials=(custom:Material[]=[])=>([...custom,...MATERIALS].filter(m=>m.category==="Floor"||!!m.textureDataUrl));
