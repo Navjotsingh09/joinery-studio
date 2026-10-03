@@ -31,7 +31,7 @@ export function Drawing2D({
   const [guides,setGuides]=useState<{x?:number;y?:number;label?:string}>({});
   const elevation=!!wallSide&&view==="front";
   const size=elevation?wallViewSize(project,wallSide!):viewSize(project,view),pad=76,W=1000,H=650;
-  const rectFor=(i:JoineryItem)=>elevation?wallItemRect(i,project,wallSide!):rectFor(i);
+  const rectFor=(i:JoineryItem)=>elevation?wallItemRect(i,project,wallSide!):itemRect(i,project,view);
   const visibleItems=project.items.filter(i=>i.visible!==false&&(!elevation||isItemOnWall(project,i,wallSide!)));
   const scale=Math.min((W-pad*2)/size.w,(H-pad*2)/size.h);
   const tx=pad+(W-pad*2-size.w*scale)/2,ty=pad+(H-pad*2-size.h*scale)/2;
