@@ -240,12 +240,15 @@ export default function Studio(){
     const f=e.target.files?.[0];if(!f)return;
     if(!f.type.startsWith("image/")){setNotice("Choose an image file for the material.");e.target.value="";return}
     if(f.size>1800000){setNotice("Material image is too large. Please use an image under 1.8 MB.");e.target.value="";return}
-    const dataUrl=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(reader.error);reader.readAsDataURL(f)});
-    const name=(window.prompt("Material name",f.name.replace(/\.[^.]+$/,""))||"Custom material").trim();
-    const custom:Material={id:"custom-"+crypto.randomUUID(),code:"CUSTOM",name,colour:"#b8b2a8",thickness:18,category:"Custom",textureDataUrl:dataUrl};
-    s.updateProject({customMaterials:[...(p.customMaterials??[]),custom]});
-    setNotice(name+" added to the material library.");
-    e.target.value="";
+    try{
+      const dataUrl=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(reader.error);reader.readAsDataURL(f)});
+      await new Promise<void>((resolve,reject)=>{const image=new Image();image.onload=()=>image.width>=64&&image.height>=64?resolve():reject(new Error("Image is too small"));image.onerror=()=>reject(new Error("Image could not be read"));image.src=dataUrl});
+      const name=(window.prompt("Material name",f.name.replace(/\.[^.]+$/,""))||"Custom material").trim();
+      const custom:Material={id:"custom-"+crypto.randomUUID(),code:"CUSTOM",name,colour:"#b8b2a8",thickness:18,category:"Custom",textureDataUrl:dataUrl};
+      s.updateProject({customMaterials:[...(p.customMaterials??[]),custom]});
+      setNotice(name+" added. Select a cabinet surface, worktop, backsplash or floor to apply it.");
+    }catch(err:any){setNotice("Material upload failed: "+(err?.message??"Please try another image."))}
+    finally{e.target.value=""}
   };
 
   const login=async(signup=false)=>{
