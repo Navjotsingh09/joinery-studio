@@ -346,18 +346,6 @@ function DoorFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number;c
     </group>;
   })}</>;
 }
-function LiftUpFront({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
-  const faceId=i.doorMaterialId??i.materialId,faceColour=sceneMaterial(faceId).colour,gap=mm(REVEAL),frontT=mm(BOARD);
-  const faceW=w-gap*2,faceH=h-gap*2,baseOpen=Math.min(100,(i.openAmount??0)),open=THREE.MathUtils.degToRad(activeConstructionView?Math.max(72,baseOpen):baseOpen);
-  const z=d/2-frontT/2+(activeConstructionView ? .08 : 0:0);
-  return <group position={[0,h/2-gap,z]} rotation={[-open,0,0]}>
-    <Panel position={[0,-faceH/2,0]} size={[faceW,faceH,frontT]} colour={faceColour} materialId={faceId} part="fronts" front/>
-    <Metal position={[-faceW*.32,-.02,-.018]} size={[.045,.018,.025]}/>
-    <Metal position={[faceW*.32,-.02,-.018]} size={[.045,.018,.025]}/>
-    <Handle x={0} y={-faceH*.88} z={frontT/2+.014} height={faceW} hardware={i.hardware} orientation="horizontal"/>
-  </group>;
-}
-
 function DrawerFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number;colour:string}){
   const faceId=i.doorMaterialId??i.materialId,faceColour=sceneMaterial(faceId).colour;
   const count=Math.max(2,i.doors||3),gap=mm(REVEAL),frontT=mm(BOARD),faceW=w-gap*2,faceH=(h-gap*(count+1))/count;
@@ -417,7 +405,7 @@ function WallCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:str
   return <group position={[0,0,-mm(BOARD)/2]}>
     <Carcass i={i} w={w} h={h} d={bodyD} colour={c} shelves={Math.max(1,i.shelves)}/>
     <KitchenShelfProps w={w} h={h} d={bodyD} levels={Math.min(3,Math.max(1,i.shelves))}/>
-    {i.doors>0&&(i.productStyle==="Lift-up"?<LiftUpFront i={i} w={w} h={h} d={bodyD}/>:<DoorFronts i={i} w={w} h={h} d={bodyD} colour={c}/>)}
+    {i.doors>0&&<DoorFronts i={i} w={w} h={h} d={bodyD} colour={c}/>}
     <Panel position={[0,-h/2+.008,.012]} size={[Math.max(.03,w-.04),.01,Math.max(.03,d-.05)]} colour={boardColour(c,-.06)}/>
     {!activeConstructionView&&<>
       <mesh position={[0,-h/2-.006,d*.18]}><boxGeometry args={[Math.max(.08,w-.08),.012,.025]}/><meshStandardMaterial color="#fff1c8" emissive="#ffe7a8" emissiveIntensity={2.2} roughness={.35}/></mesh>
