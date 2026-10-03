@@ -7,7 +7,7 @@ type State=Core&{past:Core[];future:Core[];setView:(v:ViewMode)=>void;setActive:
 let itemClipboard:JoineryItem[]=[];
 const first=newProject("Showroom concept"),core=(s:State):Core=>({projects:structuredClone(s.projects),activeId:s.activeId,selectedId:s.selectedId,view:s.view});
 const mutate=(set:any,fn:(s:State)=>Partial<State>)=>set((s:State)=>({...fn(s),past:[...s.past.slice(-39),core(s)],future:[]}));
-const snapshot=(p:Project):ProjectSnapshot=>({name:p.name,customer:p.customer,reference:p.reference,status:p.status,roomWidth:p.roomWidth,roomHeight:p.roomHeight,roomDepth:p.roomDepth,rules:structuredClone(p.rules),items:structuredClone(p.items)});
+const snapshot=(p:Project):ProjectSnapshot=>({name:p.name,customer:p.customer,reference:p.reference,status:p.status,roomWidth:p.roomWidth,roomHeight:p.roomHeight,roomDepth:p.roomDepth,rules:structuredClone(p.rules),items:structuredClone(p.items),address:p.address,notes:p.notes,archived:p.archived,customMaterials:structuredClone(p.customMaterials??[]),floorMaterialId:p.floorMaterialId});
 export const useStudio=create<State>()(persist((set,get)=>({projects:[first],activeId:first.id,selectedId:null,view:"front",past:[],future:[],
 setView:view=>set({view}),setActive:activeId=>set({activeId,selectedId:null}),select:selectedId=>set({selectedId}),
 addProject:()=>mutate(set,s=>{const p=newProject();return{projects:[...s.projects,p],activeId:p.id,selectedId:null}}),
