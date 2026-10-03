@@ -151,11 +151,16 @@ export default function Studio(){
     let i=newItem(type);
     if(at){
       i=clampItemToRoom({...i,x:at.x-i.width/2,y:Math.max(0,at.y-i.height/2),z:at.z-i.depth/2},p);
-      if(!canPlace(p,i))setNotice("Placed with a clash — move it until the warning clears.");
+      if(!canPlace(p,i)){
+        const free=findFreePlacement(p,i);
+        if(!canPlace(p,free)){setNotice("No clear space for that unit. Placement cancelled.");return}
+        i=free;
+        setNotice("That position was unavailable, so the unit moved to the nearest clear space.");
+      }else setNotice("");
       s.addItem(i);return;
     }
     i=findFreePlacement(p,i);
-    if(!canPlace(p,i)){setNotice("No clear space remains. Reposition the new component.");i=clampItemToRoom(i,p)}
+    if(!canPlace(p,i)){setNotice("No clear space remains. Reposition the new component.");return}
     s.addItem(i);
   };
 
