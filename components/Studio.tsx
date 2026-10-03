@@ -5,6 +5,7 @@ import {newItem} from "@/lib/defaults";
 import {MATERIALS,material,floorMaterials} from "@/lib/materials";
 import {Drawing2D} from "./Drawing2D";
 import {Scene3D} from "./Scene3D";
+import {SceneBoundary} from "./SceneBoundary";
 import {validate,findFreePlacement,clampItemToRoom,canPlace,footprint,normalizeRotation,autoFaceNearestWall} from "@/lib/geometry";
 import {exportPdf} from "@/lib/pdf";
 import {hasSupabase} from "@/lib/supabase";
@@ -392,7 +393,7 @@ export default function Studio(){
     </aside>
 
     <section className="workspace">
-      <div className="stage">{s.view==="3d"?<Scene3D project={p} selected={s.selectedId} selectedPart={selectedPart} transformMode={transformMode} onSelect={id=>{s.select(id);if(id!==s.selectedId)setSelectedPart(null)}} onSelectPart={(id,part)=>{if(id===s.selectedId)setSelectedPart(part)}} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onMove={moveSafely} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint}/>:<Drawing2D project={p} view={s.view} wallSide={s.view==="front"?elevationWall:undefined} selected={s.selectedId} onSelect={s.select} onMove={moveSafely} onResize={(id,patch)=>s.moveItem(id,patch)} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onContext={(e,id)=>{s.select(id);setMenu({x:e.clientX,y:e.clientY,id})}}/>}</div>
+      <div className="stage">{s.view==="3d"?<SceneBoundary onUsePlan={()=>s.setView("top")}><Scene3D project={p} selected={s.selectedId} selectedPart={selectedPart} transformMode={transformMode} onSelect={id=>{s.select(id);if(id!==s.selectedId)setSelectedPart(null)}} onSelectPart={(id,part)=>{if(id===s.selectedId)setSelectedPart(part)}} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onMove={moveSafely} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint}/></SceneBoundary>:<Drawing2D project={p} view={s.view} wallSide={s.view==="front"?elevationWall:undefined} selected={s.selectedId} onSelect={s.select} onMove={moveSafely} onResize={(id,patch)=>s.moveItem(id,patch)} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onContext={(e,id)=>{s.select(id);setMenu({x:e.clientX,y:e.clientY,id})}}/>}</div>
 
       {item&&<div className="selectionBar" onClick={e=>e.stopPropagation()}>
         <span className="selectionName">{item.name}</span>{selectedPart&&<button className="selectedPartPill" onClick={()=>setSelectedPart(null)}>Surface: {selectedPart.replace("-"," ")} ×</button>}
