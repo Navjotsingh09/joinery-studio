@@ -5,18 +5,27 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm install --no-audit --no-fund
-      - run: npm run typecheck
-      - run: npm test -- --run
-      - run: npm run build
+      - name: Verify environment and application
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://yudzfpuizzejpnkoxidx.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_ocqbsvwCTPrnw335PZLjfA_HQj9KJ7M
+        run: |
+          set -euo pipefail
+          echo "Runner started successfully."
+          node --version
+          npm --version
+          git --version
+          git clone --depth 1 --branch "${GITHUB_REF_NAME}" "https://github.com/${GITHUB_REPOSITORY}.git" app
+          cd app
+          npm install --no-audit --no-fund
+          npm run typecheck
+          npm test
+          npx next build
