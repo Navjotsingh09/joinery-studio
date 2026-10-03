@@ -120,7 +120,7 @@ export function validate(p:Project){
     if(i.x<c||i.x+fp.width>p.roomWidth-c)issues.push(i.name+": violates left/right wall clearance.");
     if(i.y<0||i.y+i.height>p.roomHeight)issues.push(i.name+": outside room height.");
     if(i.z<0||i.z+fp.depth>p.roomDepth)issues.push(i.name+": outside room depth.");
-    if(!isWallMounted(i)&&i.y!==0)issues.push(i.name+": floor-standing component must sit on the floor.");
+
     if(standardCabinetTypes.has(i.type)&&(i.width<250||i.width>1400))issues.push(i.name+": cabinet width is outside the normal configurable range.");
     if(stairTypesForValidation.has(i.type)&&stairMetrics(i).review)issues.push(i.name+": stair rise/going/pitch needs design review before manufacture.")
   });
