@@ -8,6 +8,7 @@ import {material} from "@/lib/materials";
 import {sinkCutouts,SinkCutout,roomShellWalls,splashbackTextureUV} from "@/lib/renderGeometry";
 import {clampItemToRoom,isWallMounted,footprint,normalizeRotation} from "@/lib/geometry";
 
+import {textureUV,textureDimensions} from "@/lib/textureMapping";
 import {stairPlan} from "@/lib/stairGeometry";
 const mm=(v:number)=>v/1000;
 const BOARD=18;
@@ -64,13 +65,13 @@ function woodTexture(colour:string,force=false){
 }
 
 // Map every face in metres, so different panel sizes keep the same grain scale.
-function physicalPanelUV(mesh:THREE.Mesh,size:[number,number,number]){
+function physicalPanelUV(mesh:THREE.Mesh,size:[number,number,number],m?:Material){
   const geometry=mesh.geometry,position=geometry.getAttribute("position"),normal=geometry.getAttribute("normal"),uv=geometry.getAttribute("uv");
   if(!position||!normal||!uv)return;
   for(let v=0;v<position.count;v++){
     const nx=Math.abs(normal.getX(v)),ny=Math.abs(normal.getY(v)),nz=Math.abs(normal.getZ(v));
     const x=position.getX(v)+size[0]/2,y=position.getY(v)+size[1]/2,z=position.getZ(v)+size[2]/2;
-    uv.setXY(v,nz>=nx&&nz>=ny?x/.65:nx>=ny?z/.65:x/.65,ny>nx&&ny>nz?z/1.2:y/1.2);
+    const [u,t]=textureUV(nz>=nx&&nz>=ny?x:nx>=ny?z:x,ny>nx&&ny>nz?z:y,m);uv.setXY(v,u,t);
   }
   uv.needsUpdate=true;
 }
@@ -164,6 +165,7 @@ function builtInFloorTexture(id:string,colour:string){
 function RoomShell({rw,rh,rd,showWalls,realistic,floorMaterial,studioMode=false}:{rw:number;rh:number;rd:number;showWalls:boolean;realistic:boolean;floorMaterial:Material;studioMode?:boolean}){
   const uploadedFloor=useDataTexture(floorMaterial.textureDataUrl);
   const floor=studioMode?null:realistic?(uploadedFloor??builtInFloorTexture(floorMaterial.id,floorMaterial.colour)):null;
+  if(uploadedFloor){const tile=textureDimensions(floorMaterial);uploadedFloor.repeat.set(rw/tile.width,rd/tile.height);uploadedFloor.rotation=tile.rotation*Math.PI/180;uploadedFloor.center.set(.5,.5)}
   const skirting=.095,skirtingD=.018;
   const walls=roomShellWalls(rw,rh,rd);
   return <group>
@@ -205,12 +207,12 @@ function Panel({position,size,colour,front=false,materialId,part}:{position:[num
   const panelMesh=useRef<THREE.Mesh>(null);
   useLayoutEffect(()=>{
     const mesh=panelMesh.current;if(!mesh)return;
-    physicalPanelUV(mesh,size);
+    physicalPanelUV(mesh,size,exact);
     if(photo&&exact?.textureCrop){
       const g=mesh.geometry,p=g.getAttribute("position"),uv=g.getAttribute("uv");g.computeBoundingBox();const b=g.boundingBox;if(!b||!p||!uv)return;
       for(let i=0;i<p.count;i++){const [u,v]=splashbackTextureUV(p.getX(i),p.getY(i),b.min.x,b.min.y,b.max.x,b.max.y,exact.textureCrop);uv.setXY(i,u,v)}uv.needsUpdate=true;
     }
-  },[photo,exact?.textureCrop,size[0],size[1],size[2]]);
+  },[photo,exact?.textureCrop,exact?.textureWidthMm,exact?.textureHeightMm,exact?.textureRotation,size[0],size[1],size[2]]);
   const picked=!!part&&picker.selected&&picker.selectedPart===part;
   return <RoundedBox args={size} radius={Math.min(.0012,Math.min(...size)*.12)} smoothness={2} position={position} castShadow receiveShadow ref={panelMesh} onClick={part?e=>{e.stopPropagation();picker.onSelectPart?.(part)}:undefined}>
     <meshPhysicalMaterial map={tex??undefined} color={tex?"#ffffff":front?boardColour(baseColour,.025):baseColour} roughness={roughness} metalness={metalness} clearcoat={isSplashback&&!mirror?1:0} clearcoatRoughness={roughness} bumpMap={photo?undefined:tex??undefined} bumpScale={category==="Woodgrain"?.00035:.00012}/>
@@ -526,16 +528,22 @@ function WorktopSurface({w,h,d,materialId,position=[0,0,0],edge="rounded",finish
   const picker=useContext(PartSelectionContext),m=sceneMaterial(materialId),uploaded=useDataTexture(m.textureDataUrl);
   if(uploaded)uploaded.repeat.set(1,1);
   const tex=uploaded??builtInSurfaceTexture(materialId,m.colour);if(tex)tex.repeat.set(1,1);
-  const picked=picker.selected&&picker.selectedPart==="worktop";
+  const picked=picker.selected&&picker.selectedPart==="worktop",surfaceRef=useRef<THREE.Mesh>(null);
+  const roughness=(finish??m.surfaceFinish)==="Gloss"?.12:(finish??m.surfaceFinish)==="Semi-gloss"?.28:(finish??m.surfaceFinish)==="Textured matt"?.8:.55;
+  useLayoutEffect(()=>{
+    const mesh=surfaceRef.current;if(!mesh)return;
+    if(cutouts.length){const g=mesh.geometry,p=g.getAttribute("position"),uv=g.getAttribute("uv");for(let n=0;n<p.count;n++){const [u,v]=textureUV(p.getX(n)+w/2,d/2-p.getY(n),m);uv.setXY(n,u,v)}uv.needsUpdate=true}
+    else physicalPanelUV(mesh,[w,h,d],m);
+  },[w,h,d,m.textureWidthMm,m.textureHeightMm,m.textureRotation,cutouts]);
   if(cutouts.length){
     const shape=new THREE.Shape();shape.moveTo(-w/2,-d/2);shape.lineTo(w/2,-d/2);shape.lineTo(w/2,d/2);shape.lineTo(-w/2,d/2);shape.closePath();
     for(const hole of cutouts){const path=new THREE.Path(),x=hole.x,z=-hole.z,a=hole.width/2,b=hole.depth/2;path.moveTo(x-a,z-b);path.lineTo(x-a,z+b);path.lineTo(x+a,z+b);path.lineTo(x+a,z-b);path.closePath();shape.holes.push(path)}
-    return <group position={position}><mesh rotation={[-Math.PI/2,0,0]} position={[0,-h/2,0]} castShadow receiveShadow onClick={e=>{e.stopPropagation();picker.onSelectPart?.("worktop")}}>
-      <extrudeGeometry args={[shape,{depth:h,bevelEnabled:false}]}/><meshStandardMaterial map={tex??undefined} color={tex?"#ffffff":m.colour} roughness={.65}/>
+    return <group position={position}><mesh ref={surfaceRef} rotation={[-Math.PI/2,0,0]} position={[0,-h/2,0]} castShadow receiveShadow onClick={e=>{e.stopPropagation();picker.onSelectPart?.("worktop")}}>
+      <extrudeGeometry args={[shape,{depth:h,bevelEnabled:false}]}/><meshStandardMaterial map={tex??undefined} color={tex?"#ffffff":m.colour} roughness={roughness}/>
     </mesh></group>;
   }
-  return <RoundedBox args={[w,h,d]} radius={edge==="square"?.0001:Math.min(.007,h*.24)} smoothness={4} position={position} castShadow receiveShadow onUpdate={mesh=>physicalPanelUV(mesh,[w,h,d])} onClick={e=>{e.stopPropagation();picker.onSelectPart?.("worktop")}}>
-    <meshStandardMaterial map={tex??undefined} color={tex?"#ffffff":m.colour} roughness={(finish??m.surfaceFinish)==="Gloss"?.12:(finish??m.surfaceFinish)==="Semi-gloss"?.28:(finish??m.surfaceFinish)==="Textured matt"?.8:.55} metalness={0}/>
+  return <RoundedBox args={[w,h,d]} radius={edge==="square"?.0001:Math.min(.007,h*.24)} smoothness={4} position={position} castShadow receiveShadow ref={surfaceRef} onClick={e=>{e.stopPropagation();picker.onSelectPart?.("worktop")}}>
+    <meshStandardMaterial map={tex??undefined} color={tex?"#ffffff":m.colour} roughness={roughness} metalness={0}/>
     {picked&&<lineSegments><edgesGeometry args={[new THREE.BoxGeometry(w,h,d)]}/><lineBasicMaterial color="#c8102e"/></lineSegments>}
   </RoundedBox>
 }
@@ -975,15 +983,23 @@ function CameraRig({preset,rw,rh,rd}:{preset:CameraPreset;rw:number;rh:number;rd
   return null;
 }
 
+function SceneImageExport({onReady}:{onReady:(fn:()=>string)=>void}){
+  const {gl,scene,camera,size}=useThree();
+  useEffect(()=>{onReady(()=>{const ratio=gl.getPixelRatio();try{gl.setPixelRatio(Math.min(2,4096/Math.max(size.width,size.height)));gl.render(scene,camera);return gl.domElement.toDataURL("image/png")}finally{gl.setPixelRatio(ratio);gl.render(scene,camera)}})},[gl,scene,camera,size.width,size.height,onReady]);
+  return null;
+}
 export function Scene3D({project,presentationOnly=false,selected,selectedPart,transformMode="translate",onSelect,onSelectPart,onDropType,onMove,onRotate,onMoveStart}:{project:Project;presentationOnly?:boolean;selected?:string|null;selectedPart?:JoineryPart|null;transformMode?:"translate"|"rotate";onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onDropType?:(type:string,x:number,y:number,z:number)=>void;onMove?:(id:string,x:number,y:number,z:number)=>boolean|void;onRotate?:(id:string,rotation:number)=>boolean|void;onMoveStart?:()=>void}){
   activeCustomMaterials=project.customMaterials??[];
   const rw=mm(project.roomWidth),rh=mm(project.roomHeight),rd=mm(project.roomDepth),roomMax=Math.max(rw,rh,rd),floorMaterial=sceneMaterial(project.floorMaterialId??"floor-oak");
   const [preset,setPreset]=useState<CameraPreset>("iso"),[showGrid,setShowGrid]=useState(false),[showWalls,setShowWalls]=useState(true),[renderMode,setRenderMode]=useState<"presentation"|"technical"|"construction">("presentation"),[dropReady,setDropReady]=useState(false),[explodePanels,setExplodePanels]=useState(false);
   const realistic=renderMode!=="technical",construction=renderMode==="construction";
+  const imageExport=useRef<(()=>string)|null>(null);
+  const [imageNotice,setImageNotice]=useState("");
   const dropProjector=useRef<((clientX:number,clientY:number)=>{x:number;y:number;z:number})|null>(null);
   activeConstructionView=construction;
   activeExplodedPanels=construction&&explodePanels;
-  return <div className={"three "+(construction?"constructionView ":"")+(dropReady?"dropReady":"")} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="copy";setDropReady(true)}} onDragLeave={e=>{if(e.currentTarget===e.target)setDropReady(false)}} onDrop={e=>{e.preventDefault();setDropReady(false);const type=e.dataTransfer.getData("application/x-joinery-component")||e.dataTransfer.getData("text/plain");if(!type)return;const point=dropProjector.current?.(e.clientX,e.clientY)??{x:project.roomWidth/2,y:0,z:project.roomDepth/2};onDropType?.(type,point.x,point.y,point.z)}}><div className="sceneToolbar"><div className="cameraPresets">{(["iso","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={preset===v?"active":""} onClick={()=>setPreset(v)}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles renderModes"><button className={renderMode==="presentation"?"active":""} onClick={()=>setRenderMode("presentation")}>Presentation</button><button className={renderMode==="technical"?"active":""} onClick={()=>setRenderMode("technical")}>Technical</button><button className={renderMode==="construction"?"active":""} onClick={()=>{setRenderMode("construction");setPreset("iso");setShowGrid(false)}}>Construction</button>{construction&&<button className={explodePanels?"active":""} onClick={()=>setExplodePanels(v=>!v)}>Explode panels</button>}<span className="sceneToggleDivider"/><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button>{!construction&&<button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button>}</div></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(3.8,rh*1.65),Math.max(4.3,rd*1.35)],fov:38}} dpr={[1,1.5]} performance={{min:.6}} shadows gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:.9}}>
+  return <div className={"three "+(construction?"constructionView ":"")+(dropReady?"dropReady":"")} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="copy";setDropReady(true)}} onDragLeave={e=>{if(e.currentTarget===e.target)setDropReady(false)}} onDrop={e=>{e.preventDefault();setDropReady(false);const type=e.dataTransfer.getData("application/x-joinery-component")||e.dataTransfer.getData("text/plain");if(!type)return;const point=dropProjector.current?.(e.clientX,e.clientY)??{x:project.roomWidth/2,y:0,z:project.roomDepth/2};onDropType?.(type,point.x,point.y,point.z)}}><div className="sceneToolbar"><button onClick={()=>{try{const data=imageExport.current?.();if(!data){setImageNotice("3D view is still loading.");return}const a=document.createElement("a");a.href=data;a.download=project.reference+"-3d.png";a.click();setImageNotice("Image exported.")}catch{setImageNotice("Image export failed. Please try again.")}}}>Export 3D image</button><div className="cameraPresets">{(["iso","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={preset===v?"active":""} onClick={()=>setPreset(v)}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles renderModes"><button className={renderMode==="presentation"?"active":""} onClick={()=>setRenderMode("presentation")}>Presentation</button><button className={renderMode==="technical"?"active":""} onClick={()=>setRenderMode("technical")}>Technical</button><button className={renderMode==="construction"?"active":""} onClick={()=>{setRenderMode("construction");setPreset("iso");setShowGrid(false)}}>Construction</button>{construction&&<button className={explodePanels?"active":""} onClick={()=>setExplodePanels(v=>!v)}>Explode panels</button>}<span className="sceneToggleDivider"/><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button>{!construction&&<button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button>}</div></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(3.8,rh*1.65),Math.max(4.3,rd*1.35)],fov:38}} dpr={[1,1.5]} performance={{min:.6}} shadows gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:.9}}>
+    <SceneImageExport onReady={fn=>{imageExport.current=fn}}/>
     <CameraRig preset={preset} rw={rw} rh={rh} rd={rd}/>
     <DropProjector rw={rw} rd={rd} onReady={fn=>{dropProjector.current=fn}}/>
     <color attach="background" args={[construction?"#e7ded1":realistic?"#e7e2da":"#f2f1ee"]}/>
@@ -1004,5 +1020,5 @@ export function Scene3D({project,presentationOnly=false,selected,selectedPart,tr
     <ContactShadows position={[0,.003,0]} opacity={construction?.52:realistic?.42:.32} scale={Math.max(5,roomMax*1.8)} blur={construction?2.4:realistic?3.2:2.6} far={Math.max(5,roomMax*1.8)}/>
     <OrbitControls makeDefault target={[0,Math.min(1.15,rh*.48),0]} enableDamping dampingFactor={.08} enablePan enableZoom minDistance={1} maxDistance={Math.max(8,roomMax*4)}/>
     {!presentationOnly&&<GizmoHelper alignment="bottom-right" margin={[70,70]}><GizmoViewport axisColors={["#c8102e","#2f8f5b","#315fa8"]} labelColor="#222"/></GizmoHelper>}
-  </Canvas></div>;
+  </Canvas>{imageNotice&&<div className="sceneExportNotice" role="status">{imageNotice}</div>}</div>;
 }

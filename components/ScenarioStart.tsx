@@ -2,6 +2,7 @@
 import {useMemo,useState} from "react";
 import {createScenarioPlan,DESIGN_KINDS,DesignKind,ScenarioPlan,inferDesignKind} from "@/lib/scenarios";
 import {Project} from "@/types/model";
+import {ProjectPreview} from "./ProjectPreview";
 import {Icon} from "./Icon";
 
 function DesignPreview({kind}:{kind:DesignKind}){
@@ -142,7 +143,7 @@ export function ScenarioStart({onCreate,onContinue,continueName,projects=[],acti
           <div className="homeProjectTools"><label><span>Find a project</span><input type="search" value={projectSearch} onChange={e=>setProjectSearch(e.target.value)} placeholder="Search name, customer or reference…"/></label><label><span>Space</span><select value={projectFilter} onChange={e=>setProjectFilter(e.target.value)}><option value="all">All spaces</option>{DESIGN_KINDS.map(k=><option key={k.id} value={k.id}>{k.title}</option>)}</select></label><label><span>Sort by</span><select value={projectSort} onChange={e=>setProjectSort(e.target.value)}><option value="recent">Recently updated</option><option value="name">Project name</option></select></label></div>
           {!visibleProjects.length&&<div className="homeEmptyState"><Icon name="box" size={26}/><b>No matching projects</b><p>Try another search or show archived projects.</p><button onClick={()=>{setProjectSearch("");setProjectFilter("all");setShowArchived(true)}}>Show all projects</button></div>}
           <div className="projectGrid">{visibleProjects.map(pr=>{const pk=inferDesignKind(pr.items);return <article key={pr.id} className={"projectCard "+(pr.id===activeId?"activeProject ":"")+(pr.archived?"archivedProject":"")} >
-            <button className="projectOpen" disabled={deleting===pr.id} onClick={()=>onOpenProject?.(pr.id)} aria-label={"Open project "+pr.name}><div className="projectThumb"><DesignPreview kind={pk}/><span>{pk}</span></div>
+            <button className="projectOpen" disabled={deleting===pr.id} onClick={()=>onOpenProject?.(pr.id)} aria-label={"Open project "+pr.name}><div className="projectThumb"><ProjectPreview project={pr}/><span>{pk}</span></div>
             <div className="projectCardCopy"><small>{pr.reference} · Rev {pr.revision}</small><b>{pr.name}</b><p>{pr.customer||"No customer yet"}{pr.address?" · "+pr.address:""}</p><div><span className={"projectStatus "+pr.status.toLowerCase()}>{pr.status}</span><em>{pr.items.length} objects · {new Date(pr.updatedAt).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</em></div></div>
             </button>
             {onDeleteProject&&<div className="projectCardActions"><button className="projectDelete" disabled={!!deleting} onClick={()=>void deleteProject(pr)} aria-label={"Delete project "+pr.name}>{deleting===pr.id?"Deleting…":"Delete project"}</button></div>}

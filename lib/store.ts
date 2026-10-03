@@ -1,9 +1,10 @@
 "use client";
-import {create} from "zustand";import {persist} from "zustand/middleware";
+import {create} from "zustand";import {persist,createJSONStorage} from "zustand/middleware";
 import {Project,JoineryItem,ViewMode,ProjectSnapshot,Revision} from "@/types/model";
 import {newProject} from "./defaults";import {findFreePlacement,canPlace} from "./geometry";
 type Core={projects:Project[];activeId:string;selectedId:string|null;view:ViewMode};
 type State=Core&{past:Core[];future:Core[];setView:(v:ViewMode)=>void;setActive:(id:string)=>void;select:(id:string|null)=>void;addProject:()=>void;duplicateProject:()=>void;deleteProject:(id?:string)=>void;replaceAll:(p:Project[])=>void;configureActive:(patch:Partial<Project>&{items:JoineryItem[]})=>void;updateProject:(patch:Partial<Project>)=>void;addItem:(i:JoineryItem)=>void;updateItem:(id:string,patch:Partial<JoineryItem>)=>void;updateItems:(ids:string[],patch:Partial<JoineryItem>|((item:JoineryItem)=>Partial<JoineryItem>))=>void;moveItem:(id:string,patch:Partial<JoineryItem>)=>void;checkpoint:()=>void;deleteItem:(id:string)=>void;deleteItems:(ids:string[])=>void;duplicateItem:(id:string)=>void;copyItems:(ids:string[])=>void;pasteItems:()=>void;saveRevision:()=>void;restoreRevision:(id:string)=>void;undo:()=>void;redo:()=>void};
+import {trackedStorage} from "./saveStatus";
 let itemClipboard:JoineryItem[]=[];
 const first=newProject("Showroom concept"),core=(s:State):Core=>({projects:structuredClone(s.projects),activeId:s.activeId,selectedId:s.selectedId,view:s.view});
 const mutate=(set:any,fn:(s:State)=>Partial<State>)=>set((s:State)=>({...fn(s),past:[...s.past.slice(-39),core(s)],future:[]}));
@@ -30,4 +31,4 @@ saveRevision:()=>mutate(set,s=>({projects:s.projects.map(p=>{if(p.id!==s.activeI
 restoreRevision:id=>mutate(set,s=>({projects:s.projects.map(p=>{if(p.id!==s.activeId)return p;const r=p.revisions.find(x=>x.id===id);return r?{...p,...structuredClone(r.snapshot),updatedAt:new Date().toISOString()}:p}),selectedId:null})),
 undo:()=>set(s=>{const prev=s.past.at(-1);if(!prev)return s;return{...prev,past:s.past.slice(0,-1),future:[core(s),...s.future].slice(0,40)}}),
 redo:()=>set(s=>{const next=s.future[0];if(!next)return s;return{...next,past:[...s.past,core(s)].slice(-40),future:s.future.slice(1)}})
-}),{name:"joinery-studio-v5",partialize:s=>({projects:s.projects,activeId:s.activeId,selectedId:null,view:s.view,past:[],future:[]})}));
+}),{name:"joinery-studio-v5",storage:createJSONStorage(()=>trackedStorage(window.localStorage)),partialize:s=>({projects:s.projects,activeId:s.activeId,selectedId:null,view:s.view,past:[],future:[]})}));
