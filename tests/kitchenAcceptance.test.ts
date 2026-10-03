@@ -15,6 +15,7 @@ describe("kitchen gold-standard acceptance",()=>{
     expect(types.has("Wall cabinet")).toBe(true);
     expect(types.has("Dishwasher")).toBe(true);
     expect(types.has("Oven tower")).toBe(true);
+    expect(types.has("Fridge housing")).toBe(true);
     expect(types.has("Worktop")).toBe(true);
     expect(types.has("Backsplash")).toBe(true);
     expect(types.has("Pull-out tap")).toBe(true);
