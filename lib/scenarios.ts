@@ -50,35 +50,45 @@ function kitchen(kind:string,w:number,h:number,d:number):JoineryItem[]{
     item("Pull-out tap","Sink mixer",{x:start+m*2+m*.5-85,y:905,z:455,width:170,height:420,depth:220,doors:0,shelves:0,materialId:"metal-brushed",hardware:"None",productStyle:"Pull-out",colourVariant:"Brushed steel"})
   ];
   if(kind==="l-shape"){
-    const door="u961",carcass="h1180",side="u961",unit=600;
+    const door="u961",carcass="h1180",side="u961";
     const q=(type:string,name:string,patch:Partial<JoineryItem>)=>item(type,name,{materialId:door,carcassMaterialId:carcass,doorMaterialId:door,sideMaterialId:side,leftSideMaterialId:side,rightSideMaterialId:side,plinthMaterialId:door,worktopMaterialId:"stone-light",plinthStyle:"recessed",plinthRecess:70,...patch});
-    const back=[
-      q("Base cabinet","Corner base",{x:0,y:0,z:0,width:unit,height:870,depth:600,doors:1,shelves:1}),
-      q("Drawer unit","Wide drawers",{x:600,y:0,z:0,width:900,height:870,depth:600,doors:3,shelves:0,hardware:"Bar handle"}),
-      q("Sink base","Sink base",{x:1500,y:0,z:0,width:800,height:870,depth:600,doors:2,shelves:0}),
-      q("Dishwasher","Dishwasher",{x:2300,y:0,z:0,width:600,height:870,depth:600,doors:0,shelves:0,colourVariant:"Stainless steel"}),
-      q("Tall cabinet","Tall pantry",{x:2900,y:0,z:0,width:600,height:Math.min(2250,h-80),depth:600,doors:2,shelves:5})
+    const roomyBack=w>=3200,cornerW=600,drawerW=roomyBack?700:600,sinkW=700,dishW=600,tallW=roomyBack?600:0;
+    const backTotal=cornerW+drawerW+sinkW+dishW+tallW,startX=Math.max(0,Math.min(100,(w-backTotal)/2));
+    const xDrawer=startX+cornerW,xSink=xDrawer+drawerW,xDish=xSink+sinkW,xTall=xDish+dishW;
+    const back:JoineryItem[]=[
+      q("Base cabinet","Corner base",{x:startX,y:0,z:0,width:cornerW,height:870,depth:600,doors:1,shelves:1}),
+      q("Drawer unit","Wide drawers",{x:xDrawer,y:0,z:0,width:drawerW,height:870,depth:600,doors:3,shelves:0,hardware:"Bar handle"}),
+      q("Sink base","Sink base",{x:xSink,y:0,z:0,width:sinkW,height:870,depth:600,doors:2,shelves:0}),
+      q("Dishwasher","Dishwasher",{x:xDish,y:0,z:0,width:dishW,height:870,depth:600,doors:0,shelves:0,colourVariant:"Stainless steel"})
     ];
-    const sideRun=[
+    if(roomyBack)back.push(q("Tall cabinet","Tall pantry",{x:xTall,y:0,z:0,width:tallW,height:Math.min(2250,h-80),depth:600,doors:2,shelves:5}));
+    const sideRun:JoineryItem[]=[
       q("Base cabinet","Return base",{x:0,y:0,z:600,width:600,height:870,depth:600,doors:1,shelves:1,rotation:90,wallSide:"left"}),
-      q("Hob base","Hob drawers",{x:0,y:0,z:1200,width:800,height:870,depth:600,doors:3,shelves:0,rotation:90,wallSide:"left",hardware:"Bar handle"}),
-      q("Base cabinet","Return storage",{x:0,y:0,z:2000,width:600,height:870,depth:600,doors:2,shelves:1,rotation:90,wallSide:"left"})
+      q("Hob base","Hob drawers",{x:0,y:0,z:1200,width:Math.min(800,Math.max(600,d-1400)),height:870,depth:600,doors:3,shelves:0,rotation:90,wallSide:"left",hardware:"Bar handle"})
     ];
-    const wallBack=[
-      q("Wall cabinet","Wall unit 1",{x:600,y:1480,z:0,width:900,height:720,depth:350,doors:2,shelves:2}),
-      q("Wall cabinet","Wall unit 2",{x:1500,y:1480,z:0,width:800,height:720,depth:350,doors:2,shelves:2}),
-      q("Wall cabinet","Wall unit 3",{x:2300,y:1480,z:0,width:600,height:720,depth:350,doors:1,shelves:2})
+    let sideEnd=1200+footprint(sideRun[1]).depth;
+    if(d-sideEnd>=500){
+      const storageW=Math.min(600,d-sideEnd);
+      sideRun.push(q("Base cabinet","Return storage",{x:0,y:0,z:sideEnd,width:storageW,height:870,depth:600,doors:2,shelves:1,rotation:90,wallSide:"left"}));
+      sideEnd+=storageW;
+    }
+    const wallBack:JoineryItem[]=[
+      q("Wall cabinet","Wall unit 1",{x:xDrawer,y:1480,z:0,width:drawerW,height:720,depth:350,doors:2,shelves:2}),
+      q("Wall cabinet","Wall unit 2",{x:xSink,y:1480,z:0,width:sinkW,height:720,depth:350,doors:2,shelves:2}),
+      q("Wall cabinet","Wall unit 3",{x:xDish,y:1480,z:0,width:dishW,height:720,depth:350,doors:1,shelves:2})
     ];
-    const wallSide=[
+    const wallSide:JoineryItem[]=[
       q("Wall cabinet","Return wall 1",{x:0,y:1480,z:600,width:600,height:720,depth:350,doors:1,shelves:2,rotation:90,wallSide:"left"}),
-      q("Extractor hood","Extractor hood",{x:0,y:1550,z:1380,width:800,height:520,depth:420,doors:0,shelves:0,rotation:90,wallSide:"left",colourVariant:"Stainless steel"})
+      q("Extractor hood","Extractor hood",{x:0,y:1550,z:Math.min(1380,Math.max(1200,sideEnd-620)),width:Math.min(800,Math.max(600,d-1400)),height:520,depth:420,doors:0,shelves:0,rotation:90,wallSide:"left",colourVariant:"Stainless steel"})
     ];
+    const backWorktopWidth=xDish+dishW-startX;
+    const sideWorktopSpan=Math.max(600,sideEnd-600);
     const finishes=[
-      item("Worktop","Back worktop",{x:0,y:870,z:0,width:2900,height:38,depth:600,doors:0,shelves:0,materialId:"stone-light",hardware:"None"}),
-      item("Worktop","Return worktop",{x:0,y:870,z:600,width:2000,height:38,depth:630,doors:0,shelves:0,materialId:"stone-light",hardware:"None",rotation:90,wallSide:"left"}),
-      item("Backsplash","Back backsplash",{x:0,y:908,z:0,width:2900,height:560,depth:20,doors:0,shelves:0,materialId:"stone-light",hardware:"None"}),
-      item("Backsplash","Return backsplash",{x:0,y:908,z:600,width:2000,height:560,depth:20,doors:0,shelves:0,materialId:"stone-light",hardware:"None",rotation:90,wallSide:"left"}),
-      item("Pull-out tap","Pull-out mixer",{x:1830,y:905,z:470,width:170,height:420,depth:220,doors:0,shelves:0,materialId:"metal-brushed",hardware:"None",productStyle:"Pull-out",colourVariant:"Brushed steel"})
+      item("Worktop","Back worktop",{x:startX,y:870,z:0,width:backWorktopWidth,height:38,depth:600,doors:0,shelves:0,materialId:"stone-light",worktopMaterialId:"stone-light",hardware:"None",wallSide:"back"}),
+      item("Worktop","Return worktop",{x:0,y:870,z:600,width:sideWorktopSpan,height:38,depth:630,doors:0,shelves:0,materialId:"stone-light",worktopMaterialId:"stone-light",hardware:"None",rotation:90,wallSide:"left"}),
+      item("Backsplash","Back backsplash",{x:startX,y:908,z:0,width:backWorktopWidth,height:560,depth:20,doors:0,shelves:0,materialId:"stone-light",hardware:"None",wallSide:"back"}),
+      item("Backsplash","Return backsplash",{x:0,y:908,z:600,width:sideWorktopSpan,height:560,depth:20,doors:0,shelves:0,materialId:"stone-light",hardware:"None",rotation:90,wallSide:"left"}),
+      item("Pull-out tap","Pull-out mixer",{x:xSink+sinkW*.5-85,y:905,z:470,width:170,height:420,depth:220,doors:0,shelves:0,materialId:"metal-brushed",hardware:"None",productStyle:"Pull-out",colourVariant:"Brushed steel"})
     ];
     return [...back,...sideRun,...wallBack,...wallSide,...finishes];
   }
