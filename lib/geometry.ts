@@ -57,6 +57,19 @@ export function findFreePlacement(p:Project,item:JoineryItem){
   return base
 }
 export type WallSide="back"|"front"|"left"|"right";
+export function wallViewSize(p:Project,wall:WallSide){return {w:(wall==="back"||wall==="front")?p.roomWidth:p.roomDepth,h:p.roomHeight}}
+export function wallItemRect(i:JoineryItem,p:Project,wall:WallSide):Rect{
+  const fp=footprint(i),top=p.roomHeight-i.y-i.height;
+  if(wall==="back")return {left:i.x,top,width:fp.width,height:i.height};
+  if(wall==="front")return {left:p.roomWidth-i.x-fp.width,top,width:fp.width,height:i.height};
+  if(wall==="left")return {left:p.roomDepth-i.z-fp.depth,top,width:fp.depth,height:i.height};
+  return {left:i.z,top,width:fp.depth,height:i.height}
+}
+export function isItemOnWall(p:Project,i:JoineryItem,wall:WallSide,tolerance=260){
+  if(i.wallSide===wall)return true;
+  const c=wallClearances(p,i);
+  return wall==="back"?c.back<=tolerance:wall==="front"?c.front<=tolerance:wall==="left"?c.left<=tolerance:c.right<=tolerance
+}
 export function wallClearances(p:Project,i:JoineryItem){
   const fp=footprint(i);
   return{left:Math.max(0,i.x),right:Math.max(0,p.roomWidth-i.x-fp.width),back:Math.max(0,i.z),front:Math.max(0,p.roomDepth-i.z-fp.depth),bottom:Math.max(0,i.y),top:Math.max(0,p.roomHeight-i.y-i.height)}
