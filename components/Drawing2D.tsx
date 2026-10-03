@@ -32,7 +32,11 @@ export function Drawing2D({
   const elevation=!!wallSide&&view==="front";
   const size=elevation?wallViewSize(project,wallSide!):viewSize(project,view),pad=76,W=1000,H=650;
   const rectFor=(i:JoineryItem)=>elevation?wallItemRect(i,project,wallSide!):itemRect(i,project,view);
-  const visibleItems=project.items.filter(i=>i.visible!==false&&(!elevation||isItemOnWall(project,i,wallSide!)));
+  const visibleItems=project.items.filter(i=>i.visible!==false&&(!elevation||isItemOnWall(project,i,wallSide!))).sort((a,b)=>{
+    // Draw finish surfaces behind cabinetry and the selection above everything.
+    const order=(i:JoineryItem)=>i.id===selected?3:["Worktop","Backsplash"].includes(i.type)?0:view==="top"&&i.y>1000?1:2;
+    return order(a)-order(b);
+  });
   const scale=Math.min((W-pad*2)/size.w,(H-pad*2)/size.h);
   const tx=pad+(W-pad*2-size.w*scale)/2,ty=pad+(H-pad*2-size.h*scale)/2;
   const issueNames=new Set(validate(project).flatMap(msg=>project.items.filter(i=>msg.includes(i.name)).map(i=>i.id)));
@@ -147,12 +151,14 @@ export function Drawing2D({
       {guides.x!==undefined&&<><line className="snapGuide" x1={guides.x*scale} x2={guides.x*scale} y1="0" y2={size.h*scale}/><text className="snapHint" x={guides.x*scale+8} y="18">{guides.label}</text></>}
       {guides.y!==undefined&&<><line className="snapGuide" x1="0" x2={size.w*scale} y1={guides.y*scale} y2={guides.y*scale}/><text className="snapHint" x="8" y={guides.y*scale-8}>{guides.label}</text></>}
       {visibleItems.map(i=>{
+        const planOverlay=view==="top"&&(i.y>1000||["Worktop","Backsplash"].includes(i.type));
         const r=rectFor(i),sel=i.id===selected,invalid=issueNames.has(i.id),rotation=normalizeRotation(i.rotation??0),quarter=rotation===90||rotation===270,faceView=(view==="front"&&!quarter)||(view==="side"&&quarter),drawMaterialId=i.type==="Worktop"?(i.worktopMaterialId??i.materialId):(faceView&&i.doors>0?(i.doorMaterialId??i.materialId):i.materialId),fill=material(drawMaterialId,project.customMaterials??[]).colour,tc=contrastText(fill),rw=r.width*scale,rh=r.height*scale,isDrawer=i.type==="Drawer unit"||i.type==="Media unit",hasPlinth=["Wardrobe","Base cabinet","Tall cabinet","Drawer unit","Media unit","Sink base","Hob base","Kitchen island","Corner cabinet"].includes(i.type),plinthPx=hasPlinth?Math.min(rh*.14,100*scale):0,isStair=["Straight staircase","L staircase","U staircase"].includes(i.type),isBed=i.type==="Bed",isSink=i.type==="Sink base",isHob=i.type==="Hob base",isOven=i.type==="Oven tower",isDish=i.type==="Dishwasher",isWasher=i.type==="Washing machine",isMicrowave=i.type==="Microwave",isExtractor=i.type==="Extractor hood",isDoor=i.type==="Door opening",isWindow=i.type==="Window",isGlassBal=i.type==="Glass balustrade",isTimberBal=i.type==="Timber balustrade",clear=wallClearances(project,i);
         return <g key={i.id} className={"drawingItem "+(sel?"selected ":"")+(invalid?"invalid ":"")} transform={"translate("+(r.left*scale)+","+(r.top*scale)+")"}
           onPointerDown={e=>begin(e,i.id,"move")}
           onContextMenu={e=>{e.preventDefault();e.stopPropagation();onContext(e,i.id)}}
           style={{cursor:i.locked?"not-allowed":drag?.id===i.id?"grabbing":"grab"}}>
-          <rect className="itemBody" width={rw} height={rh} rx="2" fill={fill} stroke={invalid?"#e15544":sel?"#c8102e":i.edgeBanding==="None / raw"?"#777":"#292929"} strokeWidth={sel?4:invalid?3:i.edgeBanding.includes("2mm")?3:1.5} filter={sel?"url(#selectionShadow)":undefined}/>
+          <title>{i.name+" · "+labelFor(i,view)}</title>
+          <rect className="itemBody" width={rw} height={rh} rx="2" fill={planOverlay?"none":fill} strokeDasharray={planOverlay?"5 4":undefined} pointerEvents={planOverlay?"stroke":undefined} stroke={invalid?"#e15544":sel?"#c8102e":i.edgeBanding==="None / raw"?"#777":"#292929"} strokeWidth={sel?4:invalid?3:i.edgeBanding.includes("2mm")?3:1.5} filter={sel?"url(#selectionShadow)":undefined}/>
           {faceView&&i.doors===0&&Array.from({length:Math.max(0,i.shelves)}).map((_,n)=><line key={"s"+n} x1="0" x2={rw} y1={rh*(n+1)/(i.shelves+1)} y2={rh*(n+1)/(i.shelves+1)} stroke={tc} opacity=".58"/>)}
           {faceView&&!isDrawer&&i.doors>1&&Array.from({length:i.doors-1}).map((_,n)=><line key={"d"+n} y1="2" y2={rh-plinthPx-2} x1={rw*(n+1)/i.doors} x2={rw*(n+1)/i.doors} stroke={tc} opacity=".72"/>)}
           {faceView&&isDrawer&&i.doors>1&&Array.from({length:i.doors-1}).map((_,n)=><line key={"dr"+n} x1="2" x2={rw-2} y1={(rh-plinthPx)*(n+1)/i.doors} y2={(rh-plinthPx)*(n+1)/i.doors} stroke={tc} opacity=".72"/>)}
@@ -173,8 +179,10 @@ export function Drawing2D({
           {isDoor&&view==="top"&&<><line x1={rw*.08} y1={rh*.88} x2={rw*.08} y2={rh*.08} stroke="#555" strokeWidth="3"/><path d={"M "+(rw*.08)+" "+(rh*.88)+" A "+(rw*.8)+" "+(rh*.8)+" 0 0 1 "+(rw*.88)+" "+(rh*.08)} fill="none" stroke="#888" strokeDasharray="5 4"/></>}
           {isWindow&&faceView&&<><rect x={rw*.04} y={rh*.04} width={rw*.92} height={rh*.92} fill="#b6d0da" opacity=".45" stroke="#555" strokeWidth="3"/><line x1={rw*.5} y1={rh*.05} x2={rw*.5} y2={rh*.95} stroke="#666" strokeWidth="2"/><line x1={rw*.05} y1={rh*.5} x2={rw*.95} y2={rh*.5} stroke="#666" strokeWidth="2"/></>}
           {(isGlassBal||isTimberBal)&&faceView&&<>{Array.from({length:7}).map((_,n)=><line key={"bal"+n} x1={rw*n/6} x2={rw*n/6} y1={rh*.12} y2={rh*.92} stroke={isGlassBal?"#7795a1":tc} strokeWidth={isGlassBal?2:3} opacity={isGlassBal?.65:.9}/>)}<line x1="0" x2={rw} y1={rh*.1} y2={rh*.1} stroke={isGlassBal?"#555":tc} strokeWidth="4"/></>}
-          <text x={rw/2} y={Math.max(15,rh/2-2)} textAnchor="middle" className="itemLabel" fill={tc}>{i.name}</text>
-          <text x={rw/2} y={Math.max(30,rh/2+15)} textAnchor="middle" className="itemSub" fill={tc}>{labelFor(i,view)}</text>
+          {(sel||(!planOverlay&&rw>=65&&rh>=45))&&<g pointerEvents="none">
+            <text x={rw/2} y={Math.max(15,rh/2-2)} textAnchor="middle" className="itemLabel" fill={planOverlay?"#292929":tc} textLength={i.name.length*6>rw-12?Math.max(40,rw-12):undefined} lengthAdjust="spacingAndGlyphs">{i.name}</text>
+            {rh>=55&&<text x={rw/2} y={Math.max(30,rh/2+15)} textAnchor="middle" className="itemSub" fill={planOverlay?"#292929":tc}>{labelFor(i,view)}</text>}
+          </g>}
           {sel&&<>
             <line x1="0" y1={rh+11} x2={rw} y2={rh+11} stroke="#c8102e"/><text x={rw/2} y={rh+27} textAnchor="middle" className="dim selectionDim">{view==="side"?i.depth:i.width} mm</text>
             <line x1={rw+11} y1="0" x2={rw+11} y2={rh} stroke="#c8102e"/><text x={rw+27} y={rh/2} textAnchor="middle" className="dim selectionDim" transform={"rotate(-90 "+(rw+27)+" "+(rh/2)+")"}>{view==="top"?i.depth:i.height} mm</text>
