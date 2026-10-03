@@ -743,6 +743,22 @@ function ItemNode({i,project,selected,selectedPart,mode,construction,onSelect,on
   return <TransformControls mode={mode} translationSnap={Math.max(1,project.rules.snap)/1000} rotationSnap={Math.PI/2} showX={mode==="translate"} showY={mode==="translate"||mode==="rotate"} showZ={mode==="translate"} onMouseDown={()=>onMoveStart?.()} onObjectChange={sync}>{node}</TransformControls>;
 }
 
+function DropProjector({rw,rd,onReady}:{rw:number;rd:number;onReady:(fn:(clientX:number,clientY:number)=>{x:number;y:number;z:number})=>void}){
+  const {camera,gl}=useThree();
+  useEffect(()=>{
+    const raycaster=new THREE.Raycaster(),pointer=new THREE.Vector2(),floor=new THREE.Plane(new THREE.Vector3(0,1,0),0),point=new THREE.Vector3();
+    const project=(clientX:number,clientY:number)=>{
+      const rect=gl.domElement.getBoundingClientRect();
+      pointer.set(((clientX-rect.left)/Math.max(1,rect.width))*2-1,-((clientY-rect.top)/Math.max(1,rect.height))*2+1);
+      raycaster.setFromCamera(pointer,camera);
+      if(!raycaster.ray.intersectPlane(floor,point))return {x:rw*500,y:0,z:rd*500};
+      return {x:Math.max(0,Math.min(rw*1000,(point.x+rw/2)*1000)),y:0,z:Math.max(0,Math.min(rd*1000,(point.z+rd/2)*1000))};
+    };
+    onReady(project);
+  },[camera,gl,rw,rd,onReady]);
+  return null;
+}
+
 type CameraPreset="iso"|"front"|"side"|"top";
 function CameraRig({preset,rw,rh,rd}:{preset:CameraPreset;rw:number;rh:number;rd:number}){
   const {camera,controls}=useThree();
@@ -761,13 +777,15 @@ function CameraRig({preset,rw,rh,rd}:{preset:CameraPreset;rw:number;rh:number;rd
   return null;
 }
 
-export function Scene3D({project,selected,selectedPart,transformMode="translate",onSelect,onSelectPart,onDropType,onMove,onRotate,onMoveStart}:{project:Project;selected?:string|null;selectedPart?:JoineryPart|null;transformMode?:"translate"|"rotate";onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onDropType?:(type:string)=>void;onMove?:(id:string,x:number,y:number,z:number)=>void;onRotate?:(id:string,rotation:number)=>void;onMoveStart?:()=>void}){
+export function Scene3D({project,selected,selectedPart,transformMode="translate",onSelect,onSelectPart,onDropType,onMove,onRotate,onMoveStart}:{project:Project;selected?:string|null;selectedPart?:JoineryPart|null;transformMode?:"translate"|"rotate";onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onDropType?:(type:string,x:number,y:number,z:number)=>void;onMove?:(id:string,x:number,y:number,z:number)=>void;onRotate?:(id:string,rotation:number)=>void;onMoveStart?:()=>void}){
   activeCustomMaterials=project.customMaterials??[];
   const rw=mm(project.roomWidth),rh=mm(project.roomHeight),rd=mm(project.roomDepth),roomMax=Math.max(rw,rh,rd),floorMaterial=sceneMaterial(project.floorMaterialId??"floor-oak");
   const [preset,setPreset]=useState<CameraPreset>("iso"),[showGrid,setShowGrid]=useState(false),[showWalls,setShowWalls]=useState(true),[realistic,setRealistic]=useState(true),[construction,setConstruction]=useState(false),[dropReady,setDropReady]=useState(false);
+  const dropProjector=useRef<((clientX:number,clientY:number)=>{x:number;y:number;z:number})|null>(null);
   activeConstructionView=construction;
-  return <div className={"three "+(construction?"constructionView ":"")+(dropReady?"dropReady":"")} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="copy";setDropReady(true)}} onDragLeave={()=>setDropReady(false)} onDrop={e=>{e.preventDefault();setDropReady(false);const type=e.dataTransfer.getData("application/x-joinery-component")||e.dataTransfer.getData("text/plain");if(type)onDropType?.(type)}}><div className="sceneToolbar"><div className="cameraPresets">{(["iso","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={preset===v?"active":""} onClick={()=>setPreset(v)}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles"><button className={realistic?"active":""} onClick={()=>setRealistic(v=>!v)}>{realistic?"Realistic":"Technical"}</button><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button><button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button><button className={construction?"active":""} onClick={()=>setConstruction(v=>!v)}>Construction</button></div></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(2.2,rh*.78),Math.max(4.3,rd*1.35)],fov:38}} dpr={[1,1.5]} performance={{min:.6}} shadows gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:1.08}}>
+  return <div className={"three "+(construction?"constructionView ":"")+(dropReady?"dropReady":"")} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="copy";setDropReady(true)}} onDragLeave={e=>{if(e.currentTarget===e.target)setDropReady(false)}} onDrop={e=>{e.preventDefault();setDropReady(false);const type=e.dataTransfer.getData("application/x-joinery-component")||e.dataTransfer.getData("text/plain");if(!type)return;const point=dropProjector.current?.(e.clientX,e.clientY)??{x:project.roomWidth/2,y:0,z:project.roomDepth/2};onDropType?.(type,point.x,point.y,point.z)}}><div className="sceneToolbar"><div className="cameraPresets">{(["iso","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={preset===v?"active":""} onClick={()=>setPreset(v)}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles"><button className={realistic?"active":""} onClick={()=>setRealistic(v=>!v)}>{realistic?"Realistic":"Technical"}</button><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button><button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button><button className={construction?"active":""} onClick={()=>setConstruction(v=>!v)}>Construction</button></div></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(2.2,rh*.78),Math.max(4.3,rd*1.35)],fov:38}} dpr={[1,1.5]} performance={{min:.6}} shadows gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:1.08}}>
     <CameraRig preset={preset} rw={rw} rh={rh} rd={rd}/>
+    <DropProjector rw={rw} rd={rd} onReady={fn=>{dropProjector.current=fn}}/>
     <color attach="background" args={[realistic?"#e7e2da":"#f2f1ee"]}/>
     <ambientLight intensity={realistic ? .5 : .72}/>
     <hemisphereLight args={["#fffaf0",realistic?"#8f826f":"#b6afa5",realistic ? .9 : 1.25]}/>
