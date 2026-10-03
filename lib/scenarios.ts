@@ -6,8 +6,8 @@ export type ScenarioPlan={kind:DesignKind;scenario:string;name:string;roomWidth:
 
 export const DESIGN_KINDS=[
   {id:"kitchen" as const,title:"Kitchen",description:"Cabinet runs, appliances, worktops, islands and storage",scenarios:[
+    {id:"l-shape",title:"L-shaped kitchen",description:"Reference-quality fitted kitchen with two connected runs"},
     {id:"straight",title:"Straight kitchen",description:"Single-wall fitted kitchen"},
-    {id:"l-shape",title:"L-shaped kitchen",description:"Two fitted runs meeting at a corner"},
     {id:"island",title:"Kitchen + island",description:"Wall run with central island"},
     {id:"galley",title:"Galley kitchen",description:"Two facing cabinet runs"}
   ]},
