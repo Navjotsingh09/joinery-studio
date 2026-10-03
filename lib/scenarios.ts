@@ -157,7 +157,7 @@ export const COMPONENT_GROUPS_BY_KIND:Record<DesignKind,{title:string;items:stri
   kitchen:[
     {title:"Cabinetry",items:["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Corner cabinet","Filler panel","End panel","Worktop","Kitchen island","Shelving"]},
     {title:"Appliances",items:["Sink base","Hob base","Oven tower","Fridge housing","Dishwasher","Washing machine","Microwave","Extractor hood","Freestanding fridge","Single oven","Range cooker"]},
-    {title:"Taps & wall finishes",items:["Tap","Arc mixer tap","Pull-out tap","Bridge tap","Backsplash"]},
+    {title:"Sinks, taps & wall finishes",items:["Tap","Arc mixer tap","Pull-out tap","Bridge tap","Square neck tap","Backsplash"]},
     {title:"Room architecture",items:["Wall segment","Door opening","Window","Chimney breast","Column","Ceiling bulkhead"]},
     {title:"Services & context",items:["Radiator","Socket","Switch","Ceiling light","Pendant light"]}
   ],
