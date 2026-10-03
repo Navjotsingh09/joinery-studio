@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
 import {Canvas,useThree} from "@react-three/fiber";
-import {OrbitControls,Grid,GizmoHelper,GizmoViewport,TransformControls,ContactShadows} from "@react-three/drei";
+import {OrbitControls,Grid,GizmoHelper,GizmoViewport,TransformControls,ContactShadows,Html,Line} from "@react-three/drei";
 import * as THREE from "three";
 import {Project,JoineryItem,Material} from "@/types/model";
 import {material} from "@/lib/materials";
@@ -12,6 +12,7 @@ const BOARD=18;
 const BACK=6;
 const REVEAL=3;
 let activeCustomMaterials:Material[]=[];
+let activeConstructionView=false;
 const sceneMaterial=(id:string)=>material(id,activeCustomMaterials);
 function useDataTexture(url?:string){
   const [tex,setTex]=useState<THREE.Texture|null>(null);
@@ -139,6 +140,39 @@ function Metal({position,size,rotation=[0,0,0]}:{position:[number,number,number]
   </mesh>
 }
 
+function HingePair({height,side=1}:{height:number;side?:number}){
+  const x=side*.012;
+  return <>{[-.28,.28].map((y,n)=><group key={n} position={[x,y*height,.014]}>
+    <mesh rotation={[Math.PI/2,0,0]} castShadow><cylinderGeometry args={[.016,.016,.012,20]}/><meshStandardMaterial color="#b9b9b6" metalness={.82} roughness={.18}/></mesh>
+    <Metal position={[side*.025,0,-.006]} size={[.05,.024,.012]}/>
+  </group>)}</>
+}
+
+function DrawerBox({w,h,d,z,colour}:{w:number;h:number;d:number;z:number;colour:string}){
+  const side=.012,bottom=.009,boxH=Math.max(.08,h*.56),boxD=Math.max(.12,d*.72);
+  return <group position={[0,0,z-boxD/2]}>
+    <Panel position={[-w/2+side/2,0,0]} size={[side,boxH,boxD]} colour={boardColour(colour,-.08)}/>
+    <Panel position={[w/2-side/2,0,0]} size={[side,boxH,boxD]} colour={boardColour(colour,-.08)}/>
+    <Panel position={[0,-boxH/2+bottom/2,0]} size={[Math.max(.03,w-side*2),bottom,boxD]} colour={boardColour(colour,.08)}/>
+    <Panel position={[0,0,-boxD/2+side/2]} size={[Math.max(.03,w-side*2),boxH,side]} colour={boardColour(colour,-.04)}/>
+    <Metal position={[-w/2-.004,-boxH*.15,0]} size={[.008,.022,boxD*.78]}/>
+    <Metal position={[w/2+.004,-boxH*.15,0]} size={[.008,.022,boxD*.78]}/>
+  </group>
+}
+
+function DimensionOverlay({i}:{i:JoineryItem}){
+  const w=mm(i.width),h=mm(i.height),d=mm(i.depth),offset=.11;
+  const red="#c8102e";
+  return <group>
+    <Line points={[[-w/2,-h/2-offset,d/2+offset],[w/2,-h/2-offset,d/2+offset]]} color={red} lineWidth={1.4}/>
+    <Line points={[[-w/2-offset,-h/2,d/2+offset],[-w/2-offset,h/2,d/2+offset]]} color={red} lineWidth={1.4}/>
+    <Line points={[[w/2+offset,-h/2,d/2],[w/2+offset,-h/2,-d/2]]} color={red} lineWidth={1.4}/>
+    <Html position={[0,-h/2-offset-.025,d/2+offset]} center distanceFactor={7}><span className="modelDimension">{i.width} mm</span></Html>
+    <Html position={[-w/2-offset-.025,0,d/2+offset]} center distanceFactor={7}><span className="modelDimension">{i.height} mm</span></Html>
+    <Html position={[w/2+offset,-h/2,-.02]} center distanceFactor={7}><span className="modelDimension">{i.depth} mm</span></Html>
+  </group>
+}
+
 function Handle({x,y,z,height,hardware,orientation="vertical"}:{x:number;y:number;z:number;height:number;hardware:string;orientation?:"vertical"|"horizontal"}){
   if(hardware==="None"||hardware==="Push-to-open")return null;
   if(hardware==="Handleless")return <Metal position={[x,y,z]} size={orientation==="vertical"?[.008,Math.min(.22,height*.34),.009]:[Math.min(.22,height*.55),.008,.009]}/>;
@@ -159,6 +193,16 @@ function Handle({x,y,z,height,hardware,orientation="vertical"}:{x:number;y:numbe
 function Plinth({w,d,h,colour,style="recessed",recessMm=65}:{w:number;d:number;h:number;colour:string;style?:"recessed"|"flush"|"none";recessMm?:number}){
   if(style==="none")return null;
   const recess=style==="flush"?0:Math.min(mm(Math.max(0,recessMm)),d*.3);
+  if(activeConstructionView&&style==="recessed"){
+    const lx=Math.max(.08,w*.38),lz=Math.max(.08,d*.32);
+    return <group>
+      {[[-lx,-lz],[lx,-lz],[-lx,lz],[lx,lz]].map(([x,z],n)=><group key={n} position={[x,h*.42,z-recess*.35]}>
+        <mesh castShadow><cylinderGeometry args={[.024,.031,h*.72,20]}/><meshStandardMaterial color="#232323" roughness={.45}/></mesh>
+        <mesh position={[0,-h*.36,0]}><cylinderGeometry args={[.042,.042,.012,24]}/><meshStandardMaterial color="#151515" roughness={.6}/></mesh>
+      </group>)}
+      <Panel position={[0,h*.55,d/2-recess-.012]} size={[Math.max(.05,w-.04),h*.9,.018]} colour={boardColour(colour,-.13)} front/>
+    </group>
+  }
   return <group>
     <Panel position={[0,h/2,-recess/2]} size={[Math.max(.05,w-.05),h,Math.max(.04,d-recess)]} colour={boardColour(colour,-.08)}/>
     <Panel position={[0,h-.009,d/2-.035]} size={[Math.max(.05,w-.04),.018,.05]} colour={boardColour(colour,-.12)}/>
@@ -179,6 +223,8 @@ function Carcass({i,w,h,d,colour,shelves=0,openBack=false}:{i:JoineryItem;w:numb
       const y=-h/2+t+(innerH*(n+1))/(shelves+1);
       return <Panel key={n} position={[0,y,.005]} size={[innerW,t,shelfD]} colour={boardColour(colour,.015)}/>
     })}
+    {activeConstructionView&&w>.9&&<Panel position={[0,0,0]} size={[t,innerH,shelfD]} colour={boardColour(colour,-.02)}/>}
+    {activeConstructionView&&<>{[-.34,.34].map((y,n)=><mesh key={"drill"+n} position={[-w/2+t+.006,y*h,bodyD/2+.002]}><cylinderGeometry args={[.004,.004,.004,12]}/><meshStandardMaterial color="#64615c"/></mesh>)}</>}
   </group>;
 }
 
@@ -194,6 +240,7 @@ function DoorFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number;c
     const leftHinge=n<count/2,pivot=x+(leftHinge?-faceW/2:faceW/2),localX=leftHinge?faceW/2:-faceW/2;
     return <group key={n} position={[pivot,0,z]} rotation={[0,leftHinge?-open:open,0]}>
       <Panel position={[localX,0,0]} size={[faceW,faceH,frontT]} colour={faceColour} front/>
+      {open>.08&&<HingePair height={faceH} side={leftHinge?1:-1}/>}
       <Handle x={localX+(leftHinge?faceW*.38:-faceW*.38)} y={-.02} z={frontT/2+.014} height={faceH} hardware={i.hardware}/>
     </group>;
   })}</>;
@@ -201,10 +248,11 @@ function DoorFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number;c
 
 function DrawerFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number;colour:string}){
   const faceMaterial=sceneMaterial(i.doorMaterialId??i.materialId),faceColour=faceMaterial.colour;
-  const count=Math.max(2,i.doors||3),gap=mm(REVEAL),frontT=mm(BOARD),faceW=w-gap*2,faceH=(h-gap*(count+1))/count,z=d/2-frontT/2+Math.min(.38,(i.openAmount??0)/100*.38);
+  const count=Math.max(2,i.doors||3),gap=mm(REVEAL),frontT=mm(BOARD),faceW=w-gap*2,faceH=(h-gap*(count+1))/count,openDist=Math.min(.38,(i.openAmount??0)/100*.38),z=d/2-frontT/2+openDist;
   return <>{Array.from({length:count},(_,n)=>{
     const y=-h/2+gap+faceH/2+n*(faceH+gap);
     return <group key={n}>
+      {openDist>.02&&<group position={[0,y,0]}><DrawerBox w={faceW*.92} h={faceH*.78} d={d*.78} z={z-frontT/2} colour={faceColour}/></group>}
       <Panel position={[0,y,z]} size={[faceW,faceH,frontT]} colour={faceColour} front/>
       <Handle x={0} y={y+faceH*.28} z={z+frontT/2+.014} height={faceW} hardware={i.hardware} orientation="horizontal"/>
     </group>;
@@ -629,6 +677,7 @@ function ItemNode({i,project,selected,mode,construction,onSelect,onMove,onRotate
   };
   const node=<group ref={group} position={position} rotation={[0,THREE.MathUtils.degToRad(rotation),0]} onClick={e=>{e.stopPropagation();onSelect?.(i.id)}}>
     <CabinetGeometry i={i} construction={construction}/>
+    {selected&&construction&&<DimensionOverlay i={i}/>}
     {selected&&<mesh><boxGeometry args={[mm(i.width)+.035,mm(i.height)+.035,mm(i.depth)+.035]}/><meshBasicMaterial color="#c8102e" wireframe transparent opacity={.55}/></mesh>}
   </group>;
   if(!selected||i.locked)return node;
@@ -658,7 +707,8 @@ export function Scene3D({project,selected,transformMode="translate",onSelect,onM
   activeCustomMaterials=project.customMaterials??[];
   const rw=mm(project.roomWidth),rh=mm(project.roomHeight),rd=mm(project.roomDepth),roomMax=Math.max(rw,rh,rd),floorMaterial=sceneMaterial(project.floorMaterialId??"floor-oak");
   const [preset,setPreset]=useState<CameraPreset>("iso"),[showGrid,setShowGrid]=useState(false),[showWalls,setShowWalls]=useState(true),[realistic,setRealistic]=useState(true),[construction,setConstruction]=useState(false);
-  return <div className="three"><div className="sceneToolbar"><div className="cameraPresets">{(["iso","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={preset===v?"active":""} onClick={()=>setPreset(v)}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles"><button className={realistic?"active":""} onClick={()=>setRealistic(v=>!v)}>{realistic?"Realistic":"Technical"}</button><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button><button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button><button className={construction?"active":""} onClick={()=>setConstruction(v=>!v)}>Construction</button></div></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(2.2,rh*.78),Math.max(4.3,rd*1.35)],fov:38}} dpr={[1,1.5]} performance={{min:.6}} shadows gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:1.08}}>
+  activeConstructionView=construction;
+  return <div className={"three "+(construction?"constructionView":"")}><div className="sceneToolbar"><div className="cameraPresets">{(["iso","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={preset===v?"active":""} onClick={()=>setPreset(v)}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles"><button className={realistic?"active":""} onClick={()=>setRealistic(v=>!v)}>{realistic?"Realistic":"Technical"}</button><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button><button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button><button className={construction?"active":""} onClick={()=>setConstruction(v=>!v)}>Construction</button></div></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(2.2,rh*.78),Math.max(4.3,rd*1.35)],fov:38}} dpr={[1,1.5]} performance={{min:.6}} shadows gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:1.08}}>
     <CameraRig preset={preset} rw={rw} rh={rh} rd={rd}/>
     <color attach="background" args={[realistic?"#e7e2da":"#f2f1ee"]}/>
     <ambientLight intensity={realistic ? .5 : .72}/>
