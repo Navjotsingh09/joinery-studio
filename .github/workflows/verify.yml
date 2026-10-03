@@ -13,19 +13,27 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Verify environment and application
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Production build
+        run: npx next build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://yudzfpuizzejpnkoxidx.supabase.co
           NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_ocqbsvwCTPrnw335PZLjfA_HQj9KJ7M
-        run: |
-          set -euo pipefail
-          echo "Runner started successfully."
-          node --version
-          npm --version
-          git --version
-          git clone --depth 1 --branch "${GITHUB_REF_NAME}" "https://github.com/${GITHUB_REPOSITORY}.git" app
-          cd app
-          npm install --no-audit --no-fund
-          npm run typecheck
-          npm test
-          npx next build
