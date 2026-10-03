@@ -63,7 +63,7 @@ function kitchen(kind:string,w:number,h:number,d:number):JoineryItem[]{
       q("Dishwasher","Dishwasher",{x:xDish,y:0,z:0,width:dishW,height:870,depth:600,doors:0,shelves:0,colourVariant:"Stainless steel"})
     ];
     if(hasOven)back.push(q("Oven tower","Integrated oven tower",{x:xOven,y:0,z:0,width:ovenW,height:Math.min(2250,h-80),depth:600,doors:2,shelves:4}));
-    if(hasPantry)back.push(q("Tall cabinet","Tall pantry",{x:xPantry,y:0,z:0,width:pantryW,height:Math.min(2250,h-80),depth:600,doors:2,shelves:5}));
+    if(hasPantry)back.push(q("Fridge housing","Integrated fridge housing",{x:xPantry,y:0,z:0,width:pantryW,height:Math.min(2250,h-80),depth:650,doors:2,shelves:2}));
     const sideRun:JoineryItem[]=[
       lower("Base cabinet","Return base",{x:0,y:0,z:600,width:600,height:870,depth:600,doors:1,shelves:1,rotation:90,wallSide:"left"}),
       lower("Hob base","Hob drawers",{x:0,y:0,z:1200,width:Math.min(800,Math.max(600,d-1400)),height:870,depth:600,doors:3,shelves:0,rotation:90,wallSide:"left",hardware:"Bar handle"})
