@@ -50,6 +50,14 @@ describe("kitchen end-to-end contract",()=>{
     for(const [item,wall,rotation] of cases){const q=autoFaceNearestWall(p,item);expect(q.wallSide).toBe(wall);expect(q.rotation).toBe(rotation)}
   });
 
+  it("auto-orients wall finishes as well as cabinets",()=>{
+    const p=newProject("Wall finish QA");p.rules={...p.rules,wallClearance:0};
+    const backsplash={...newItem("Backsplash"),x:0,z:900};
+    const q=autoFaceNearestWall(p,backsplash);
+    expect(q.wallSide).toBe("left");
+    expect(q.rotation).toBe(90);
+  });
+
   it("ships requested faucet and appliance variation defaults",()=>{
     for(const type of ["Arc mixer tap","Pull-out tap","Bridge tap","Square neck tap"]){
       const i=newItem(type);expect(i.productStyle).toBeTruthy();expect(i.colourVariant).toBe("Chrome");
