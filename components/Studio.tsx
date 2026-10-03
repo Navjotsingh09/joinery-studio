@@ -236,13 +236,29 @@ export default function Studio(){
     e.target.value=""
   };
 
+  const optimiseMaterialImage=async(f:File)=>{
+    const raw=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(reader.error);reader.readAsDataURL(f)});
+    const image=await new Promise<HTMLImageElement>((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(new Error("Image could not be read"));img.src=raw});
+    if(image.width<64||image.height<64)throw new Error("Image is too small. Use at least 64 × 64 pixels.");
+    const maxEdge=1400,scale=Math.min(1,maxEdge/Math.max(image.width,image.height)),canvas=document.createElement("canvas");
+    canvas.width=Math.max(64,Math.round(image.width*scale));canvas.height=Math.max(64,Math.round(image.height*scale));
+    const ctx=canvas.getContext("2d");if(!ctx)throw new Error("Your browser could not prepare the material image.");
+    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality="high";ctx.drawImage(image,0,0,canvas.width,canvas.height);
+    for(const quality of [.84,.72,.6,.48]){
+      const data=canvas.toDataURL("image/webp",quality);
+      if(data.length<850000)return data;
+    }
+    throw new Error("The material image is still too large after optimisation. Crop it closer to the material sample.");
+  };
+
   const uploadMaterial=async(e:React.ChangeEvent<HTMLInputElement>)=>{
     const f=e.target.files?.[0];if(!f)return;
     if(!f.type.startsWith("image/")){setNotice("Choose an image file for the material.");e.target.value="";return}
-    if(f.size>1800000){setNotice("Material image is too large. Please use an image under 1.8 MB.");e.target.value="";return}
+    if(f.size>8000000){setNotice("Material image is too large. Please use an image under 8 MB.");e.target.value="";return}
+    if((p.customMaterials??[]).length>=12){setNotice("This project already has 12 custom materials. Remove an unused material before adding another.");e.target.value="";return}
     try{
-      const dataUrl=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(reader.error);reader.readAsDataURL(f)});
-      await new Promise<void>((resolve,reject)=>{const image=new Image();image.onload=()=>image.width>=64&&image.height>=64?resolve():reject(new Error("Image is too small"));image.onerror=()=>reject(new Error("Image could not be read"));image.src=dataUrl});
+      setNotice("Optimising material image…");
+      const dataUrl=await optimiseMaterialImage(f);
       const name=(window.prompt("Material name",f.name.replace(/\.[^.]+$/,""))||"Custom material").trim();
       const custom:Material={id:"custom-"+crypto.randomUUID(),code:"CUSTOM",name,colour:"#b8b2a8",thickness:18,category:"Custom",textureDataUrl:dataUrl};
       s.updateProject({customMaterials:[...(p.customMaterials??[]),custom]});
