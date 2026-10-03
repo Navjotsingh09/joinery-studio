@@ -9,7 +9,8 @@ export type JoineryItem={
   shelves:number;doors:number;materialId:string;finish:string;notes:string;locked:boolean;hardware:string;
   edgeBanding:string;rotation:number;visible?:boolean;layer?:ItemLayer;groupId?:string;
   carcassMaterialId?:string;doorMaterialId?:string;sideMaterialId?:string;
-  plinthStyle?:PlinthStyle;plinthRecess?:number;wallSide?:WallSide
+  plinthStyle?:PlinthStyle;plinthRecess?:number;wallSide?:WallSide;
+  productStyle?:string;colourVariant?:string;openAmount?:number
 };
 export type DesignRules={wallClearance:number;componentGap:number;snap:number;serviceClearance?:number};
 export type ProjectSnapshot={
