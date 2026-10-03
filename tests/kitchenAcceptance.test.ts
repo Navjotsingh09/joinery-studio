@@ -20,6 +20,14 @@ describe("kitchen gold-standard acceptance",()=>{
     expect(types.has("Pull-out tap")).toBe(true);
   });
 
+  it("provides configurable sink and tap presentation",()=>{
+    const sink=newItem("Sink base"),tap=newItem("Pull-out tap");
+    expect(sink.productStyle).toBe("Inset stainless");
+    expect(sink.colourVariant).toBe("Stainless steel");
+    expect(tap.productStyle).toBe("Pull-out");
+    expect(tap.colourVariant).toBe("Chrome");
+  });
+
   it("keeps cabinet finishes independently configurable by construction part",()=>{
     const cabinet=newItem("Base cabinet");
     cabinet.carcassMaterialId="h1180";
