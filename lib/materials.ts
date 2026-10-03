@@ -12,5 +12,9 @@ export const MATERIALS:Material[]=[
 {id:"stone-light",code:"QS01",name:"Carrara Quartz",colour:"#e7e3dc",thickness:20,category:"Worktop"},
 {id:"stone-dark",code:"QS02",name:"Graphite Quartz",colour:"#46433f",thickness:20,category:"Worktop"},
 {id:"glass-clear",code:"GLS",name:"Clear Glass",colour:"#b7d2db",thickness:10,category:"Glass"},
-{id:"metal-brushed",code:"MET",name:"Brushed Steel",colour:"#9ca1a3",thickness:2,category:"Metal"}];
-export const material=(id:string)=>MATERIALS.find(m=>m.id===id)??MATERIALS[0];
+{id:"metal-brushed",code:"MET",name:"Brushed Steel",colour:"#9ca1a3",thickness:2,category:"Metal"},
+{id:"floor-oak",code:"FL01",name:"Natural Oak Floor",colour:"#c7ad8b",thickness:14,category:"Floor"},
+{id:"floor-walnut",code:"FL02",name:"Walnut Floor",colour:"#8c6546",thickness:14,category:"Floor"},
+{id:"floor-stone",code:"FL03",name:"Light Stone Tile",colour:"#d8d4cc",thickness:10,category:"Floor"}];
+export const material=(id:string,custom:Material[]=[])=>([...custom,...MATERIALS].find(m=>m.id===id)??MATERIALS[0]);
+export const floorMaterials=(custom:Material[]=[])=>([...custom,...MATERIALS].filter(m=>m.category==="Floor"));
