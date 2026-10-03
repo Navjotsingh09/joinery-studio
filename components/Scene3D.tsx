@@ -711,7 +711,24 @@ function HobBase({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}
 }
 
 function OvenTower({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  return <group><TallCabinet i={i} w={w} h={h} d={d} c={c}/><ApplianceGlass position={[0,.08,d/2+.015]} size={[w-.09,.62,.035]}/><Metal position={[0,.34,d/2+.043]} size={[w-.18,.018,.02]}/></group>;
+  const plinth=.1,bodyH=Math.max(.9,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
+  const ovenH=Math.min(.62,bodyH*.3),lowerH=Math.max(.34,bodyH*.29),topH=Math.max(.34,bodyH-ovenH-lowerH-.035);
+  const lowerY=-bodyH/2+lowerH/2,ovenY=lowerY+lowerH/2+ovenH/2+.012,topY=bodyH/2-topH/2;
+  return <group>
+    <Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/>
+    <group position={[0,bodyY,-mm(BOARD)/2]}>
+      <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={activeConstructionView?3:0}/>
+      <group position={[0,lowerY,0]}><DoorFronts i={{...i,doors:1}} w={w} h={lowerH-.012} d={bodyD} colour={c}/></group>
+      <group position={[0,topY,0]}><DoorFronts i={{...i,doors:1}} w={w} h={topH-.012} d={bodyD} colour={c}/></group>
+      <mesh position={[0,ovenY,bodyD/2+.002]} castShadow><boxGeometry args={[w-.055,ovenH-.02,.08]}/><meshStandardMaterial color="#242628" metalness={.28} roughness={.25}/></mesh>
+      <ApplianceGlass position={[0,ovenY,bodyD/2+.049]} size={[w-.11,ovenH-.115,.026]}/>
+      <Metal position={[0,ovenY+ovenH*.34,bodyD/2+.071]} size={[w-.18,.018,.018]}/>
+      {activeConstructionView&&<>
+        <mesh position={[0,ovenY,bodyD*.08]} castShadow><boxGeometry args={[Math.max(.2,w-.12),Math.max(.2,ovenH-.11),Math.max(.18,bodyD*.58)]}/><meshStandardMaterial color="#333638" roughness={.48} metalness={.12}/></mesh>
+        <Html position={[0,ovenY,bodyD/2+.18]} center distanceFactor={7}><span className="constructionLabel accent">Oven cavity</span></Html>
+      </>}
+    </group>
+  </group>;
 }
 
 function FridgeHousing({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
