@@ -406,11 +406,13 @@ function Countertop({w,d,y,colour="#e8e4dc",materialId}:{w:number;d:number;y:num
 }
 
 function Sink({w,d,y}:{w:number;d:number;y:number}){
-  const sw=Math.min(.56,w*.72),sd=Math.min(.43,d*.7);
+  const sw=Math.min(.56,w*.72),sd=Math.min(.43,d*.7),rim=.026,basinH=.18;
   return <group position={[0,y,d*.03]}>
-    <mesh receiveShadow castShadow><boxGeometry args={[sw,.022,sd]}/><meshStandardMaterial color="#a7adaf" roughness={.16} metalness={.76}/></mesh>
-    <mesh position={[0,.014,0]}><boxGeometry args={[sw-.05,.024,sd-.05]}/><meshStandardMaterial color="#353c40" roughness={.28} metalness={.5}/></mesh>
-    <mesh position={[0,.029,0]} rotation={[-Math.PI/2,0,0]}><cylinderGeometry args={[.026,.026,.006,24]}/><meshStandardMaterial color="#8f9699" metalness={.78} roughness={.18}/></mesh>
+    <mesh position={[0,-basinH/2+.004,0]} receiveShadow castShadow><boxGeometry args={[sw-rim*2,basinH,sd-rim*2]}/><meshStandardMaterial color="#6f777a" roughness={.2} metalness={.72}/></mesh>
+    <mesh position={[0,.003,0]} receiveShadow castShadow><boxGeometry args={[sw,.012,sd]}/><meshStandardMaterial color="#b7bcbd" roughness={.12} metalness={.82}/></mesh>
+    <mesh position={[0,.01,0]}><boxGeometry args={[sw-rim*2,.014,sd-rim*2]}/><meshStandardMaterial color="#303639" roughness={.22} metalness={.52}/></mesh>
+    <mesh position={[0,-basinH+.018,0]} rotation={[-Math.PI/2,0,0]}><cylinderGeometry args={[.024,.024,.008,28]}/><meshStandardMaterial color="#b9bec0" metalness={.84} roughness={.14}/></mesh>
+    <mesh position={[0,-basinH+.024,0]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[.034,.003,8,28]}/><meshStandardMaterial color="#5d6467" metalness={.7} roughness={.2}/></mesh>
   </group>;
 }
 function Hob({w,d,y}:{w:number;d:number;y:number}){
