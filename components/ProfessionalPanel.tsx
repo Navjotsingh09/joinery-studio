@@ -59,13 +59,31 @@ export function ProfessionalPanel({project}:{project:Project}){
     setMessage(made.length?"Added "+made.length+" copies along the wall.":"No clear space for another copy.");
   };
   const makeWorktop=()=>{
-    const bases=project.items.filter(i=>baseTypes.has(i.type)&&i.visible!==false&&i.z<250);
-    if(!bases.length)return setMessage("No back-wall base cabinet run found.");
-    const minX=Math.min(...bases.map(i=>i.x)),maxX=Math.max(...bases.map(i=>i.x+footprint(i).width)),top=Math.max(...bases.map(i=>i.y+i.height)),depth=Math.max(...bases.map(i=>footprint(i).depth));
-    const existing=project.items.find(i=>i.type==="Worktop"&&Math.abs(i.x-minX)<100);
-    const q={...newItem("Worktop"),id:existing?.id??crypto.randomUUID(),name:"Continuous worktop",x:minX,y:top,z:0,width:maxX-minX,height:38,depth:depth+40,materialId:"stone-light",layer:"Joinery" as const};
-    existing?s.updateItem(existing.id,q):s.addItem(q);
-    setMessage("Continuous worktop generated across "+(maxX-minX)+" mm.");
+    const bases=project.items.filter(i=>baseTypes.has(i.type)&&i.visible!==false);
+    if(!bases.length)return setMessage("No kitchen base cabinets found.");
+    const wallFor=(i:JoineryItem):WallSide|null=>{
+      if(i.wallSide)return i.wallSide;
+      const c=wallClearances(project,i),pairs:[WallSide,number][]=[["back",c.back],["front",c.front],["left",c.left],["right",c.right]];
+      pairs.sort((a,b)=>a[1]-b[1]);
+      return pairs[0][1]<=180?pairs[0][0]:null;
+    };
+    const groups=new Map<WallSide,JoineryItem[]>();
+    for(const i of bases){const wall=wallFor(i);if(!wall)continue;groups.set(wall,[...(groups.get(wall)??[]),i])}
+    if(!groups.size)return setMessage("Move the base cabinets close to a wall before generating worktops.");
+    const existing=project.items.filter(i=>i.type==="Worktop"&&i.name.startsWith("Auto worktop · "));
+    const keep=new Set<string>(),created:string[]=[];
+    for(const [wall,items] of groups){
+      const horizontal=wall==="back"||wall==="front";
+      const min=horizontal?Math.min(...items.map(i=>i.x)):Math.min(...items.map(i=>i.z));
+      const max=horizontal?Math.max(...items.map(i=>i.x+footprint(i).width)):Math.max(...items.map(i=>i.z+footprint(i).depth));
+      const across=Math.max(...items.map(i=>horizontal?footprint(i).depth:footprint(i).width))+40;
+      const top=Math.max(...items.map(i=>i.y+i.height)),span=max-min,name="Auto worktop · "+wall;
+      const found=existing.find(i=>i.name===name),q={...newItem("Worktop"),id:found?.id??crypto.randomUUID(),name,y:top,width:span,height:38,depth:across,materialId:found?.materialId??"stone-light",worktopMaterialId:found?.worktopMaterialId??found?.materialId??"stone-light",layer:"Joinery" as const,rotation:horizontal?(wall==="front"?180:0):90,wallSide:wall,x:horizontal?min:(wall==="left"?0:Math.max(0,project.roomWidth-across)),z:horizontal?(wall==="back"?0:Math.max(0,project.roomDepth-across)):min};
+      keep.add(q.id);created.push(wall);
+      found?s.updateItem(found.id,q):s.addItem(q);
+    }
+    for(const old of existing)if(!keep.has(old.id))s.deleteItem(old.id);
+    setMessage("Generated worktop runs for "+created.join(", ")+" wall"+(created.length>1?"s":"")+".");
   };
   const addWardrobeInternals=()=>{
     if(!primary||!wardrobeTypes.has(primary.type))return setMessage("Select a wardrobe first.");
