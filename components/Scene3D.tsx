@@ -472,12 +472,32 @@ function Countertop({w,d,y,colour="#e8e4dc",materialId}:{w:number;d:number;y:num
   return <WorktopSurface w={w+.025} h={.032} d={d+.025} materialId={id} position={[0,y,0]}/>;
 }
 
-function Sink({w,d,y}:{w:number;d:number;y:number}){
-  const sw=Math.min(.56,w*.72),sd=Math.min(.43,d*.7),rim=.026,basinH=.18;
+function Sink({i,w,d,y}:{i:JoineryItem;w:number;d:number;y:number}){
+  const style=i.productStyle??"Inset stainless",sw=Math.min(.56,w*.72),sd=Math.min(.43,d*.7),rim=.026,basinH=.18;
+  const finish=i.colourVariant==="Black"?"#242729":i.colourVariant==="White ceramic"?"#efeeea":"#b7bcbd";
+  if(style==="Belfast ceramic"){
+    return <group position={[0,y-.055,d*.03]}>
+      <RoundedBox args={[Math.min(.62,w*.78),.24,Math.min(.46,d*.72)]} radius={.035} smoothness={4} castShadow receiveShadow>
+        <meshStandardMaterial color={i.colourVariant==="Black"?"#313131":"#f1efea"} roughness={.32}/>
+      </RoundedBox>
+      <RoundedBox args={[Math.min(.54,w*.68),.18,Math.min(.38,d*.6)]} radius={.03} smoothness={4} position={[0,.025,0]}>
+        <meshStandardMaterial color="#d8d5cf" roughness={.45}/>
+      </RoundedBox>
+      <mesh position={[0,-.095,0]} rotation={[-Math.PI/2,0,0]}><cylinderGeometry args={[.025,.025,.01,28]}/><meshStandardMaterial color="#9ca1a3" metalness={.76} roughness={.18}/></mesh>
+    </group>;
+  }
+  if(style==="Undermount"){
+    return <group position={[0,y-.018,d*.03]}>
+      <RoundedBox args={[sw-rim*1.2,basinH,sd-rim*1.2]} radius={.026} smoothness={4} position={[0,-basinH/2,0]} castShadow receiveShadow>
+        <meshStandardMaterial color={finish} roughness={.18} metalness={i.colourVariant==="White ceramic"?0:.72}/>
+      </RoundedBox>
+      <mesh position={[0,-basinH+.018,0]} rotation={[-Math.PI/2,0,0]}><cylinderGeometry args={[.024,.024,.008,28]}/><meshStandardMaterial color="#b9bec0" metalness={.84} roughness={.14}/></mesh>
+    </group>;
+  }
   return <group position={[0,y,d*.03]}>
-    <mesh position={[0,-basinH/2+.004,0]} receiveShadow castShadow><boxGeometry args={[sw-rim*2,basinH,sd-rim*2]}/><meshStandardMaterial color="#6f777a" roughness={.2} metalness={.72}/></mesh>
-    <mesh position={[0,.003,0]} receiveShadow castShadow><boxGeometry args={[sw,.012,sd]}/><meshStandardMaterial color="#b7bcbd" roughness={.12} metalness={.82}/></mesh>
-    <mesh position={[0,.01,0]}><boxGeometry args={[sw-rim*2,.014,sd-rim*2]}/><meshStandardMaterial color="#303639" roughness={.22} metalness={.52}/></mesh>
+    <mesh position={[0,-basinH/2+.004,0]} receiveShadow castShadow><boxGeometry args={[sw-rim*2,basinH,sd-rim*2]}/><meshStandardMaterial color={i.colourVariant==="Black"?"#2f3436":"#6f777a"} roughness={.2} metalness={.72}/></mesh>
+    <mesh position={[0,.003,0]} receiveShadow castShadow><boxGeometry args={[sw,.012,sd]}/><meshStandardMaterial color={finish} roughness={.12} metalness={i.colourVariant==="White ceramic"?0:.82}/></mesh>
+    <mesh position={[0,.01,0]}><boxGeometry args={[sw-rim*2,.014,sd-rim*2]}/><meshStandardMaterial color={i.colourVariant==="White ceramic"?"#d8d5cf":"#303639"} roughness={.22} metalness={i.colourVariant==="White ceramic"?0:.52}/></mesh>
     <mesh position={[0,-basinH+.018,0]} rotation={[-Math.PI/2,0,0]}><cylinderGeometry args={[.024,.024,.008,28]}/><meshStandardMaterial color="#b9bec0" metalness={.84} roughness={.14}/></mesh>
     <mesh position={[0,-basinH+.024,0]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[.034,.003,8,28]}/><meshStandardMaterial color="#5d6467" metalness={.7} roughness={.2}/></mesh>
   </group>;
@@ -645,7 +665,7 @@ function KitchenIsland({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:s
 }
 
 function SinkBase({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  return <group><BaseCabinet i={i} w={w} h={h} d={d} c={c}/><Sink w={w} d={d} y={h/2+.048}/></group>;
+  return <group><BaseCabinet i={i} w={w} h={h} d={d} c={c}/><Sink i={i} w={w} d={d} y={h/2+.048}/></group>;
 }
 
 function HobBase({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
