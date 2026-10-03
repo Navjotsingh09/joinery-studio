@@ -24,7 +24,7 @@ const floatingTypes=new Set(["Wall cabinet","Microwave","Extractor hood","Window
 export const isWallMounted=(i:JoineryItem)=>floatingTypes.has(i.type);
 export function clampItemToRoom(i:JoineryItem,p:Project):JoineryItem{
   const rotation=normalizeRotation(i.rotation??0),candidate={...i,rotation},fp=footprint(candidate),step=Math.max(1,p.rules.snap),c=Math.max(0,p.rules.wallClearance);
-  return{...candidate,x:clamp(snap(candidate.x,step),c,Math.max(c,p.roomWidth-c-fp.width)),y:isWallMounted(candidate)?clamp(snap(candidate.y,step),0,Math.max(0,p.roomHeight-candidate.height)):0,z:clamp(snap(candidate.z,step),0,Math.max(0,p.roomDepth-fp.depth))}
+  return{...candidate,x:clamp(snap(candidate.x,step),c,Math.max(c,p.roomWidth-c-fp.width)),y:clamp(snap(candidate.y,step),0,Math.max(0,p.roomHeight-candidate.height)),z:clamp(snap(candidate.z,step),0,Math.max(0,p.roomDepth-fp.depth))}
 }
 const wardrobeInternal=new Set(["Hanging rail","Internal drawers","Shoe rack","Internal divider","Loft box"]);
 const baseKitchen=new Set(["Base cabinet","Drawer unit","Sink base","Hob base","Corner cabinet","Filler panel","End panel","Dishwasher","Washing machine"]);
