@@ -1,7 +1,7 @@
 "use client";
 import {createContext,useContext,useEffect,useRef,useState} from "react";
 import {Canvas,useThree} from "@react-three/fiber";
-import {OrbitControls,Grid,GizmoHelper,GizmoViewport,TransformControls,ContactShadows,Html,Line} from "@react-three/drei";
+import {OrbitControls,Grid,GizmoHelper,GizmoViewport,TransformControls,ContactShadows,Html,Line,RoundedBox} from "@react-three/drei";
 import * as THREE from "three";
 import {Project,JoineryItem,Material,JoineryPart} from "@/types/model";
 import {material} from "@/lib/materials";
@@ -384,9 +384,19 @@ function OpenShelving({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:st
 }
 
 
+function WorktopSurface({w,h,d,materialId,position=[0,0,0]}:{w:number;h:number;d:number;materialId:string;position?:[number,number,number]}){
+  const picker=useContext(PartSelectionContext),m=sceneMaterial(materialId),uploaded=useDataTexture(m.textureDataUrl);
+  if(uploaded){uploaded.repeat.set(Math.max(1,w/.5),Math.max(1,d/.5));}
+  const tex=uploaded??woodTexture(m.colour),picked=picker.selected&&picker.selectedPart==="worktop";
+  return <RoundedBox args={[w,h,d]} radius={Math.min(.007,h*.24)} smoothness={4} position={position} castShadow receiveShadow onClick={e=>{if(picker.selected){e.stopPropagation();picker.onSelectPart?.("worktop")}}}>
+    <meshStandardMaterial map={tex??undefined} color={tex?"#ffffff":m.colour} roughness={m.category==="Worktop"?.22:.48} metalness={0}/>
+    {picked&&<lineSegments><edgesGeometry args={[new THREE.BoxGeometry(w,h,d)]}/><lineBasicMaterial color="#c8102e"/></lineSegments>}
+  </RoundedBox>
+}
+
 function Countertop({w,d,y,colour="#e8e4dc",materialId}:{w:number;d:number;y:number;colour?:string;materialId?:string}){
-  const topColour=materialId?sceneMaterial(materialId).colour:colour;
-  return <Panel position={[0,y,0]} size={[w+.025,.028,d+.025]} colour={topColour} materialId={materialId} part="worktop" front/>;
+  const id=materialId??"stone-light";
+  return <WorktopSurface w={w+.025} h={.032} d={d+.025} materialId={id} position={[0,y,0]}/>;
 }
 
 function Sink({w,d,y}:{w:number;d:number;y:number}){
@@ -702,7 +712,7 @@ function CabinetGeometry({i,construction=false}:{i:JoineryItem;construction?:boo
   const renderItem=construction?{...i,openAmount:Math.max(72,i.openAmount??0)}:i;
   const c=sceneMaterial(renderItem.carcassMaterialId??renderItem.materialId).colour,w=mm(renderItem.width),h=mm(renderItem.height),d=mm(renderItem.depth);
   i=renderItem;
-  if(i.type==="Worktop"){const topId=i.worktopMaterialId??i.materialId;return <SimpleBlock w={w} h={h} d={d} c={sceneMaterial(topId).colour} materialId={topId} part="worktop"/>;}
+  if(i.type==="Worktop"){const topId=i.worktopMaterialId??i.materialId;return <WorktopSurface w={w} h={h} d={d} materialId={topId}/>;}
   if(i.type==="Wall segment"||i.type==="Chimney breast"||i.type==="Column"||i.type==="Ceiling bulkhead"||i.type==="Filler panel"||i.type==="End panel"||i.type==="Internal divider"||i.type==="Loft box")return <SimpleBlock w={w} h={h} d={d} c={c} materialId={i.materialId}/>;
   if(i.type==="Corner cabinet")return <BaseCabinet i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Hanging rail")return <HangingRail w={w}/>;
