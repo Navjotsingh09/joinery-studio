@@ -76,6 +76,7 @@ export default function Studio(){
   const [busy,setBusy]=useState(false);
   const [cloudReady,setCloudReady]=useState(false);
   const [notice,setNotice]=useState("");
+  const [showDesignIssues,setShowDesignIssues]=useState(false);
   const [leftOpen,setLeftOpen]=useState(true);
   const [rightOpen,setRightOpen]=useState(true);
   const [projectOpen,setProjectOpen]=useState(false);
@@ -190,11 +191,11 @@ export default function Studio(){
   const rotateSelected=(delta=90)=>{if(item)rotateItem(item.id,(item.rotation??0)+delta)};
 
   const moveSafely=(id:string,x:number,y:number,z:number)=>{
-    const current=p.items.find(v=>v.id===id);if(!current||current.locked)return;
+    const current=p.items.find(v=>v.id===id);if(!current||current.locked)return false;
     let candidate=clampItemToRoom({...current,x,y,z},p);
     candidate=autoFaceNearestWall(p,candidate);
-    if(canPlace(p,candidate,id)){s.moveItem(id,candidate);if(notice.startsWith("Placement blocked"))setNotice("")}
-    else setNotice("Placement blocked — that unit would overlap another object or leave the room.");
+    if(canPlace(p,candidate,id)){s.moveItem(id,candidate);if(notice.startsWith("Placement blocked"))setNotice("");return true}
+    else {setNotice("Placement blocked — that unit would overlap another object or leave the room.");return false}
   };
 
   const materialFieldForPart=(part:JoineryPart)=>{
@@ -411,7 +412,8 @@ export default function Studio(){
         <button className="dangerTool" onClick={()=>confirm("Delete "+item.name+"?")&&s.deleteItem(item.id)}><Icon name="trash" size={15}/> Delete</button>
       </div>}
 
-      <div className="statusChip"><span className={issues.length?"statusDot warn":"statusDot live"}/><span>{issues.length?issues.length+" issue"+(issues.length>1?"s":""):"Design valid"}</span><span className="dotSep">·</span><span className="statusMode">{designKind[0].toUpperCase()+designKind.slice(1)}</span><span className="dotSep">·</span><span>{user?(cloudReady?"Cloud synced":"Cloud connecting"):"Local"}</span></div>
+      {showDesignIssues&&issues.length>0&&<div className="designIssuePopover" role="region" aria-label="Design checks"><b>Design checks</b><button aria-label="Close design checks" onClick={()=>setShowDesignIssues(false)}>×</button>{issues.map((issue,n)=><p key={n}>{issue}</p>)}<small>Select the named unit to correct its position or size. A blocked drag keeps its last valid position.</small></div>}
+      <div className="statusChip"><span className={issues.length?"statusDot warn":"statusDot live"}/>{issues.length?<button className="issueSummary" aria-expanded={showDesignIssues} onClick={()=>setShowDesignIssues(v=>!v)}>{issues.length} issue{issues.length>1?"s":""} — view details</button>:<span>Design valid</span>}<span className="dotSep">·</span><span className="statusMode">{designKind[0].toUpperCase()+designKind.slice(1)}</span><span className="dotSep">·</span><span>{user?(cloudReady?"Cloud synced":"Cloud connecting"):"Local"}</span></div>
     </section>
 
     {item&&<aside className="inspector">
