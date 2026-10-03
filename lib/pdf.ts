@@ -65,7 +65,7 @@ function addWallElevations(doc:jsPDF,p:Project){
     doc.setFont("helvetica","bold");doc.setFontSize(7);doc.text(wall.toUpperCase()+" WALL",x,y-3);
     doc.setDrawColor(55);doc.rect(x,y,sz.w*sc,sz.h*sc);
     visible(p).filter(i=>isItemOnWall(p,i,wall)).forEach((i,n)=>{
-      const r=wallItemRect(i,p,wall),m=material(i.materialId,p.customMaterials??[]),hex=m.colour.slice(1),rgb=[0,2,4].map(k=>parseInt(hex.slice(k,k+2),16));
+      const r=wallItemRect(i,p,wall),drawMaterialId=i.type==="Worktop"?(i.worktopMaterialId??i.materialId):(i.doors>0?(i.doorMaterialId??i.materialId):i.materialId),m=material(drawMaterialId,p.customMaterials??[]),hex=m.colour.slice(1),rgb=[0,2,4].map(k=>parseInt(hex.slice(k,k+2),16));
       doc.setFillColor(rgb[0],rgb[1],rgb[2]);doc.rect(x+r.left*sc,y+r.top*sc,r.width*sc,r.height*sc,"FD");
       doc.setTextColor(contrastText(m.colour)==="#ffffff"?255:20);doc.setFontSize(4.4);doc.text(String(n+1)+" "+i.name,x+r.left*sc+1,y+r.top*sc+4);
     });
