@@ -15,6 +15,18 @@ describe("kitchen gold-standard contract",()=>{
     })).toEqual([]);
   });
 
+  it("keeps the L-shaped starter valid in a compact measured room",()=>{
+    const plan=createScenarioPlan("kitchen","l-shape",2600,2400,2200);
+    const project={
+      id:"compact",name:plan.name,customer:"",reference:"QA",status:"Draft" as const,revision:1,
+      roomWidth:plan.roomWidth,roomHeight:plan.roomHeight,roomDepth:plan.roomDepth,
+      rules:plan.rules,items:plan.items,revisions:[],createdAt:"",updatedAt:""
+    };
+    expect(validate(project)).toEqual([]);
+    expect(Math.max(...plan.items.map(i=>i.x+(i.rotation===90||i.rotation===270?i.depth:i.width)))).toBeLessThanOrEqual(plan.roomWidth);
+    expect(Math.max(...plan.items.map(i=>i.z+(i.rotation===90||i.rotation===270?i.width:i.depth)))).toBeLessThanOrEqual(plan.roomDepth);
+  });
+
   it("gives every kitchen cabinet independent manufactured-surface finishes",()=>{
     for(const type of ["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Sink base","Hob base","Oven tower","Fridge housing","Kitchen island","Corner cabinet"]){
       const i=newItem(type);
