@@ -19,15 +19,14 @@ type PartSelectionState={selected:boolean;selectedPart?:JoineryPart|null;onSelec
 const PartSelectionContext=createContext<PartSelectionState>({selected:false});
 const sceneMaterial=(id:string)=>material(id,activeCustomMaterials);
 function useDataTexture(url?:string){
-  const [tex,setTex]=useState<THREE.Texture|null>(null);
+  const [loaded,setLoaded]=useState<{url:string;texture:THREE.Texture}|null>(null);
   useEffect(()=>{
-    if(!url){setTex(null);return}
-    let alive=true;
-    const loader=new THREE.TextureLoader();
-    loader.load(url,t=>{if(!alive){t.dispose();return}t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2.4,2.4);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;setTex(t)});
-    return()=>{alive=false}
+    if(!url)return;
+    let alive=true,texture:THREE.Texture|undefined;
+    new THREE.TextureLoader().load(url,t=>{if(!alive){t.dispose();return}texture=t;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2.4,2.4);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;setLoaded({url,texture:t})});
+    return()=>{alive=false;texture?.dispose()}
   },[url]);
-  return tex;
+  return loaded&&loaded.url===url?loaded.texture:null;
 }
 
 function boardColour(hex:string,amount=0){
@@ -195,15 +194,16 @@ function Panel({position,size,colour,front=false,materialId,part}:{position:[num
   const exact=materialId?sceneMaterial(materialId):undefined;
   const baseColour=exact?.colour??colour;
   const custom=exact?.textureDataUrl?exact:activeCustomMaterials.find(m=>m.colour===baseColour&&m.textureDataUrl);
-  const uploaded=useDataTexture(custom?.textureDataUrl);
+  const photo=custom?.textureDataUrl?undefined:exact?.textureImage;
+  const uploaded=useDataTexture(custom?.textureDataUrl??photo);
   const tex=uploaded??builtInSurfaceTexture(materialId,baseColour);
-  if(tex)tex.repeat.set(1,1);
+  if(tex){tex.repeat.set(1,1);if(photo)tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping;}
   const category=exact?.category??custom?.category??"";
   const isStone=category==="Worktop",isMetal=category==="Metal",isSplashback=category==="Splashback",mirror=exact?.splashbackFinish==="Mirrored",metallic=exact?.splashbackFinish==="Metallic";
   const roughness=isSplashback?(exact?.surfaceFinish==="Matt"?.8:mirror?.06:.16):isMetal?.2:isStone?.26:front?(category==="Woodgrain"?.7:.82):.72,metalness=mirror?.95:metallic?.5:isMetal?.78:0;
   const picked=!!part&&picker.selected&&picker.selectedPart===part;
-  return <RoundedBox args={size} radius={Math.min(.0012,Math.min(...size)*.12)} smoothness={2} position={position} castShadow receiveShadow onUpdate={mesh=>physicalPanelUV(mesh,size)} onClick={part?e=>{e.stopPropagation();picker.onSelectPart?.(part)}:undefined}>
-    <meshPhysicalMaterial map={tex??undefined} color={tex?"#ffffff":front?boardColour(baseColour,.025):baseColour} roughness={roughness} metalness={metalness} clearcoat={isSplashback&&!mirror?1:0} clearcoatRoughness={roughness} bumpMap={tex??undefined} bumpScale={category==="Woodgrain"?.00035:.00012}/>
+  return <RoundedBox args={size} radius={Math.min(.0012,Math.min(...size)*.12)} smoothness={2} position={position} castShadow receiveShadow onUpdate={mesh=>{physicalPanelUV(mesh,size);if(photo&&exact?.textureCrop){const g=mesh.geometry,p=g.getAttribute("position"),uv=g.getAttribute("uv"),[left,top,width,height]=exact.textureCrop;for(let i=0;i<p.count;i++)uv.setXY(i,left+(p.getX(i)/size[0]+.5)*width,1-top-height+(p.getY(i)/size[1]+.5)*height);uv.needsUpdate=true}}} onClick={part?e=>{e.stopPropagation();picker.onSelectPart?.(part)}:undefined}>
+    <meshPhysicalMaterial map={tex??undefined} color={tex?"#ffffff":front?boardColour(baseColour,.025):baseColour} roughness={roughness} metalness={metalness} clearcoat={isSplashback&&!mirror?1:0} clearcoatRoughness={roughness} bumpMap={photo?undefined:tex??undefined} bumpScale={category==="Woodgrain"?.00035:.00012}/>
     {picked&&<lineSegments><edgesGeometry args={[new THREE.BoxGeometry(...size)]}/><lineBasicMaterial color="#c8102e"/></lineSegments>}
   </RoundedBox>
 }

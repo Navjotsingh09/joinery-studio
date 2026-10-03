@@ -1,5 +1,5 @@
 import {Material} from "@/types/model";
-// Supplier catalogue checked 3 October 2026. Colours are design-preview approximations.
+// Photographic design samples; full print artwork is not supplied.
 export const SPLASHBACK_MATERIALS:Material[]=[
   {
     "id": "sb-19",
@@ -344,7 +344,14 @@ export const SPLASHBACK_MATERIALS:Material[]=[
     "supplierUrl": "https://www.splashback.co.uk/shop/splashback/carrara-marble-selfadhesive-glass-splashback/15.htm",
     "previewImage": "/materials/splashbacks/15.jpg",
     "splashbackRoom": "Kitchen",
-    "worktopStyle": "Marble"
+    "worktopStyle": "Marble",
+    "textureImage": "/materials/splashbacks/15.jpg",
+    "textureCrop": [
+      0.255,
+      0.3,
+      0.4,
+      0.39
+    ]
   },
   {
     "id": "sb-4",
@@ -359,7 +366,14 @@ export const SPLASHBACK_MATERIALS:Material[]=[
     "supplierUrl": "https://www.splashback.co.uk/shop/splashback/calacatta-marble-selfadhesive-glass-splashback/4.htm",
     "previewImage": "/materials/splashbacks/4.jpg",
     "splashbackRoom": "Kitchen",
-    "worktopStyle": "Marble"
+    "worktopStyle": "Marble",
+    "textureImage": "/materials/splashbacks/4.jpg",
+    "textureCrop": [
+      0.31,
+      0.34,
+      0.47,
+      0.18
+    ]
   },
   {
     "id": "sb-166",
@@ -374,7 +388,14 @@ export const SPLASHBACK_MATERIALS:Material[]=[
     "supplierUrl": "https://www.splashback.co.uk/shop/splashback/honey-calacatta-marble-selfadhesive-glass-splashback/166.htm",
     "previewImage": "/materials/splashbacks/166.jpg",
     "splashbackRoom": "Kitchen",
-    "worktopStyle": "Marble"
+    "worktopStyle": "Marble",
+    "textureImage": "/materials/splashbacks/166.jpg",
+    "textureCrop": [
+      0.18,
+      0.32,
+      0.55,
+      0.15
+    ]
   },
   {
     "id": "sb-1",
@@ -389,7 +410,14 @@ export const SPLASHBACK_MATERIALS:Material[]=[
     "supplierUrl": "https://www.splashback.co.uk/shop/splashback/pietra-grey-marble-selfadhesive-glass-splashback/1.htm",
     "previewImage": "/materials/splashbacks/1.jpg",
     "splashbackRoom": "Kitchen",
-    "worktopStyle": "Marble"
+    "worktopStyle": "Marble",
+    "textureImage": "/materials/splashbacks/1.jpg",
+    "textureCrop": [
+      0.4,
+      0.32,
+      0.26,
+      0.26
+    ]
   },
   {
     "id": "sb-162",
@@ -404,7 +432,14 @@ export const SPLASHBACK_MATERIALS:Material[]=[
     "supplierUrl": "https://www.splashback.co.uk/shop/splashback/black-marble-selfadhesive-glass-splashback/162.htm",
     "previewImage": "/materials/splashbacks/162.jpg",
     "splashbackRoom": "Kitchen",
-    "worktopStyle": "Marble"
+    "worktopStyle": "Marble",
+    "textureImage": "/materials/splashbacks/162.jpg",
+    "textureCrop": [
+      0.16,
+      0.23,
+      0.37,
+      0.36
+    ]
   },
   {
     "id": "sb-131",
@@ -419,7 +454,14 @@ export const SPLASHBACK_MATERIALS:Material[]=[
     "supplierUrl": "https://www.splashback.co.uk/shop/clarissa-hulse/clarissa-hulse-dill-silver-selfadhesive-glass-splashback/131.htm",
     "previewImage": "/materials/splashbacks/131.jpg",
     "splashbackRoom": "Kitchen",
-    "worktopStyle": "Plain"
+    "worktopStyle": "Plain",
+    "textureImage": "/materials/splashbacks/131.jpg",
+    "textureCrop": [
+      0.27,
+      0.33,
+      0.47,
+      0.15
+    ]
   },
   {
     "id": "sb-132",
@@ -434,7 +476,14 @@ export const SPLASHBACK_MATERIALS:Material[]=[
     "supplierUrl": "https://www.splashback.co.uk/shop/clarissa-hulse/clarissa-hulse-meadow-grass-blue-selfadhesive-glass-splashback/132.htm",
     "previewImage": "/materials/splashbacks/132.jpg",
     "splashbackRoom": "Kitchen",
-    "worktopStyle": "Plain"
+    "worktopStyle": "Plain",
+    "textureImage": "/materials/splashbacks/132.jpg",
+    "textureCrop": [
+      0.35,
+      0.29,
+      0.36,
+      0.29
+    ]
   },
   {
     "id": "sb-134",
@@ -449,7 +498,14 @@ export const SPLASHBACK_MATERIALS:Material[]=[
     "supplierUrl": "https://www.splashback.co.uk/shop/clarissa-hulse/clarissa-hulse-meadow-grass-blush-selfadhesive-glass-splashback/134.htm",
     "previewImage": "/materials/splashbacks/134.jpg",
     "splashbackRoom": "Kitchen",
-    "worktopStyle": "Plain"
+    "worktopStyle": "Plain",
+    "textureImage": "/materials/splashbacks/134.jpg",
+    "textureCrop": [
+      0.27,
+      0.3,
+      0.55,
+      0.32
+    ]
   },
   {
     "id": "sb-133",
@@ -464,7 +520,14 @@ export const SPLASHBACK_MATERIALS:Material[]=[
     "supplierUrl": "https://www.splashback.co.uk/shop/clarissa-hulse/clarissa-hulse-wild-chevril-chalk-selfadhesive-glass-splashback/133.htm",
     "previewImage": "/materials/splashbacks/133.jpg",
     "splashbackRoom": "Kitchen",
-    "worktopStyle": "Plain"
+    "worktopStyle": "Plain",
+    "textureImage": "/materials/splashbacks/133.jpg",
+    "textureCrop": [
+      0.345,
+      0.33,
+      0.31,
+      0.19
+    ]
   },
   {
     "id": "sb-110",
@@ -569,7 +632,14 @@ export const SPLASHBACK_MATERIALS:Material[]=[
     "supplierUrl": "https://www.splashback.co.uk/shop/laura-ashley/laura-ashley-oriental-garden-midnight-seaspray--special-edition/121.htm",
     "previewImage": "/materials/splashbacks/121.jpg",
     "splashbackRoom": "Kitchen",
-    "worktopStyle": "Plain"
+    "worktopStyle": "Plain",
+    "textureImage": "/materials/splashbacks/121.jpg",
+    "textureCrop": [
+      0.245,
+      0.17,
+      0.5,
+      0.28
+    ]
   },
   {
     "id": "sb-5",
@@ -584,7 +654,14 @@ export const SPLASHBACK_MATERIALS:Material[]=[
     "supplierUrl": "https://www.splashback.co.uk/shop/laura-ashley/laura-ashley-mr-jones-charcoal-selfadhesive-glass-splashback/5.htm",
     "previewImage": "/materials/splashbacks/5.jpg",
     "splashbackRoom": "Kitchen",
-    "worktopStyle": "Plain"
+    "worktopStyle": "Plain",
+    "textureImage": "/materials/splashbacks/5.jpg",
+    "textureCrop": [
+      0.37,
+      0.18,
+      0.4,
+      0.22
+    ]
   },
   {
     "id": "sb-30",
@@ -599,7 +676,14 @@ export const SPLASHBACK_MATERIALS:Material[]=[
     "supplierUrl": "https://www.splashback.co.uk/shop/laura-ashley/laura-ashley-mr-jones-dove-grey-selfadhesive-glass-splashback/30.htm",
     "previewImage": "/materials/splashbacks/30.jpg",
     "splashbackRoom": "Kitchen",
-    "worktopStyle": "Plain"
+    "worktopStyle": "Plain",
+    "textureImage": "/materials/splashbacks/30.jpg",
+    "textureCrop": [
+      0.28,
+      0.38,
+      0.49,
+      0.26
+    ]
   },
   {
     "id": "sb-122",
@@ -614,7 +698,14 @@ export const SPLASHBACK_MATERIALS:Material[]=[
     "supplierUrl": "https://www.splashback.co.uk/shop/laura-ashley/laura-ashley-mr-jones-midnight-seaspray-selfadhesive-glass-splashback/122.htm",
     "previewImage": "/materials/splashbacks/122.jpg",
     "splashbackRoom": "Kitchen",
-    "worktopStyle": "Plain"
+    "worktopStyle": "Plain",
+    "textureImage": "/materials/splashbacks/122.jpg",
+    "textureCrop": [
+      0.39,
+      0.235,
+      0.39,
+      0.11
+    ]
   },
   {
     "id": "sb-111",
@@ -629,7 +720,14 @@ export const SPLASHBACK_MATERIALS:Material[]=[
     "supplierUrl": "https://www.splashback.co.uk/shop/laura-ashley/laura-ashley-wicker-midnight-seaspray-selfadhesive-glass-splashback/111.htm",
     "previewImage": "/materials/splashbacks/111.jpg",
     "splashbackRoom": "Kitchen",
-    "worktopStyle": "Plain"
+    "worktopStyle": "Plain",
+    "textureImage": "/materials/splashbacks/111.jpg",
+    "textureCrop": [
+      0.31,
+      0.36,
+      0.46,
+      0.23
+    ]
   },
   {
     "id": "sb-31",
@@ -644,7 +742,14 @@ export const SPLASHBACK_MATERIALS:Material[]=[
     "supplierUrl": "https://www.splashback.co.uk/shop/laura-ashley/laura-ashley-wicker-charcoal-selfadhesive-glass-splashback/31.htm",
     "previewImage": "/materials/splashbacks/31.jpg",
     "splashbackRoom": "Kitchen",
-    "worktopStyle": "Plain"
+    "worktopStyle": "Plain",
+    "textureImage": "/materials/splashbacks/31.jpg",
+    "textureCrop": [
+      0.22,
+      0.38,
+      0.49,
+      0.33
+    ]
   },
   {
     "id": "sb-32",
@@ -659,7 +764,14 @@ export const SPLASHBACK_MATERIALS:Material[]=[
     "supplierUrl": "https://www.splashback.co.uk/shop/laura-ashley/laura-ashley-wicker-dove-grey-selfadhesive-glass-splashback/32.htm",
     "previewImage": "/materials/splashbacks/32.jpg",
     "splashbackRoom": "Kitchen",
-    "worktopStyle": "Plain"
+    "worktopStyle": "Plain",
+    "textureImage": "/materials/splashbacks/32.jpg",
+    "textureCrop": [
+      0.31,
+      0.285,
+      0.59,
+      0.34
+    ]
   },
   {
     "id": "sb-112",
@@ -674,7 +786,14 @@ export const SPLASHBACK_MATERIALS:Material[]=[
     "supplierUrl": "https://www.splashback.co.uk/shop/laura-ashley/laura-ashley-lisette-metallic-charcoal-selfadhesive-glass-splashback/112.htm",
     "previewImage": "/materials/splashbacks/112.jpg",
     "splashbackRoom": "Kitchen",
-    "worktopStyle": "Plain"
+    "worktopStyle": "Plain",
+    "textureImage": "/materials/splashbacks/112.jpg",
+    "textureCrop": [
+      0.37,
+      0.32,
+      0.29,
+      0.26
+    ]
   },
   {
     "id": "sb-27",
@@ -689,7 +808,14 @@ export const SPLASHBACK_MATERIALS:Material[]=[
     "supplierUrl": "https://www.splashback.co.uk/shop/laura-ashley/laura-ashley-lisette-white-selfadhesive-glass-splashback/27.htm",
     "previewImage": "/materials/splashbacks/27.jpg",
     "splashbackRoom": "Kitchen",
-    "worktopStyle": "Plain"
+    "worktopStyle": "Plain",
+    "textureImage": "/materials/splashbacks/27.jpg",
+    "textureCrop": [
+      0.105,
+      0.33,
+      0.53,
+      0.36
+    ]
   },
   {
     "id": "sb-26",
@@ -704,7 +830,14 @@ export const SPLASHBACK_MATERIALS:Material[]=[
     "supplierUrl": "https://www.splashback.co.uk/shop/laura-ashley/laura-ashley-lisette-flint-selfadhesive-glass-splashback/26.htm",
     "previewImage": "/materials/splashbacks/26.jpg",
     "splashbackRoom": "Kitchen",
-    "worktopStyle": "Plain"
+    "worktopStyle": "Plain",
+    "textureImage": "/materials/splashbacks/26.jpg",
+    "textureCrop": [
+      0.46,
+      0.39,
+      0.43,
+      0.25
+    ]
   },
   {
     "id": "sb-156",

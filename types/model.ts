@@ -1,7 +1,7 @@
 export type ViewMode="front"|"top"|"side"|"3d";
 export type ProjectStatus="Draft"|"Presented"|"Accepted"|"Rejected";
 export type ItemLayer="Joinery"|"Architecture"|"Services"|"Decor";
-export type Material={id:string;code:string;name:string;colour:string;thickness:number;category:string;textureDataUrl?:string;worktopMaterial?:string;worktopStyle?:string;colourFamily?:string;surfaceFinish?:string;splashbackFinish?:string;supplier?:string;supplierUrl?:string;previewImage?:string;splashbackRoom?:string};
+export type Material={id:string;code:string;name:string;colour:string;thickness:number;category:string;textureDataUrl?:string;textureImage?:string;textureCrop?:[number,number,number,number];worktopMaterial?:string;worktopStyle?:string;colourFamily?:string;surfaceFinish?:string;splashbackFinish?:string;supplier?:string;supplierUrl?:string;previewImage?:string;splashbackRoom?:string};
 export type WallSide="back"|"front"|"left"|"right";
 export type PlinthStyle="recessed"|"flush"|"none";
 export type JoineryPart="carcass"|"fronts"|"left-side"|"right-side"|"plinth"|"worktop"|"backsplash";
