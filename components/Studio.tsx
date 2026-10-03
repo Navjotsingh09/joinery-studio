@@ -153,6 +153,7 @@ export default function Studio(){
     let i=newItem(type);
     if(at){
       i=clampItemToRoom({...i,x:at.x-i.width/2,y:Math.max(0,at.y-i.height/2),z:at.z-i.depth/2},p);
+      i=autoFaceNearestWall(p,i);
       if(!canPlace(p,i)){
         const free=findFreePlacement(p,i);
         if(!canPlace(p,free)){setNotice("No clear space for that unit. Placement cancelled.");return}
