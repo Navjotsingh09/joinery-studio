@@ -1,6 +1,7 @@
 import {NextRequest,NextResponse} from 'next/server';
 export async function POST(req:NextRequest){
-  if(req.headers.get('origin')!==req.nextUrl.origin)return NextResponse.json({message:'Request origin rejected.'},{status:403});
+  let sameOrigin=false;try{const origin=new URL(req.headers.get('origin')??'');sameOrigin=['http:','https:'].includes(origin.protocol)&&origin.host===req.headers.get('host')}catch{}
+  if(!sameOrigin)return NextResponse.json({message:'Request origin rejected.'},{status:403});
   if(Number(req.headers.get('content-length')??0)>12000)return NextResponse.json({message:'Enquiry is too long.'},{status:413});
   let body;try{const raw=await req.text();if(raw.length>12000)return NextResponse.json({message:'Enquiry is too long.'},{status:413});body=JSON.parse(raw)}catch{return NextResponse.json({message:'Please check your enquiry.'},{status:400})}
   if(!body||typeof body!=='object'||Array.isArray(body))return NextResponse.json({message:'Please check your enquiry.'},{status:400});
