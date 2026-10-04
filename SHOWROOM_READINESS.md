@@ -36,7 +36,7 @@ Use two staging accounts and two tabs. Confirm that project listing and every da
 
 ## Browser verification
 
-The public homepage and a dedicated kitchen page rendered successfully. The local development-only route `/qa/studio` allows UI testing without exposing a production bypass: it returns 404 in production and when Supabase is configured. Local 2D editing, revision saving, locked-position rejection and square worktop-edge persistence across reload were verified. The annual/monthly pricing toggle was verified. Four PDF samples, including an 80-item schedule, were rendered and checked for wrapping and pagination. The browser download event could not be confirmed, so JSON/recovery downloads still require a normal-browser check. Real cloud/account tests remain separate. The cloud browser cannot initialize WebGL; 3D has a working 2D fallback, but visual 3D acceptance still needs a browser with hardware acceleration.
+The public homepage and a dedicated kitchen page rendered successfully. A temporary development-only editor route was used for UI testing and removed from the final change. Local 2D editing, revision saving, locked-position rejection and square worktop-edge persistence across reload were verified. The annual/monthly pricing toggle was verified. Four PDF samples, including an 80-item schedule, were rendered and checked for wrapping and pagination. The browser download event could not be confirmed, so JSON/recovery downloads still require a normal-browser check. Real cloud/account tests remain separate. The cloud browser cannot initialize WebGL; 3D has a working 2D fallback, but visual 3D acceptance still needs a browser with hardware acceleration.
 
 ## Honest feature boundary
 
