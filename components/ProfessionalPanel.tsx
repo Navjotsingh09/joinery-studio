@@ -1,4 +1,5 @@
 "use client";
+import {newId} from "@/lib/id";
 import {useEffect,useMemo,useState} from "react";
 import {Project,JoineryItem} from "@/types/model";
 import {useStudio} from "@/lib/store";
@@ -38,7 +39,7 @@ export function ProfessionalPanel({project}:{project:Project}){
     if(canPlace(project,q,primary.id)){s.updateItem(primary.id,q);setMessage("Mirrored "+primary.name+".")}
     else setMessage("Mirror blocked by another object.");
   };
-  const group=()=>{if(picked.length<2)return setMessage("Select at least two items.");const groupId=crypto.randomUUID();apply(()=>({groupId}));setMessage("Grouped "+picked.length+" items.");};
+  const group=()=>{if(picked.length<2)return setMessage("Select at least two items.");const groupId=newId();apply(()=>({groupId}));setMessage("Grouped "+picked.length+" items.");};
   const distribute=()=>{
     if(picked.length<3)return setMessage("Select at least three items to distribute.");
     const ordered=[...picked].sort((a,b)=>a.x-b.x),first=ordered[0],last=ordered[ordered.length-1],span=last.x-first.x;
@@ -50,7 +51,7 @@ export function ProfessionalPanel({project}:{project:Project}){
     if(!primary)return;
     const step=footprint(primary).width+Math.max(project.rules.componentGap,project.rules.snap),temp={...project,items:[...project.items]},made:JoineryItem[]=[];
     for(let n=1;n<=12;n++){
-      const q=clampItemToRoom({...primary,id:crypto.randomUUID(),name:primary.name+" "+(n+1),x:primary.x+step*n,groupId:primary.groupId},temp);
+      const q=clampItemToRoom({...primary,id:newId(),name:primary.name+" "+(n+1),x:primary.x+step*n,groupId:primary.groupId},temp);
       if(q.x<=primary.x||temp.items.some(x=>x.id!==primary.id&&x.x===q.x&&x.z===q.z))break;
       if(!canPlace(temp,q))break;
       temp.items.push(q);made.push(q);
@@ -102,7 +103,7 @@ export function ProfessionalPanel({project}:{project:Project}){
       const span=max-min;
       if(span<100)continue;
       const top=Math.max(...items.map(i=>i.y+i.height)),name="Auto worktop · "+wall;
-      const found=existing.find(i=>i.name===name),q={...newItem("Worktop"),id:found?.id??crypto.randomUUID(),name,y:top,width:span,height:38,depth:across,materialId:found?.materialId??"stone-light",worktopMaterialId:found?.worktopMaterialId??found?.materialId??"stone-light",layer:"Joinery" as const,rotation:horizontal?(wall==="front"?180:0):90,wallSide:wall,x:horizontal?min:(wall==="left"?0:Math.max(0,project.roomWidth-across)),z:horizontal?(wall==="back"?0:Math.max(0,project.roomDepth-across)):min};
+      const found=existing.find(i=>i.name===name),q={...newItem("Worktop"),id:found?.id??newId(),name,y:top,width:span,height:38,depth:across,materialId:found?.materialId??"stone-light",worktopMaterialId:found?.worktopMaterialId??found?.materialId??"stone-light",layer:"Joinery" as const,rotation:horizontal?(wall==="front"?180:0):90,wallSide:wall,x:horizontal?min:(wall==="left"?0:Math.max(0,project.roomWidth-across)),z:horizontal?(wall==="back"?0:Math.max(0,project.roomDepth-across)):min};
       keep.add(q.id);created.push(wall);
       found?s.updateItem(found.id,q):s.addItem(q);
     }
@@ -112,10 +113,10 @@ export function ProfessionalPanel({project}:{project:Project}){
   const addWardrobeInternals=()=>{
     if(!primary||!wardrobeTypes.has(primary.type))return setMessage("Select a wardrobe first.");
     if(normalizeRotation(primary.rotation)%180!==0)return setMessage("Rotate the wardrobe to 0° or 180° before auto-fitting internals.");
-    const groupId=crypto.randomUUID(),pad=50,innerW=Math.max(300,primary.width-pad*2);
-    const rail={...newItem("Hanging rail"),id:crypto.randomUUID(),name:primary.name+" hanging rail",x:primary.x+pad,y:primary.y+Math.min(primary.height-350,1450),z:primary.z+Math.max(40,primary.depth*.42),width:innerW,groupId};
-    const drawers={...newItem("Internal drawers"),id:crypto.randomUUID(),name:primary.name+" internal drawers",x:primary.x+pad,y:primary.y+100,z:primary.z+60,width:Math.min(innerW,800),depth:Math.max(300,primary.depth-120),groupId};
-    const loft={...newItem("Loft box"),id:crypto.randomUUID(),name:primary.name+" loft box",x:primary.x+pad,y:primary.y+Math.max(1200,primary.height-480),z:primary.z+50,width:innerW,height:380,depth:Math.max(300,primary.depth-100),groupId};
+    const groupId=newId(),pad=50,innerW=Math.max(300,primary.width-pad*2);
+    const rail={...newItem("Hanging rail"),id:newId(),name:primary.name+" hanging rail",x:primary.x+pad,y:primary.y+Math.min(primary.height-350,1450),z:primary.z+Math.max(40,primary.depth*.42),width:innerW,groupId};
+    const drawers={...newItem("Internal drawers"),id:newId(),name:primary.name+" internal drawers",x:primary.x+pad,y:primary.y+100,z:primary.z+60,width:Math.min(innerW,800),depth:Math.max(300,primary.depth-120),groupId};
+    const loft={...newItem("Loft box"),id:newId(),name:primary.name+" loft box",x:primary.x+pad,y:primary.y+Math.max(1200,primary.height-480),z:primary.z+50,width:innerW,height:380,depth:Math.max(300,primary.depth-100),groupId};
     [rail,drawers,loft].forEach(i=>s.addItem(clampItemToRoom(i,project)));
     setMessage("Added hanging rail, internal drawers and loft storage.");
   };

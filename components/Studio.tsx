@@ -1,8 +1,9 @@
 "use client";
+import {newId} from "@/lib/id";
 import {useEffect,useMemo,useRef,useState,useSyncExternalStore} from "react";
 import {FINISH_COLLECTIONS,applyFinishCollection} from "@/lib/finishCollections";
 import {getLocalSaveStatus,subscribeLocalSave} from "@/lib/saveStatus";
-import {useStudio} from "@/lib/store";
+import {switchAccountStorage,useStudio} from "@/lib/store";
 import {newItem} from "@/lib/defaults";
 import {MATERIALS,material,floorMaterials} from "@/lib/materials";
 import {Drawing2D} from "./Drawing2D";
@@ -16,7 +17,6 @@ import {hasSupabase} from "@/lib/supabase";
 import * as cloud from "@/lib/cloud";
 import {ProjectStatus,Material,WallSide,JoineryPart} from "@/types/model";
 import {isProjectBackup} from "@/lib/backup";
-import {mergeProjects} from "@/lib/projectMerge";
 import {COMPONENT_GROUPS_BY_KIND,inferDesignKind,ScenarioPlan} from "@/lib/scenarios";
 import {ScenarioStart} from "./ScenarioStart";
 import {Icon} from "./Icon";
@@ -79,6 +79,7 @@ export default function Studio(){
   const [user,setUser]=useState<string|null>(null);
   const [busy,setBusy]=useState(false);
   const [cloudReady,setCloudReady]=useState(false);
+  const [accountReady,setAccountReady]=useState(!hasSupabase());
   const [cloudSync,setCloudSync]=useState<"waiting"|"saving"|"saved"|"error">("waiting");
   const [cloudSavedVersion,setCloudSavedVersion]=useState("");
   const localSave=useSyncExternalStore(subscribeLocalSave,getLocalSaveStatus,()=>"pending");
@@ -112,29 +113,48 @@ export default function Studio(){
   useEffect(()=>{
     if(!hasSupabase())return;
     let active=true;
-    const initialise=async(email:string|null)=>{
-      if(!active)return;
-      setUser(email);
-      if(!email){setCloudReady(false);return}
-      setCloudReady(false);
+    let account:string|null|undefined=undefined;
+    let generation=0;
+    const initialise=async(u:{id:string;email?:string}|null)=>{
+      if(!active||account===(u?.id??null))return;
+      account=u?.id??null;const ticket=++generation;
+      setUser(u?.email??null);setCloudReady(false);setAccountReady(false);cloud.clearCloudSession(u?.id??null);
       try{
+        await switchAccountStorage(u?.id??null);
+        if(!active||ticket!==generation)return;
+        setAccountReady(true);
+        if(!u)return;
         const remote=await cloud.loadCloud();
-        if(!active)return;
-        if(remote.length)useStudio.getState().replaceAll(mergeProjects(useStudio.getState().projects,remote));
+        if(!active||ticket!==generation)return;
+        const local=useStudio.getState().projects;
+        const recovered=local.filter(p=>p.items.length&&!remote.some(r=>r.id===p.id&&r.cloudVersion===p.cloudVersion));
+        if(recovered.length)window.localStorage.setItem("joinery-recovery:"+u.id,JSON.stringify(recovered));
+        const merged=remote.map(r=>local.find(p=>p.id===r.id&&p.cloudVersion===r.cloudVersion&&p.updatedAt>r.updatedAt)??r);
+        const drafts=local.filter(p=>p.items.length&&p.cloudVersion===undefined&&!remote.some(r=>r.id===p.id));
+        useStudio.getState().replaceAll([...merged,...drafts.slice(0,Math.max(0,2-merged.length))]);
+        if(recovered.length)setNotice("Local recovery copies are available in Project settings. Cloud versions were kept for conflicting projects.");
         setCloudReady(true);
-      }catch(e:any){
-        if(active){setCloudReady(false);setNotice("Cloud initialisation failed: "+(e?.message??"Unknown error"))}
-      }
+      }catch(e:any){if(active&&ticket===generation){setCloudSync("error");setAccountReady(true);setNotice("Cloud initialisation failed: "+(e?.message??"Unknown error"))}}
     };
-    cloud.currentUser().then(u=>initialise(u?.email??null)).catch(()=>initialise(null));
-    const off=cloud.onAuthChange(email=>{void initialise(email)});
+    cloud.currentUser().then(initialise).catch(()=>initialise(null));
+    // Defer database calls outside Supabase's auth callback lock.
+    const off=cloud.onAuthChange(u=>{window.setTimeout(()=>void initialise(u),0)});
     return()=>{active=false;off()};
   },[]);
 
+  useEffect(()=>{
+    const changed=(event:StorageEvent)=>{if(event.key===useStudio.persist.getOptions().name)setNotice("This account’s local projects changed in another tab. Export a backup before reloading; cloud saves will check for conflicts.")};
+    window.addEventListener("storage",changed);return()=>window.removeEventListener("storage",changed);
+  },[]);
+
+  const markCloudSaved=(saved:{id:string;version:number;updatedAt:string}[])=>{
+    useStudio.setState(state=>({projects:state.projects.map(p=>{const result=saved.find(r=>r.id===p.id);return result?{...p,cloudVersion:result.version}:p})}));
+  };
   const cloudSave=async()=>{
     if(!hasSupabase()||!user)return;
+    if(!cloudReady){setNotice("Cloud is not ready. Export a recovery copy and reload to reconnect.");return}
     setBusy(true);
-    try{setCloudSync("saving");await cloud.saveAllCloud(s.projects);setCloudSavedVersion(p.id+p.updatedAt);setCloudSync("saved");setNotice("All projects saved to cloud.")}
+    try{setCloudSync("saving");markCloudSaved(await cloud.saveAllCloud(s.projects));setCloudSavedVersion(p.id+p.updatedAt);setCloudSync("saved");setNotice("All projects saved to cloud.")}
     catch(e:any){setCloudSync("error");setNotice("Cloud save failed: "+(e?.message??"Unknown error"))}
     finally{setBusy(false)}
   };
@@ -142,9 +162,9 @@ export default function Studio(){
   useEffect(()=>{
     if(!hasSupabase()||!user||!cloudReady)return;
     let active=true;setCloudSync("waiting");
-    const t=window.setTimeout(async()=>{setCloudSync("saving");try{await cloud.saveCloud(p);if(active){setCloudSavedVersion(p.id+p.updatedAt);setCloudSync("saved")}}catch{if(active)setCloudSync("error")}},1600);
+    const t=window.setTimeout(async()=>{setCloudSync("saving");try{markCloudSaved([await cloud.saveCloud(p)]);if(active){setCloudSavedVersion(p.id+p.updatedAt);setCloudSync("saved")}}catch(e:any){if(active){setCloudSync("error");setNotice("Cloud save failed: "+(e?.message??"Export a backup or use Save to retry."))}}},1600);
     return()=>{active=false;window.clearTimeout(t)}
-  },[user,cloudReady,p]);
+  },[user,cloudReady,p.id,p.updatedAt]);
 
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{
@@ -202,6 +222,7 @@ export default function Studio(){
     const current=p.items.find(v=>v.id===id);if(!current||current.locked)return false;
     let candidate=clampItemToRoom({...current,x,y,z},p);
     candidate=autoFaceNearestWall(p,candidate);
+    if(current.groupId){s.moveItem(id,candidate);return !useStudio.getState().editError}
     if(canPlace(p,candidate,id)){s.moveItem(id,candidate);if(notice.startsWith("Placement blocked"))setNotice("");return true}
     else {setNotice("Placement blocked — that unit would overlap another object or leave the room.");return false}
   };
@@ -248,6 +269,7 @@ export default function Studio(){
 
   const patch=(k:string,v:any)=>{
     if(!item)return;
+    if(item.locked&&["x","y","z","width","height","depth"].includes(k)){setNotice("Position locked. Unlock this component before moving or resizing it.");return}
     if(!["x","y","z","width","height","depth"].includes(k)){s.updateItem(item.id,{[k]:v});return}
     const n=Number(v)||0;
     let candidate={...item};
@@ -260,12 +282,12 @@ export default function Studio(){
 
   const exportJson=()=>{
     const b=new Blob([JSON.stringify(s.projects,null,2)],{type:"application/json"}),a=document.createElement("a");
-    a.href=URL.createObjectURL(b);a.download="joinery-studio-projects.json";a.click();URL.revokeObjectURL(a.href)
+    a.href=URL.createObjectURL(b);a.download="joinery-studio-projects.json";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)
   };
 
   const importJson=async(e:React.ChangeEvent<HTMLInputElement>)=>{
     const f=e.target.files?.[0];if(!f)return;
-    try{const d=JSON.parse(await f.text());if(!isProjectBackup(d))throw new Error();if(confirm("Replace local projects with this backup?"))s.replaceAll(d)}
+    try{const d=JSON.parse(await f.text());if(!isProjectBackup(d))throw new Error();if(d.length>2){alert("Basic allows two projects. Please import a backup containing at most two projects.");return}if(confirm("Replace local projects with this backup?"))s.replaceAll(d)}
     catch{alert("Invalid Joinery Studio JSON file.")}
     e.target.value=""
   };
@@ -304,30 +326,31 @@ export default function Studio(){
       setNotice("Optimising material image…");
       const dataUrl=await optimiseMaterialImage(f);
       const name=(window.prompt("Material name",f.name.replace(/\.[^.]+$/,""))||"Custom material").trim();
-      const custom:Material={id:"custom-"+crypto.randomUUID(),code:"CUSTOM",name,colour:"#b8b2a8",thickness:18,category:"Custom",textureDataUrl:dataUrl};
+      const custom:Material={id:"custom-"+newId(),code:"CUSTOM",name,colour:"#b8b2a8",thickness:18,category:"Custom",textureDataUrl:dataUrl};
       s.updateProject({customMaterials:[...(p.customMaterials??[]),custom]});
       setNotice(name+" added. Select a cabinet surface, worktop, backsplash or floor to apply it.");
     }catch(err:any){setNotice("Material upload failed: "+(err?.message??"Please try another image."))}
     finally{e.target.value=""}
   };
 
-  const login=async(signup=false)=>{
+  const login=async()=>{
     setBusy(true);setNotice("");
     try{
-      const r=signup?await cloud.signUp(auth.email,auth.password):await cloud.signIn(auth.email,auth.password);
+      const r=await cloud.signIn(auth.email,auth.password);
       if(r.error){setNotice(r.error.message);return}
-      if(signup&&!r.data.session){setUser(null);setCloudReady(false);setNotice("Account created. Confirm your email, then sign in.");return}
       setUser(r.data.user?.email??auth.email);
-      const ps=await cloud.loadCloud();
-      if(ps.length){s.replaceAll(mergeProjects(useStudio.getState().projects,ps));setNotice("Cloud and local projects merged.")}
-      else setNotice("Signed in. No cloud projects yet.");
-      setCloudReady(true);
+      setNotice("Signed in. Preparing your projects.");
     }catch(e:any){setNotice(e?.message??"Authentication failed.")}
     finally{setBusy(false)}
   };
 
+  useEffect(()=>{if(s.editError){setNotice(s.editError);s.clearEditError()}},[s.editError]);
+
+  if(!accountReady)return <main className="studioGate"><h1>Opening your private workspace…</h1></main>;
+
   if(showLauncher||!p.items.length){
     return <ScenarioStart
+      initialKind={typeof window!=="undefined"?new URLSearchParams(window.location.search).get("kind"):null}
       continueName={p.items.length?p.name:undefined}
       projects={s.projects}
       activeId={p.id}
@@ -339,6 +362,7 @@ export default function Studio(){
       onContinue={p.items.length?()=>setShowLauncher(false):undefined}
       onCreate={(plan:ScenarioPlan)=>{
         if(p.items.length){
+          if(s.projects.length>=2){alert("Basic allows two projects. Export or delete one before starting another.");return}
           s.addProject();
           useStudio.getState().configureActive({
             name:plan.name,
@@ -364,6 +388,7 @@ export default function Studio(){
   }
 
   return <main className={"studio "+(presentationMode?"presentationMode ":"")+(!leftOpen?"libraryClosed ":"")+(!rightOpen||!item?"inspectorClosed ":"")} onClick={()=>setMenu(null)}>
+    {notice&&<div className="studioNotice" role="status">{notice}<button aria-label="Dismiss notification" onClick={()=>setNotice("")}>×</button></div>}
     <header className="topbar">
       <button className="studioBrand" onClick={()=>setShowLauncher(true)} title="Design home"><span className="studioBrandMark">JS</span><span><b>Joinery Studio</b><small>{designKind[0].toUpperCase()+designKind.slice(1)} design</small></span></button>
       <button className="projectButton projectPill" onClick={e=>{e.stopPropagation();setProjectOpen(v=>!v)}}>
@@ -429,7 +454,7 @@ export default function Studio(){
       </div>}
 
       {showDesignIssues&&issues.length>0&&<div className="designIssuePopover" role="region" aria-label="Design checks"><b>Design checks</b><button aria-label="Close design checks" onClick={()=>setShowDesignIssues(false)}>×</button>{issues.map((issue,n)=><p key={n}>{issue}</p>)}<small>Select the named unit to correct its position or size. A blocked drag keeps its last valid position.</small></div>}
-      <div className="statusChip"><span className={issues.length?"statusDot warn":"statusDot live"}/>{issues.length?<button className="issueSummary" aria-expanded={showDesignIssues} onClick={()=>setShowDesignIssues(v=>!v)}>{issues.length} issue{issues.length>1?"s":""} — view details</button>:<span>Design valid</span>}<span className="dotSep">·</span><span className="statusMode">{designKind[0].toUpperCase()+designKind.slice(1)}</span><span className="dotSep">·</span><span role="status">{localSave==="error"?<button onClick={exportJson}>Local save failed — export backup</button>:user?(cloudReady?(cloudSync==="error"?<button onClick={cloudSave}>Cloud save failed — retry</button>:cloudSync==="saving"?"Saving to cloud…":cloudSync==="saved"&&cloudSavedVersion===p.id+p.updatedAt?"Saved to cloud":"Changes waiting to sync"):"Cloud connecting"):(localSave==="saved"?"Saved locally":"Local autosave")}</span></div>
+      <div className="statusChip"><span className={issues.length?"statusDot warn":"statusDot live"}/>{issues.length?<button className="issueSummary" aria-expanded={showDesignIssues} onClick={()=>setShowDesignIssues(v=>!v)}>{issues.length} issue{issues.length>1?"s":""} — view details</button>:<span>Design valid</span>}<span className="dotSep">·</span><span className="statusMode">{designKind[0].toUpperCase()+designKind.slice(1)}</span><span className="dotSep">·</span><span role="status">{localSave==="error"?<button onClick={exportJson}>Local save failed — export backup</button>:user?(cloudReady?(cloudSync==="error"?<button onClick={cloudSave}>Cloud save failed — retry</button>:cloudSync==="saving"?"Saving to cloud…":cloudSync==="saved"&&cloudSavedVersion===p.id+p.updatedAt?"Saved to cloud":"Changes waiting to sync"):(cloudSync==="error"?<button onClick={()=>window.location.reload()}>Cloud connection failed — reload</button>:"Cloud connecting")):(localSave==="saved"?"Saved locally":"Local autosave")}</span></div>
     </section>
 
     {item&&<aside className="inspector">
@@ -466,7 +491,8 @@ export default function Studio(){
         <div className="groupLabel">Rules · mm</div>
         <div className="fieldGrid2"><label>Wall clearance<input type="number" min="0" value={p.rules.wallClearance} onChange={e=>s.updateProject({rules:{...p.rules,wallClearance:Math.max(0,+e.target.value)}})}/></label><label>Component gap<input type="number" min="0" value={p.rules.componentGap} onChange={e=>s.updateProject({rules:{...p.rules,componentGap:Math.max(0,+e.target.value)}})}/></label><label>Snap grid<input type="number" min="1" value={p.rules.snap} onChange={e=>s.updateProject({rules:{...p.rules,snap:Math.max(1,+e.target.value)}})}/></label><label>Service gap<input type="number" min="0" value={p.rules.serviceClearance??50} onChange={e=>s.updateProject({rules:{...p.rules,serviceClearance:Math.max(0,+e.target.value)}})}/></label></div>
         <div className="groupLabel">Cloud</div>
-        {!hasSupabase()?<small className="muted">Local storage mode.</small>:!user?<><input placeholder="Email" value={auth.email} onChange={e=>setAuth({...auth,email:e.target.value})}/><input type="password" placeholder="Password" value={auth.password} onChange={e=>setAuth({...auth,password:e.target.value})}/><div className="row"><button disabled={busy} onClick={()=>login(false)}>Login</button><button disabled={busy} onClick={()=>login(true)}>Sign up</button></div></>:<><div className="cloudStatus"><span className={cloudReady?"statusDot live":"statusDot"}/><span>{cloudReady?"Cloud autosave on":"Preparing cloud sync"}</span></div><small className="muted">{user}</small><div className="row"><button disabled={busy} onClick={cloudSave}>Save all</button><button disabled={busy} onClick={async()=>{setBusy(true);try{await cloud.saveCloud(p);await cloud.signOut();setUser(null);setCloudReady(false)}finally{setBusy(false)}}}>Logout</button></div></>}
+        <div className="row"><button onClick={()=>{const key=(useStudio.persist.getOptions().name??"").split(":").slice(1).join(":"),raw=window.localStorage.getItem("joinery-recovery:"+key)||window.localStorage.getItem("joinery-studio-v5");if(!raw){setNotice("No recovery copies found on this browser.");return}const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(JSON.parse(raw).state?.projects??JSON.parse(raw),null,2)],{type:"application/json"}));a.download="joinery-local-recovery.json";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}}>Export recovery copies</button><a href="/">Website home</a></div>
+        {!hasSupabase()?<small className="muted">Local storage mode.</small>:!user?<><input placeholder="Email" value={auth.email} onChange={e=>setAuth({...auth,email:e.target.value})}/><input type="password" placeholder="Password" value={auth.password} onChange={e=>setAuth({...auth,password:e.target.value})}/><div className="row"><button disabled={busy} onClick={()=>login()}>Login</button><a href="/signup">Request access</a><a href="/forgot-password">Forgot password?</a></div></>:<><div className="cloudStatus"><span className={cloudReady?"statusDot live":"statusDot"}/><span>{cloudReady?"Cloud autosave on":"Preparing cloud sync"}</span></div><small className="muted">{user}</small><div className="row"><button disabled={busy} onClick={cloudSave}>Save all</button><button disabled={busy} onClick={async()=>{setBusy(true);try{await cloud.signOut();setUser(null);setCloudReady(false)}finally{setBusy(false)}}}>Logout</button></div></>}
         {notice&&<small className="noticeText">{notice}</small>}
       </div>
     </div>}

@@ -46,8 +46,18 @@ export function itemsCollide(a:JoineryItem,b:JoineryItem,gap=0){
   const A=footprint(a),B=footprint(b);
   return a.x<b.x+B.width+gap&&a.x+A.width+gap>b.x&&a.y<b.y+b.height+gap&&a.y+a.height+gap>b.y&&a.z<b.z+B.depth+gap&&a.z+A.depth+gap>b.z
 }
+// Rear service void is required for freestanding appliances; integrated housings
+// already include their void within their configured cabinet depth.
+const serviceAppliances=new Set(["Washing machine","Freestanding fridge","Range cooker"]);
+export function serviceGapSatisfied(p:Project,i:JoineryItem){
+  if(!serviceAppliances.has(i.type))return true;
+  const gap=Math.max(0,p.rules.serviceClearance??50),fp=footprint(i),r=normalizeRotation(i.rotation);
+  return (r===0?i.z:r===90?i.x:r===180?p.roomDepth-i.z-fp.depth:p.roomWidth-i.x-fp.width)>=gap;
+}
 export function canPlace(p:Project,candidate:JoineryItem,ignoreId?:string){
   const c=Math.max(0,p.rules.wallClearance),fp=footprint(candidate);
+  if(![candidate.x,candidate.y,candidate.z,candidate.width,candidate.height,candidate.depth].every(Number.isFinite))return false;
+  if(!serviceGapSatisfied(p,candidate))return false;
   if(candidate.width<=0||candidate.height<=0||candidate.depth<=0)return false;
   if(candidate.x<c||candidate.x+fp.width>p.roomWidth-c||candidate.y<0||candidate.y+candidate.height>p.roomHeight||candidate.z<0||candidate.z+fp.depth>p.roomDepth)return false;
   return !p.items.some(i=>i.id!==ignoreId&&itemsCollide(candidate,i,p.rules.componentGap))
@@ -116,6 +126,7 @@ export function validate(p:Project){
   const issues:string[]=[],c=p.rules.wallClearance,g=p.rules.componentGap;
   p.items.forEach(i=>{
     const fp=footprint(i);
+    if(!serviceGapSatisfied(p,i))issues.push(i.name+": insufficient rear service clearance.");
     if(i.width<=0||i.height<=0||i.depth<=0)issues.push(i.name+": dimensions must be positive.");
     if(i.x<c||i.x+fp.width>p.roomWidth-c)issues.push(i.name+": violates left/right wall clearance.");
     if(i.y<0||i.y+i.height>p.roomHeight)issues.push(i.name+": outside room height.");

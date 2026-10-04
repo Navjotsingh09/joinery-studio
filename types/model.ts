@@ -24,6 +24,6 @@ export type Revision={id:string;revision:number;createdAt:string;snapshot:Projec
 export type Project={
   id:string;name:string;customer:string;reference:string;status:ProjectStatus;revision:number;
   roomWidth:number;roomHeight:number;roomDepth:number;rules:DesignRules;items:JoineryItem[];revisions:Revision[];
-  createdAt:string;updatedAt:string;address?:string;notes?:string;archived?:boolean;
+  createdAt:string;updatedAt:string;cloudVersion?:number;address?:string;notes?:string;archived?:boolean;
   customMaterials?:Material[];floorMaterialId?:string
 };

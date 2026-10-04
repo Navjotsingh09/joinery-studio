@@ -1,5 +1,5 @@
 "use client";
-import {useMemo,useState} from "react";
+import {useEffect,useMemo,useState} from "react";
 import {createScenarioPlan,DESIGN_KINDS,DesignKind,ScenarioPlan,inferDesignKind} from "@/lib/scenarios";
 import {Project} from "@/types/model";
 import {ProjectPreview} from "./ProjectPreview";
@@ -79,7 +79,7 @@ function ScenarioDiagram({kind,scenario}:{kind:DesignKind;scenario:string}){
   </div>;
 }
 
-export function ScenarioStart({onCreate,onContinue,continueName,projects=[],activeId,onOpenProject,onDeleteProject}:{onCreate:(plan:ScenarioPlan)=>void;onContinue?:()=>void;continueName?:string;projects?:Project[];activeId?:string;onOpenProject?:(id:string)=>void;onDeleteProject?:(id:string)=>Promise<void>}){
+export function ScenarioStart({onCreate,onContinue,continueName,initialKind,projects=[],activeId,onOpenProject,onDeleteProject}:{initialKind?:string|null;onCreate:(plan:ScenarioPlan)=>void;onContinue?:()=>void;continueName?:string;projects?:Project[];activeId?:string;onOpenProject?:(id:string)=>void;onDeleteProject?:(id:string)=>Promise<void>}){
   const [projectSearch,setProjectSearch]=useState(""),[projectFilter,setProjectFilter]=useState("all"),[projectSort,setProjectSort]=useState("recent");
   const [kind,setKind]=useState<DesignKind|null>(null);
   const [scenario,setScenario]=useState<string|null>(null);
@@ -96,6 +96,7 @@ export function ScenarioStart({onCreate,onContinue,continueName,projects=[],acti
     finally{setDeleting(null);}
   };
   const choice=useMemo(()=>DESIGN_KINDS.find(x=>x.id===kind),[kind]);
+  useEffect(()=>{if(initialKind==="kitchen"||initialKind==="bedroom"||initialKind==="stairs")resetForKind(initialKind)},[initialKind]);
   const step=scenario?3:kind?2:1;
   const visibleProjects=projects.filter(p=>(showArchived||!p.archived)&&(projectFilter==="all"||inferDesignKind(p.items)===projectFilter)&&`${p.name} ${p.customer} ${p.reference}`.toLowerCase().includes(projectSearch.toLowerCase())).sort((a,b)=>projectSort==="name"?a.name.localeCompare(b.name):b.updatedAt.localeCompare(a.updatedAt));
   const activeProject=projects.find(p=>p.id===activeId);

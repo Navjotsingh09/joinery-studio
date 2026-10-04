@@ -1,74 +1,18 @@
-import {jsPDF} from "jspdf";
-import {Project,WallSide} from "@/types/model";
-import {material} from "./materials";
-import {itemRect,viewSize,contrastText,labelFor,normalizeRotation,wallItemRect,wallViewSize,isItemOnWall} from "./geometry";
-
+import {jsPDF} from 'jspdf';
+import {Project,JoineryItem,WallSide} from '@/types/model';
+import {material} from './materials';
+import {itemRect,viewSize,normalizeRotation,wallItemRect,wallViewSize,isItemOnWall} from './geometry';
 const visible=(p:Project)=>p.items.filter(i=>i.visible!==false);
-export function exportPdf(p:Project){
-  const doc=new jsPDF({orientation:"landscape",unit:"mm",format:"a3"});
-  doc.setFont("helvetica","bold");doc.setFontSize(15);doc.text("JOINERY DESIGN DRAWING PACK",15,13);
-  doc.setFontSize(7);doc.setFont("helvetica","normal");doc.text(p.name+" | "+(p.customer||"Customer")+" | "+p.reference+" | Revision "+p.revision,15,19);
-  if(p.address)doc.text("Site: "+p.address,15,24);
-  const views:[("front"|"top"|"side"),number,number,number,number,string][]=[["front",15,34,185,105,"FRONT ELEVATION"],["top",215,34,185,105,"PLAN"],["side",15,160,185,96,"SIDE ELEVATION"]];
-  for(const [v,x,y,w,h,title] of views){
-    const sz=viewSize(p,v),sc=Math.min(w/sz.w,h/sz.h);
-    doc.setFont("helvetica","bold");doc.text(title,x,y-3);doc.setDrawColor(40);doc.rect(x,y,sz.w*sc,sz.h*sc);
-    visible(p).forEach((i,index)=>{
-      const r=itemRect(i,p,v),drawMaterialId=i.type==="Worktop"?(i.worktopMaterialId??i.materialId):(i.doorMaterialId??i.materialId),m=material(drawMaterialId,p.customMaterials??[]),hex=m.colour.slice(1),rgb=[0,2,4].map(k=>parseInt(hex.slice(k,k+2),16));
-      doc.setFillColor(rgb[0],rgb[1],rgb[2]);doc.rect(x+r.left*sc,y+r.top*sc,r.width*sc,r.height*sc,"FD");
-      doc.setTextColor(contrastText(m.colour)==="#ffffff"?255:20);doc.setFontSize(4.8);doc.text(String(index+1)+" "+i.name,x+r.left*sc+1,y+r.top*sc+4);
-      doc.setFontSize(4.2);doc.text(labelFor(i,v).replace(" × "," x "),x+r.left*sc+1,y+r.top*sc+8);
-      const rot=normalizeRotation(i.rotation??0);if(rot)doc.text("Rot "+rot+"°",x+r.left*sc+1,y+r.top*sc+12);
-    });
-    doc.setTextColor(20);doc.setFont("helvetica","normal");doc.setFontSize(6);
-    doc.line(x,y+sz.h*sc+5,x+sz.w*sc,y+sz.h*sc+5);doc.text(sz.w+" mm",x+sz.w*sc/2-7,y+sz.h*sc+10);
-    doc.line(x-5,y,x-5,y+sz.h*sc);doc.text(sz.h+" mm",x-14,y+sz.h*sc/2,{angle:90});
-  }
-  doc.setTextColor(20);doc.rect(300,235,100,38);doc.setFont("helvetica","bold");doc.text("TITLE BLOCK",304,241);doc.setFont("helvetica","normal");
-  doc.text("Project: "+p.name,304,247);doc.text("Customer: "+(p.customer||"-"),304,252);doc.text("Reference: "+p.reference,304,257);doc.text("Revision: "+p.revision+"  Status: "+p.status,304,262);doc.text("All dimensions in mm. Verify site dimensions.",304,268);
-  if(p.notes){const note=doc.splitTextToSize("Notes: "+p.notes,94).slice(0,2);doc.text(note,304,273)}
-  addWallElevations(doc,p);
-  addSchedule(doc,p);
-  doc.save(p.reference+"-rev-"+p.revision+".pdf")
-}
-function addSchedule(doc:jsPDF,p:Project){
-  const items=visible(p),rows=22;
-  for(let start=0;start<items.length||start===0;start+=rows){
-    doc.addPage("a3","landscape");
-    doc.setFont("helvetica","bold");doc.setFontSize(15);doc.text("ITEM / MATERIAL SCHEDULE",15,15);
-    doc.setFont("helvetica","normal");doc.setFontSize(7);doc.text(p.name+" · "+p.reference+" · Revision "+p.revision,15,21);
-    const y0=31,rowH=9,cols=[15,27,92,135,163,191,219,247,279,326,399];
-    const heads=["#","Item","Type","W","H","D","X","Y / Z","Rotation","Material / layer"];
-    doc.setFillColor(238,235,230);doc.rect(15,y0,384,rowH,"F");doc.setFont("helvetica","bold");doc.setFontSize(6.5);
-    heads.forEach((h,n)=>doc.text(h,cols[n]+1,y0+6));
-    doc.setFont("helvetica","normal");
-    items.slice(start,start+rows).forEach((i,n)=>{
-      const y=y0+rowH*(n+1),m=material(i.worktopMaterialId??i.materialId,p.customMaterials??[]),carcass=material(i.carcassMaterialId??i.materialId,p.customMaterials??[]),front=material(i.doorMaterialId??i.materialId,p.customMaterials??[]),left=material(i.leftSideMaterialId??i.sideMaterialId??i.carcassMaterialId??i.materialId,p.customMaterials??[]),right=material(i.rightSideMaterialId??i.sideMaterialId??i.carcassMaterialId??i.materialId,p.customMaterials??[]),plinth=material(i.plinthMaterialId??i.carcassMaterialId??i.materialId,p.customMaterials??[]);doc.setDrawColor(210);doc.line(15,y+rowH,399,y+rowH);
-      const materialSummary=i.type.includes("staircase")?"T:"+material(i.treadMaterialId??i.materialId,p.customMaterials??[]).code+" R:"+material(i.riserMaterialId??i.materialId,p.customMaterials??[]).code+" Rail:"+material(i.railingMaterialId??i.materialId,p.customMaterials??[]).code:i.type==="Worktop"?"W:"+m.code:i.carcassMaterialId||i.doorMaterialId?"C:"+carcass.code+" F:"+front.code+" L:"+left.code+" R:"+right.code+(i.plinthStyle&&i.plinthStyle!=="none"?" P:"+plinth.code:""):m.code+" "+m.name;
-      const values=[String(start+n+1),i.name,i.type,String(i.width),String(i.height),String(i.depth),String(i.x),i.y+" / "+i.z,normalizeRotation(i.rotation??0)+"°",materialSummary+" · "+(i.layer??"Joinery")];
-      values.forEach((v,k)=>doc.text(String(v).slice(0,k===9?38:22),cols[k]+1,y+6));
-    });
-    doc.setFontSize(6);doc.text("Hidden objects are excluded. Dimensions are design values; verify site dimensions before manufacture.",15,285);
-    if(start+rows>=items.length)break;
-  }
-}
-
-
-function addWallElevations(doc:jsPDF,p:Project){
-  doc.addPage("a3","landscape");
-  doc.setFont("helvetica","bold");doc.setFontSize(15);doc.text("FOUR WALL ELEVATIONS",15,15);
-  doc.setFont("helvetica","normal");doc.setFontSize(7);doc.text(p.name+" · "+p.reference+" · Revision "+p.revision,15,21);
-  const walls:WallSide[]=["back","right","front","left"];
-  const boxes=[[15,34],[215,34],[15,162],[215,162]] as const;
-  walls.forEach((wall,index)=>{
-    const [x,y]=boxes[index],w=185,h=96,sz=wallViewSize(p,wall),sc=Math.min(w/sz.w,h/sz.h);
-    doc.setFont("helvetica","bold");doc.setFontSize(7);doc.text(wall.toUpperCase()+" WALL",x,y-3);
-    doc.setDrawColor(55);doc.rect(x,y,sz.w*sc,sz.h*sc);
-    visible(p).filter(i=>isItemOnWall(p,i,wall)).forEach((i,n)=>{
-      const r=wallItemRect(i,p,wall),drawMaterialId=i.type==="Worktop"?(i.worktopMaterialId??i.materialId):(i.doors>0?(i.doorMaterialId??i.materialId):i.materialId),m=material(drawMaterialId,p.customMaterials??[]),hex=m.colour.slice(1),rgb=[0,2,4].map(k=>parseInt(hex.slice(k,k+2),16));
-      doc.setFillColor(rgb[0],rgb[1],rgb[2]);doc.rect(x+r.left*sc,y+r.top*sc,r.width*sc,r.height*sc,"FD");
-      doc.setTextColor(contrastText(m.colour)==="#ffffff"?255:20);doc.setFontSize(4.4);doc.text(String(n+1)+" "+i.name,x+r.left*sc+1,y+r.top*sc+4);
-    });
-    doc.setTextColor(20);doc.setFont("helvetica","normal");doc.setFontSize(5.5);doc.text(sz.w+" mm",x+sz.w*sc/2-6,y+sz.h*sc+8);
-  });
-}
+function header(doc:jsPDF,p:Project,title:string){doc.setTextColor(35,53,47);doc.setFont('helvetica','bold');doc.setFontSize(15);doc.text(title,15,16);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text(doc.splitTextToSize(`${p.name} | ${p.reference} | Revision ${p.revision}`,380).slice(0,2),15,23)}
+function object(doc:jsPDF,p:Project,i:JoineryItem,r:{left:number;top:number;width:number;height:number},x:number,y:number,sc:number){const m=material(i.type==='Worktop'?(i.worktopMaterialId??i.materialId):(i.doorMaterialId??i.materialId),p.customMaterials??[]),hex=m.colour.slice(1),rgb=[0,2,4].map(k=>parseInt(hex.slice(k,k+2),16));doc.setDrawColor(60);doc.setFillColor(rgb[0],rgb[1],rgb[2]);doc.rect(x+r.left*sc,y+r.top*sc,r.width*sc,r.height*sc,'FD');
+// Compact reference numbers link to the full, wrapped schedule. Small components
+// deliberately have no internal label, avoiding text outside their geometry.
+if(r.width*sc>=8&&r.height*sc>=6){const n=visible(p).findIndex(q=>q.id===i.id)+1,cx=x+(r.left+r.width/2)*sc,cy=y+(r.top+r.height/2)*sc;doc.setFillColor(255,255,255);doc.rect(cx-3,cy-2.5,6,5,'F');doc.setTextColor(25);doc.setFontSize(6);doc.text(String(n),cx,cy+1,{align:'center'})}}
+export function exportPdf(p:Project,download=true){const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a3'});header(doc,p,'JOINERY CONCEPT DRAWING PACK');
+const views:[('front'|'top'|'side'),number,number,number,number,string][]=[['front',22,42,177,95,'FRONT ELEVATION'],['top',222,42,177,95,'PLAN'],['side',22,169,177,95,'SIDE ELEVATION']];
+for(const [v,x,y,w,h,title] of views){const sz=viewSize(p,v),sc=Math.min(w/sz.w,h/sz.h);doc.setFontSize(8);doc.setTextColor(25);doc.setFont('helvetica','bold');doc.text(`${title} / 1:${(1/sc).toFixed(1)}`,x,y-6);doc.setDrawColor(50);doc.rect(x,y,sz.w*sc,sz.h*sc);for(const i of visible(p))object(doc,p,i,itemRect(i,p,v),x,y,sc);doc.setTextColor(25);doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text(`${sz.w} mm`,x+sz.w*sc/2,y+sz.h*sc+8,{align:'center'});doc.text(`${sz.h} mm`,x-6,y+sz.h*sc/2,{angle:90,align:'center'})}
+doc.setTextColor(25);doc.setFontSize(9);doc.text('PROJECT DETAILS',222,176);doc.setFontSize(8);const details=[`Customer: ${p.customer||'-'}`,`Reference: ${p.reference}`,`Revision: ${p.revision} | Status: ${p.status}`,`Site: ${p.address||'-'}`,`Exported: ${new Date().toISOString().slice(0,10)}`];let dy=184;for(const detail of details){const lines=doc.splitTextToSize(detail,177);doc.text(lines,222,dy);dy+=lines.length*4+3}doc.text('Object numbers refer to the item schedule.',222,Math.max(dy+3,240));
+addWallElevations(doc,p);addSchedule(doc,p);if(p.notes){doc.addPage();header(doc,p,'PROJECT NOTES');doc.setFontSize(9);const lines=doc.splitTextToSize(p.notes,380);for(let n=0;n<lines.length;n+=48){if(n){doc.addPage();header(doc,p,'PROJECT NOTES / CONTINUED')}doc.text(lines.slice(n,n+48),15,40)}}
+const total=doc.getNumberOfPages();for(let n=1;n<=total;n++){doc.setPage(n);doc.setTextColor(70);doc.setFont('helvetica','normal');doc.setFontSize(7);doc.line(15,280,402,280);doc.text('Concept planning only. Dimensions in mm. Verify site measurements and technical requirements before manufacture.',15,287);doc.text(`${n} / ${total}`,402,287,{align:'right'})}if(download)doc.save(p.reference+'-rev-'+p.revision+'.pdf');return doc}
+function addWallElevations(doc:jsPDF,p:Project){doc.addPage();header(doc,p,'FOUR WALL ELEVATIONS');const walls:WallSide[]=['back','right','front','left'],boxes=[[22,42],[222,42],[22,169],[222,169]];walls.forEach((wall,index)=>{const [x,y]=boxes[index],sz=wallViewSize(p,wall),sc=Math.min(177/sz.w,95/sz.h);doc.setTextColor(25);doc.setFont('helvetica','bold');doc.setFontSize(8);doc.text(`${wall.toUpperCase()} WALL / 1:${(1/sc).toFixed(1)}`,x,y-6);doc.setDrawColor(50);doc.rect(x,y,sz.w*sc,sz.h*sc);for(const i of visible(p).filter(i=>isItemOnWall(p,i,wall)))object(doc,p,i,wallItemRect(i,p,wall),x,y,sc);doc.setTextColor(25);doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text(`${sz.w} mm`,x+sz.w*sc/2,y+sz.h*sc+8,{align:'center'})})}
+function addSchedule(doc:jsPDF,p:Project){const cols=[15,27,95,140,171,202,233,268,305,402],heads=['#','Item','Type','W / H / D','X / Y / Z','Rotation','Finish','Layer','Materials'];let y=0;const newPage=()=>{doc.addPage();header(doc,p,'ITEM / MATERIAL SCHEDULE');doc.setFillColor(236,240,231);doc.rect(15,33,387,10,'F');doc.setFont('helvetica','bold');doc.setFontSize(7);heads.forEach((t,k)=>doc.text(t,cols[k]+2,39));doc.setFont('helvetica','normal');y=43};newPage();visible(p).forEach((i,n)=>{const mat=(id?:string)=>material(id??i.materialId,p.customMaterials??[]).code;const summary=i.type.includes('staircase')?`Treads: ${mat(i.treadMaterialId)}; Risers: ${mat(i.riserMaterialId)}; Rail: ${mat(i.railingMaterialId)}`:i.type==='Worktop'?`Worktop: ${mat(i.worktopMaterialId)}; Edge: ${i.worktopEdge??'square'}`:`Carcass: ${mat(i.carcassMaterialId)}; Fronts: ${mat(i.doorMaterialId)}; Left: ${mat(i.leftSideMaterialId??i.sideMaterialId)}; Right: ${mat(i.rightSideMaterialId??i.sideMaterialId)}; Plinth: ${mat(i.plinthMaterialId)}`;const values=[String(n+1),i.name,i.type,`${i.width} / ${i.height} / ${i.depth}`,`${i.x} / ${i.y} / ${i.z}`,`${normalizeRotation(i.rotation)} deg`,i.finish||'-',i.layer??'Joinery',summary];doc.setFontSize(7);const lines=values.map((v,k)=>doc.splitTextToSize(v,cols[k+1]-cols[k]-4) as string[]),height=Math.max(12,...lines.map(a=>a.length*3.5+5));if(y+height>272)newPage();doc.setFontSize(7);doc.setTextColor(25);lines.forEach((v,k)=>doc.text(v,cols[k]+2,y+5));doc.setDrawColor(210);doc.line(15,y+height,402,y+height);y+=height})}
