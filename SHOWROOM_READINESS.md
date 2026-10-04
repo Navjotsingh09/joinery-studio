@@ -41,3 +41,13 @@ The public homepage and a dedicated kitchen page rendered successfully. A tempor
 ## Honest feature boundary
 
 Supported: joinery concepts, measured 2D views, 3D previews, surfaces, revisions, JSON backups, PDF drawing packs. Not supported: X_T/STEP/IGES/DWG/STL import, paper sketch OCR, automatic 3D reconstruction, AR/VR, real-time collaboration, advanced CAD modelling, manufacturing/CNC output, paid checkout, activated subscriptions or company tenancy. These remain roadmap work.
+
+## Continued verification — 4 October 2026
+
+The GitHub Actions failure is now diagnosed. Run 37232514313/check 111525024463 reports: “The job was not started because your account is locked due to a billing issue.” The account owner must resolve GitHub billing; changing build commands cannot repair this. The runner migration annotation is a notice, not the cause.
+
+Vercel automatically produced a READY preview for branch commit 6eacb4732e15ea65032057b0ce5fc284bc0a40bd in the existing joinery-studio project. This is not a production rollout. Its environment-variable listing is empty. The connection cannot read the protected preview because the required team/project scope is not authorized. No authentication protection was changed.
+
+The SQL migration was executed twice in a local PostgreSQL 18.3/PGlite instance with emulated auth.uid() and authenticated role. Eleven checks passed for complete snapshots, increasing versions, stale-save rejection, failed-write rollback, project isolation, Basic limits through RPC and direct inserts, and deleted-project conflicts. The pgcrypto extension declaration was omitted for this local harness; PostgreSQL built-in UUID generation was used. This validates SQL behavior locally, not Supabase hosting, Auth email delivery, real network concurrency or production RLS grants. The harness is now included in the test suite.
+
+The continued suite passes 116 tests across 22 files; the production build also passes. `npm start` now packages the public directory and Next static assets for standalone Node hosting. A recursive smoke check found 51 linked routes/assets and all returned HTTP 200. Three alternate hosting projects were checked: two list no environment variables, while joinery-studio-isvf lists public Supabase variables marked sensitive whose values cannot be recovered through this connection. Their presence alone does not establish a working database or migration.

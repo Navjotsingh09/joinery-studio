@@ -31,6 +31,10 @@ Never commit a service-role key.
 
 ## Routes and rollout
 
-`/` is the public website. `/studio` is the private editor; it requires configured authentication. `/login`, `/forgot-password`, `/reset-password` and `/signup` provide account entry and access requests. The development-only `/qa/studio` route is unavailable in production.
+`/` is the public website. `/studio` is the private editor; it requires configured authentication. `/login`, `/forgot-password`, `/reset-password` and `/signup` provide account entry and access requests.
 
 See [SHOWROOM_READINESS.md](SHOWROOM_READINESS.md) for completed work, configuration requirements and the remaining live acceptance checks. Apply the updated schema before enabling cloud saves; do not assume the previous database setup includes the new snapshot RPC. Paid billing, advanced CAD imports, OCR, AR/VR and collaboration are not active.
+
+## Production Node host
+
+Run `npm ci`, `npm run build`, then `npm start`. The start script includes public images and Next static assets in the standalone output. Configure `PORT` and `HOSTNAME` for your host. Account/cloud access remains closed until the public Supabase variables are configured at build time and the migration is applied.
