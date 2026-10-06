@@ -6,7 +6,7 @@ export type WallSide="back"|"front"|"left"|"right";
 export type PlinthStyle="recessed"|"flush"|"legs"|"none";
 export type JoineryPart="carcass"|"fronts"|"left-side"|"right-side"|"plinth"|"worktop"|"backsplash"|"treads"|"risers"|"railing";
 export type JoineryItem={
-  sourceUnitIds?:string[];unitNumber?:number;frontStyle?:"slab"|"shaker"|"slim-shaker"|"raised-panel"|"fluted";worktopFinishedEdges?:("front"|"back"|"left"|"right")[];id:string;name:string;type:string;x:number;y:number;z:number;width:number;height:number;depth:number;
+  sourceUnitIds?:string[];unitNumber?:number;frontStyle?:"slab"|"shaker"|"slim-shaker"|"raised-panel"|"fluted"|"aluminium-glass";worktopFinishedEdges?:("front"|"back"|"left"|"right")[];id:string;name:string;type:string;x:number;y:number;z:number;width:number;height:number;depth:number;
   handleFinish?:"Chrome"|"Brushed steel"|"Matt black"|"Brass"|"Copper";handleLength?:number;
   larderLayout?:"shelves"|"pull-out"|"internal-drawers";
   hobStyle?:"induction"|"gas"|"ceramic"|"grill";hobZones?:2|4|5;
@@ -28,12 +28,12 @@ export type LightingSettings={exposure:number;daylight:number;warmLights:boolean
 export type ProjectSnapshot={
   name:string;customer:string;reference:string;status:ProjectStatus;roomWidth:number;roomHeight:number;roomDepth:number;
   rules:DesignRules;items:JoineryItem[];address?:string;notes?:string;archived?:boolean;
-  nextItemNumber?:number;savedCameras?:SavedCamera[];lighting?:LightingSettings;customMaterials?:Material[];floorMaterialId?:string;designKind?:"kitchen"|"bedroom"|"stairs";displayUnit?:"mm"|"cm"|"in";drawingReference?:DrawingReference
+  autoWorktops?:boolean;autoWorktopOverhang?:number;nextItemNumber?:number;savedCameras?:SavedCamera[];lighting?:LightingSettings;customMaterials?:Material[];floorMaterialId?:string;designKind?:"kitchen"|"bedroom"|"stairs";displayUnit?:"mm"|"cm"|"in";drawingReference?:DrawingReference
 };
 export type Revision={id:string;revision:number;createdAt:string;snapshot:ProjectSnapshot};
 export type Project={
   id:string;name:string;customer:string;reference:string;status:ProjectStatus;revision:number;
   roomWidth:number;roomHeight:number;roomDepth:number;rules:DesignRules;items:JoineryItem[];revisions:Revision[];
   createdAt:string;updatedAt:string;cloudVersion?:number;address?:string;notes?:string;archived?:boolean;
-  nextItemNumber?:number;savedCameras?:SavedCamera[];lighting?:LightingSettings;customMaterials?:Material[];floorMaterialId?:string;designKind?:"kitchen"|"bedroom"|"stairs";displayUnit?:"mm"|"cm"|"in";drawingReference?:DrawingReference
+  autoWorktops?:boolean;autoWorktopOverhang?:number;nextItemNumber?:number;savedCameras?:SavedCamera[];lighting?:LightingSettings;customMaterials?:Material[];floorMaterialId?:string;designKind?:"kitchen"|"bedroom"|"stairs";displayUnit?:"mm"|"cm"|"in";drawingReference?:DrawingReference
 };

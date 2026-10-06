@@ -1,5 +1,5 @@
 import {JoineryItem,Project} from "@/types/model";
-export const FRONT_STYLES=["slab","shaker","slim-shaker","raised-panel","fluted"] as const;
+export const FRONT_STYLES=["slab","shaker","slim-shaker","raised-panel","fluted","aluminium-glass"] as const;
 export const HANDLE_STYLES=["None","Handleless","Bar handle","Knob","Cup pull","Edge pull","Push-to-open","Client specified"];
 export const HANDLE_FINISHES=["Chrome","Brushed steel","Matt black","Brass","Copper"] as const;
 export const ISLAND_STYLES=["storage","breakfast","dining","extended","hob","grill"] as const;

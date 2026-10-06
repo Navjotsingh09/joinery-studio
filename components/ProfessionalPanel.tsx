@@ -69,7 +69,7 @@ export function ProfessionalPanel({project}:{project:Project}){
     const items=[...project.items.filter(i=>i.type!=="Worktop"),...tops];
     const proposed={...project,items};
     if(tops.some(t=>!canPlace(proposed,t,t.id)))return setMessage("A worktop intersects another object. Adjust the run or overhang.");
-    s.updateProject({items});setMessage("Generated "+tops.length+" connected worktop section(s), with automatic sink and hob cutouts. Undo restores the previous tops.");
+    s.updateProject({items,autoWorktops:true,autoWorktopOverhang:overhang});setMessage("Generated "+tops.length+" connected worktop section(s), with automatic sink and hob cutouts. Undo restores the previous tops.");
   };
   const addWardrobeInternals=()=>{
     if(!primary||!wardrobeTypes.has(primary.type))return setMessage("Select a wardrobe first.");
@@ -82,6 +82,7 @@ export function ProfessionalPanel({project}:{project:Project}){
     setMessage("Added hanging rail, internal drawers and loft storage.");
   };
   return <section className="proPanel"><CadPlanPanel key={project.id} onChange={drawingReference=>s.updateProject({drawingReference})} onPlan={()=>s.setView("top")}/><DrawingReferencePanel project={project} onChange={drawingReference=>s.updateProject({drawingReference})} onPlan={()=>s.setView("top")}/>
+    <details className="workflowHelp"><summary>Workflow & keyboard shortcuts</summary><p>Room → Floor → Wall → Door → Window → Kitchen units. Then Base → Wall → Larder → Island → Worktop → Backsplash.</p><dl><dt>Top</dt><dd>2D floor planner</dd><dt>Shift + click (3D)</dt><dd>Select the surface beneath the pointer</dd><dt>Alt + click (3D) / Alt + drag (2D)</dt><dd>Duplicate the unit</dd><dt>Ctrl / Cmd + D</dt><dd>Duplicate selection</dd><dt>R / Shift + R</dt><dd>Rotate 90° / −90°</dd><dt>Arrow keys</dt><dd>Move by the snap grid</dd><dt>Ctrl / Cmd + Z</dt><dd>Undo · Shift for redo</dd></dl></details>
     <div className="proIntro"><b>Professional edit</b><p>Select one or more objects, then use real-world placement and batch tools.</p></div>
     <details open><summary>Selection <span>{picked.length}</span></summary>
       <div className="proObjectList">{project.items.map(i=><label key={i.id} className={(ids.includes(i.id)?"picked ":"")+(i.visible===false?"hiddenItem":"")}><input type="checkbox" checked={ids.includes(i.id)} onChange={()=>toggle(i.id)}/><span><b>{i.name}</b><small>{i.layer??"Joinery"} · {i.visible===false?"Hidden":"Visible"}{i.locked?" · Locked":""}</small></span></label>)}</div>
@@ -99,7 +100,7 @@ export function ProfessionalPanel({project}:{project:Project}){
       <button className="proDanger" onClick={()=>{if(picked.length&&confirm("Delete "+picked.length+" selected item"+(picked.length===1?"":"s")+"?")){s.deleteItems(picked.map(i=>i.id));setIds([])}}}>Delete selected</button>
     </details>
     <details open><summary>Joinery intelligence</summary>
-      <p className="surfaceHelp">Rebuild all worktop sections from the current units. Existing tops are replaced; Undo restores them.</p><div className="fieldGrid2"><label>Front overhang (mm)<input type="number" min="0" max="300" value={overhang} onChange={e=>setOverhang(Math.max(0,Math.min(300,+e.target.value)))}/></label><label>Thickness (mm)<input type="number" min="6" max="100" value={thickness} onChange={e=>setThickness(Math.max(6,Math.min(100,+e.target.value)))}/></label></div><button className="proWide" onClick={makeWorktop}>Regenerate kitchen worktops</button>
+      <label className="autoWorktopToggle"><input type="checkbox" checked={project.autoWorktops??false} onChange={e=>{if(e.target.checked)makeWorktop();else s.updateProject({autoWorktops:false})}}/> Keep worktops connected as units change</label><p className="surfaceHelp">Rebuild all worktop sections from the current units. Existing tops are replaced; Undo restores them.</p><div className="fieldGrid2"><label>Front overhang (mm)<input type="number" min="0" max="300" value={overhang} onChange={e=>setOverhang(Math.max(0,Math.min(300,+e.target.value)))}/></label><label>Thickness (mm)<input type="number" min="6" max="100" value={thickness} onChange={e=>setThickness(Math.max(6,Math.min(100,+e.target.value)))}/></label></div><button className="proWide" onClick={makeWorktop}>Regenerate kitchen worktops</button>
       <button className="proWide" onClick={addWardrobeInternals}>Auto-fit selected wardrobe internals</button>
       {stairs&&<div className={"stairMetrics "+(stairs.review?"needsReview":"")}><b>Stair geometry</b><div><span>Risers<strong>{stairs.risers}</strong></span><span>Rise<strong>{stairs.rise} mm</strong></span><span>Going<strong>{stairs.going} mm</strong></span><span>Pitch<strong>{stairs.pitch}°</strong></span></div><small>{stairs.review?"Review these proportions before manufacture.":"Proportions look workable."} Planning aid only — verify site dimensions and applicable regulations.</small></div>}
     </details>

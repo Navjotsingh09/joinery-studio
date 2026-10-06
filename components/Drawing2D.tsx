@@ -18,13 +18,14 @@ type DragState={
 };
 
 export function Drawing2D({
-  project,view,selected,wallSide,onSelect,onMove,onResize,onRotate,onMoveStart,onContext,onDropType
+  project,view,selected,wallSide,onSelect,onDuplicate,onMove,onResize,onRotate,onMoveStart,onContext,onDropType
 }:{
   project:Project;
   view:Exclude<ViewMode,"3d">;
   selected:string|null;
   wallSide?:WallSide;
   onSelect:(id:string|null)=>void;
+  onDuplicate?:(id:string)=>JoineryItem|null;
   onMove:(id:string,x:number,y:number,z:number)=>void;
   onResize:(id:string,patch:Partial<JoineryItem>)=>void;
   onRotate:(id:string,rotation:number)=>void;
@@ -51,12 +52,12 @@ export function Drawing2D({
 
   const begin=(e:React.PointerEvent,id:string,mode:"move"|"resize"|"rotate")=>{
     e.preventDefault();e.stopPropagation();
-    const i=project.items.find(x=>x.id===id);
+    let i=project.items.find(x=>x.id===id);
     if(!i||i.locked||!ref.current)return;
     (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-    onMoveStart();
+    if(e.altKey&&mode==="move"){const copy=onDuplicate?.(id);if(!copy)return;i=copy}else onMoveStart();
     setDrag({id,mode,start:svgPoint(ref.current,e.clientX,e.clientY),original:{...i}});
-    onSelect(id);
+    onSelect(i.id);
   };
 
   const move=(e:React.PointerEvent)=>{
@@ -150,7 +151,7 @@ export function Drawing2D({
       <filter id="selectionShadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity=".2"/></filter>
     </defs>
     <text x={tx} y={34} className="viewTitle">{elevation?(wallSide!.toUpperCase()+" WALL ELEVATION"):view==="front"?"FRONT ELEVATION":view==="top"?"PLAN VIEW":"SIDE ELEVATION"}</text>
-    <text x={tx} y={52} className="viewHint">Click to select · drag to move · drag corner handle to resize</text>
+    <text x={tx} y={52} className="viewHint">Click to select · drag to move · drag corner handle to resize · Alt + drag copies</text>
     <g transform={"translate("+tx+","+ty+")"}>
       <rect className="roomCanvas" width={size.w*scale} height={size.h*scale} fill="url(#grid)" stroke="#383838" strokeWidth="2" onPointerDown={e=>{e.stopPropagation();onSelect(null)}}/>
       {view==="top"&&project.drawingReference?.visible&&<g clipPath="url(#roomReferenceClip)" pointerEvents="none"><image preserveAspectRatio="none" href={project.drawingReference.dataUrl} x={project.drawingReference.x*scale} y={(project.roomDepth-project.drawingReference.z-referenceDepth(project.drawingReference))*scale} width={project.drawingReference.widthMm*scale} height={referenceDepth(project.drawingReference)*scale} opacity={project.drawingReference.opacity}/></g>}
