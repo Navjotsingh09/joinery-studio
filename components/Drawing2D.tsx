@@ -15,6 +15,8 @@ type DragState={
   mode:"move"|"resize"|"rotate";
   start:{x:number;y:number};
   original:JoineryItem;
+  duplicated:boolean;
+  started:boolean;
 };
 
 export function Drawing2D({
@@ -36,6 +38,8 @@ export function Drawing2D({
   project=kitchenProject(project);
   const ref=useRef<SVGSVGElement>(null);
   const [drag,setDrag]=useState<DragState|null>(null);
+  const dragRef=useRef<DragState|null>(null);
+  const finishDrag=()=>{dragRef.current=null;setDrag(null);setGuides({})};
   const [guides,setGuides]=useState<{x?:number;y?:number;label?:string}>({});
   const elevation=!!wallSide&&view==="front";
   const measure=(n:number)=>formatMeasure(n,project.displayUnit??"mm");
@@ -54,14 +58,24 @@ export function Drawing2D({
     e.preventDefault();e.stopPropagation();
     let i=project.items.find(x=>x.id===id);
     if(!i||i.locked||!ref.current)return;
-    (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
-    if(e.altKey&&mode==="move"){const copy=onDuplicate?.(id);if(!copy)return;i=copy}else onMoveStart();
-    setDrag({id,mode,start:svgPoint(ref.current,e.clientX,e.clientY),original:{...i}});
+    ref.current.focus();
+    ref.current.setPointerCapture?.(e.pointerId);
+    const source={...i};
+    if(e.altKey&&mode==="move"){const copy=onDuplicate?.(id);if(!copy)return;i=copy}
+    const state={id:i.id,mode,start:svgPoint(ref.current,e.clientX,e.clientY),original:{...source,id:i.id,name:i.name},duplicated:e.altKey&&mode==="move",started:e.altKey&&mode==="move"};
+    dragRef.current=state;setDrag(state);
     onSelect(i.id);
   };
 
   const move=(e:React.PointerEvent)=>{
+    let drag=dragRef.current;
     if(!drag||!ref.current)return;
+    if(drag.mode==="move"&&e.altKey&&!drag.duplicated){
+      const copy=onDuplicate?.(drag.original.id);if(!copy)return;
+      drag={...drag,id:copy.id,original:{...drag.original,id:copy.id,name:copy.name},duplicated:true,started:true};
+      dragRef.current=drag;setDrag(drag);onSelect(copy.id);
+    }
+    if(!drag.started){onMoveStart();drag={...drag,started:true};dragRef.current=drag}
     const q=svgPoint(ref.current,e.clientX,e.clientY);
     const dx=(q.x-drag.start.x)/scale,dy=(q.y-drag.start.y)/scale;
     const i=drag.original;
@@ -84,9 +98,9 @@ export function Drawing2D({
       if(view==="side")candidate={...candidate,y:i.y-dy,z:i.z+dx};
       candidate=moveItemOnAxes(i,project,candidate,view==="top"?["x","z"]:view==="side"||elevation&&(wallSide==="left"||wallSide==="right")?["y","z"]:["x","y"]);
       let r=rectFor(candidate);
-      const others=project.items.filter(o=>o.id!==i.id&&o.visible!==false);
+      const others=project.items.filter(o=>o.id!==i.id&&o.visible!==false&&o.type!=="Worktop"&&Math.abs(o.y-i.y)<5);
       let gx:number|undefined,gy:number|undefined,label:string|undefined;
-      const threshold=Math.max(20,project.rules.snap*.6);
+      const threshold=Math.max(50,project.rules.snap);
       let bestX=threshold+1,bestY=threshold+1,deltaX=0,deltaY=0;
       const cx=[r.left,r.left+r.width/2,r.left+r.width],cy=[r.top,r.top+r.height/2,r.top+r.height];
       for(const o of others){
@@ -140,8 +154,8 @@ export function Drawing2D({
     onDropType(type,x,y,z);
   };
 
-  return <svg ref={ref} className={"drawing "+(drag?"isDragging":"")} viewBox={"0 0 "+W+" "+H}
-    onPointerMove={move} onPointerUp={()=>{setDrag(null);setGuides({})}} onPointerCancel={()=>{setDrag(null);setGuides({})}}
+  return <svg ref={ref} tabIndex={0} aria-label="Kitchen drawing canvas" className={"drawing "+(drag?"isDragging":"")} viewBox={"0 0 "+W+" "+H}
+    onPointerMove={move} onPointerUp={finishDrag} onPointerCancel={finishDrag}
     onPointerDown={e=>{if(e.target===e.currentTarget)onSelect(null)}}
     onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="copy"}} onDrop={drop}>
     <defs>
@@ -204,8 +218,8 @@ export function Drawing2D({
           {sel&&<>
             <line x1="0" y1={rh+11} x2={rw} y2={rh+11} stroke="#c8102e"/><text x={rw/2} y={rh+27} textAnchor="middle" className="dim selectionDim">{measure(r.width)}</text>
             <line x1={(size.w-r.left)*scale+18} y1="0" x2={(size.w-r.left)*scale+18} y2={rh} stroke="#c8102e"/><text x={(size.w-r.left)*scale+34} y={rh/2} textAnchor="middle" className="dim selectionDim" transform={"rotate(-90 "+((size.w-r.left)*scale+34)+" "+(rh/2)+")"}>{measure(r.height)}</text>
-            <text x="4" y="-10" className="dim selectionDim">{view==="front"?"X "+measure(i.x)+" · Y "+measure(i.y):view==="top"?"X "+measure(i.x)+" · Z "+measure(i.z):"Z "+measure(i.z)+" · Y "+measure(i.y)}</text>
-            {view==="top"&&<text x="4" y="-24" className="dim clearanceDim">L {measure(clear.left)} · R {measure(clear.right)} · Back {measure(clear.back)} · Front {measure(clear.front)}</text>}
+            <text x="4" y={rh+45} className="dim selectionDim">{view==="front"?"X "+measure(i.x)+" · Y "+measure(i.y):view==="top"?"X "+measure(i.x)+" · Z "+measure(i.z):"Z "+measure(i.z)+" · Y "+measure(i.y)}</text>
+            {view==="top"&&<text x="4" y={rh+61} className="dim clearanceDim">L {measure(clear.left)} · R {measure(clear.right)} · Back {measure(clear.back)} · Front {measure(clear.front)}</text>}
             <g className="rotationBadge" transform={"translate("+(rw-6)+",-18)"}><rect x="-42" y="-13" width="42" height="18" rx="5" fill="#fff" stroke="#c8102e"/><text x="-21" y="0" textAnchor="middle" className="rotationText">{rotation}°</text></g>
             {!i.locked&&<>
               <g className="resizeHandle" transform={"translate("+rw+","+rh+")"} onPointerDown={e=>begin(e,i.id,"resize")}><circle r="10" fill="#fff" stroke="#c8102e" strokeWidth="3"/><circle r="3" fill="#c8102e"/></g>

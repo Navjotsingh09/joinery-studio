@@ -28,3 +28,12 @@
 - Real-device WebGL checks for 3D selection, door animations, reflections, transform smoothness and high-resolution PNG output. The cloud browser available for verification cannot render WebGL; automated scene/geometry tests do not replace this check.
 - Exact interface/behaviour comparisons with **Video 1** and **Video 3**. Those videos were referenced in the requirements but their contents were not attached to this request.
 - Team walkthroughs on target desktop and tablet hardware. Public browser-local team testing remains the current mode; shared accounts and cloud project storage remain deferred.
+
+
+## Chrome test follow-up — 6 October 2026
+
+The customer reported successful real-device checks for exact blank rooms, guided phases, 3D duplication and surface selection, glass fronts, doors, matt fronts, connected worktops and 3D snapping. These are customer observations, not a complete release certification.
+
+This follow-up fixes canvas pointer capture and focus, Alt duplication during plan movement, 50 mm adjacency snapping, transient placement warnings, camera prop identity, persistent 3D view mounting, oak floor clearcoat, plan annotations, selection list alignment, missing panel thumbnails, copy names and inspector material scopes. Existing project data is retained. Existing out-of-scope finishes stay available as the current selection; new choices are scoped. Painted board colours remain valid cabinet finishes.
+
+Regression checks exercise actual plan pointer handlers for Alt at pointer-down and after pointer-down, one-copy movement, canvas capture and focus, drag completion, and single undo checkpoint. Geometry checks cover the reported 50 mm gap. Hardware checks still required after this release: camera stability, context lifetime and switch latency, oak floor appearance, full-resolution PNG inspection, tablet interaction, PDF packs, CAD/PDF imports, Blender package and video comparisons.

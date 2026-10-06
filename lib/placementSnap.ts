@@ -2,7 +2,7 @@ import {JoineryItem,Project} from '@/types/model';
 import {canPlace,footprint} from './geometry';
 /** Magnetise floor-plane movement only; dedicated X/Y/Z controls keep their axis. */
 export function adjacentUnitSnap(p:Project,i:JoineryItem):JoineryItem{
- const f=footprint(i),threshold=Math.max(20,p.rules.snap*.6),gap=p.rules.componentGap;
+ const f=footprint(i),threshold=Math.max(50,p.rules.snap),gap=p.rules.componentGap;
  let best=i,distance=threshold+1;
  for(const other of p.items){
   if(other.id===i.id||other.visible===false||Math.abs(other.y-i.y)>5||other.type==='Worktop')continue;
