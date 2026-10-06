@@ -1,4 +1,5 @@
 "use client";
+import {projectLimitReached,projectLimitExceeded} from "@/lib/projectAllowance";
 import {MeasureInput} from "./MeasureInput";
 import {DisplayUnit} from "@/lib/units";
 import {newId} from "@/lib/id";
@@ -292,7 +293,7 @@ export default function Studio(){
 
   const importJson=async(e:React.ChangeEvent<HTMLInputElement>)=>{
     const f=e.target.files?.[0];if(!f)return;
-    try{const d=JSON.parse(await f.text());if(!isProjectBackup(d))throw new Error();if(d.length>2){alert("Basic allows two projects. Please import a backup containing at most two projects.");return}if(confirm("Replace local projects with this backup?"))s.replaceAll(d)}
+    try{const d=JSON.parse(await f.text());if(!isProjectBackup(d))throw new Error();if(projectLimitExceeded(d.length)){alert("Basic allows two projects. Please import a backup containing at most two projects.");return}if(confirm("Replace local projects with this backup?"))s.replaceAll(d)}
     catch{alert("Invalid Joinery Studio JSON file.")}
     e.target.value=""
   };
@@ -367,7 +368,7 @@ export default function Studio(){
       onContinue={()=>setShowLauncher(false)}
       onCreate={(plan:ScenarioPlan)=>{
         if(p.items.length){
-          if(s.projects.length>=2){alert("Basic allows two projects. Export or delete one before starting another.");return}
+          if(projectLimitReached(s.projects.length)){alert("Basic allows two projects. Export or delete one before starting another.");return}
           s.addProject();
           useStudio.getState().configureActive({
             name:plan.name,
