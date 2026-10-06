@@ -3,12 +3,16 @@ import {islandAppliance} from './kitchenConfig';
 export const KITCHEN_ASSET_CREDITS=[
  {name:'Modern Faucet',author:'MattMump',url:'https://blendswap.com/blend/5176',license:'CC0',files:['cross-handle-mixer']},
  {name:'Kitchen Worktop',author:'MZiemys',url:'https://blendswap.com/blend/17672',license:'CC0',files:['gas-hob','inset-sink','square-mixer']},
- {name:'Kitchen Asset Library-Pack photoreal Vol.1',author:'Davilion',url:'https://blendswap.com/blend/25903',license:'CC0',files:['ceramic-mug','cooking-pot']}
+ {name:'Kitchen Asset Library-Pack photoreal Vol.1',author:'Davilion',url:'https://blendswap.com/blend/25903',license:'CC0',files:['ceramic-mug','cooking-pot']},
+ {name:'Bosh Integrated Oven',author:'MZiemys',url:'https://blendswap.com/blend/18300',license:'CC0',files:['built-in-oven']},
+ {name:'Range hood',author:'doniypolo',url:'https://blendswap.com/blend/8425',license:'CC0',files:['range-hood']}
 ];
 export function requiredKitchenAssets(p:Project){
  const names=new Set<string>();
  function tap(style?:string){if(style==='Cross-handle mixer')names.add('cross-handle-mixer');if(style==='Square neck')names.add('square-mixer')}
  for(const i of p.items.filter(i=>i.visible!==false)){
+  if(i.type==='Oven tower'||i.type==='Single oven'&&(i.productStyle??'Contemporary')==='Contemporary'&&(i.colourVariant??'Black')==='Black')names.add('built-in-oven');
+  if(i.type==='Extractor hood'&&(i.productStyle??'Contemporary')==='Contemporary'&&(i.colourVariant??'Stainless steel')==='Stainless steel')names.add('range-hood');
   if(i.type==='Sink base'&&(i.productStyle??'Inset stainless')==='Inset stainless')names.add('inset-sink');
   if(i.type==='Hob base'&&i.hobStyle==='gas'&&(i.hobZones??4)===4)names.add('gas-hob');
   if(i.type==='Tap'||i.type.endsWith(' tap'))tap(i.productStyle);

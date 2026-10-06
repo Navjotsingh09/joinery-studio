@@ -22,7 +22,8 @@ if not cameras:
     raise SystemExit('The scene has no camera. Export it again from the 3D view.')
 scene.camera = cameras[0]
 scene.render.engine = 'CYCLES'
-scene.cycles.samples = 256
+profile = settings.get("quality", "customer")
+scene.cycles.samples = 96 if profile == "preview" else 256
 scene.cycles.use_denoising = True
 scene.cycles.max_bounces = 10
 # CPU is portable. Use an available GPU when Blender supports it on this machine.
@@ -42,8 +43,8 @@ try:
             continue
 except Exception:
     pass
-scene.render.resolution_x = 4096
-scene.render.resolution_y = max(256, round(4096 / settings.get('aspect', 1.5)))
+scene.render.resolution_x = 2048 if profile == "preview" else 4096
+scene.render.resolution_y = max(256, round(scene.render.resolution_x / max(.2, min(5, settings.get('aspect', 1.5)))))
 scene.render.resolution_percentage = 100
 scene.render.image_settings.file_format = 'PNG'
 scene.render.image_settings.color_mode = 'RGB'
@@ -66,6 +67,10 @@ if os.path.isfile(environment_path):
 else:
     world.node_tree.nodes['Background'].inputs[0].default_value = (.78, .83, .9, 1)
     world.node_tree.nodes['Background'].inputs[1].default_value = .35
+nodes, links = world.node_tree.nodes, world.node_tree.links
+plain = nodes.new('ShaderNodeBackground'); plain.inputs[0].default_value = (.65, .65, .65, 1)
+path = nodes.new('ShaderNodeLightPath'); mix = nodes.new('ShaderNodeMixShader')
+links.new(path.outputs['Is Camera Ray'], mix.inputs[0]); links.new(nodes['Background'].outputs[0], mix.inputs[1]); links.new(plain.outputs[0], mix.inputs[2]); links.new(mix.outputs[0], nodes['World Output'].inputs['Surface'])
 scene.world = world
 # glTF imports Y-up geometry as Z-up. Light placement below uses Blender Z-up.
 def area(name, position, target, power, colour, size):
@@ -77,7 +82,8 @@ def area(name, position, target, power, colour, size):
     obj.rotation_euler = (Vector(target) - obj.location).to_track_quat('-Z', 'Y').to_euler()
 area('Daylight softbox', (3.5, -4.5, 6.5), (0, 0, 1), 900 * settings['lighting']['daylight'], (1, .94, .85), 4)
 area('Cool fill', (-4, -1, 3), (0, 0, 1), 450, (.83, .9, 1), 3)
-area('Ceiling bounce', (0, 0, 5), (0, 0, 0), 700, (1, .96, .9), 4)
+room = settings.get('room', {'width': 4.2, 'height': 2.4, 'depth': 3.4})
+area('Ceiling bounce', (0, 0, max(.5, room['height'] - .15)), (0, 0, 0), 180, (1, .96, .9), min(3, room['width'] * .6))
 # Imported materials, UVs, open doors and apertures are preserved from the app.
 bpy.ops.wm.save_as_mainfile(filepath=os.path.splitext(output_path)[0] + '.blend')
 bpy.ops.render.render(write_still=True)

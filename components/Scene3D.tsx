@@ -188,7 +188,7 @@ function builtInFloorTexture(id:string,colour:string){
   const tex=new THREE.CanvasTexture(canvas);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(1,1);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=8;roomTextureCache.set(key,tex);return tex;
 }
 
-function RoomShell({project,rw,rh,rd,showWalls,realistic,floorMaterial,studioMode=false}:{project:Project;rw:number;rh:number;rd:number;showWalls:boolean;realistic:boolean;floorMaterial:Material;studioMode?:boolean}){
+function RoomShell({project,rw,rh,rd,showWalls,realistic,floorMaterial,studioMode=false,showCeiling=true}:{showCeiling?:boolean;project:Project;rw:number;rh:number;rd:number;showWalls:boolean;realistic:boolean;floorMaterial:Material;studioMode?:boolean}){
   const maps=useSurfaceMaps(floorMaterial,"floor"),uploadedFloor=maps.colour;
   const floor=studioMode?null:realistic?(uploadedFloor??builtInFloorTexture(floorMaterial.id,floorMaterial.colour)):null;
   if(uploadedFloor){const tile=textureDimensions(surfaceMapping(floorMaterial));[uploadedFloor,maps.normal,maps.rough].forEach(t=>{if(t){t.repeat.set(rw/tile.width,rd/tile.height);t.rotation=tile.rotation*Math.PI/180;t.center.set(.5,.5)}})}
@@ -210,7 +210,7 @@ function RoomShell({project,rw,rh,rd,showWalls,realistic,floorMaterial,studioMod
         const span=mm(c.width),height=Math.min(skirting,mm(c.height)),offset=mm(c.x+c.width/2);
         return <mesh key={wall+"skirt"+n} position={wall==="back"?[offset-rw/2,height/2,-rd/2+.009]:[-rw/2+.009,height/2,rd/2-offset]} receiveShadow><boxGeometry args={wall==="back"?[span,height,skirtingD]:[skirtingD,height,span]}/><meshStandardMaterial color="#f8f7f3" roughness={.78}/></mesh>;
       }))}
-      {project.lighting?.ceiling&&<mesh position={[0,rh+.02,0]} receiveShadow><boxGeometry args={[rw,.04,rd]}/><meshStandardMaterial color="#faf9f6" roughness={.9}/></mesh>}
+      {showCeiling&&project.lighting?.ceiling&&<mesh position={[0,rh+.02,0]} receiveShadow><boxGeometry args={[rw,.04,rd]}/><meshStandardMaterial color="#faf9f6" roughness={.9}/></mesh>}
     </>}
   </group>;
 }
@@ -664,6 +664,10 @@ function Microwave({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
   </group>;
 }
 function ExtractorHood({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
+  const fallback=<ProceduralExtractorHood i={i} w={w} h={h} d={d}/>;
+  return (i.productStyle??"Contemporary")==="Contemporary"&&(i.colourVariant??"Stainless steel")==="Stainless steel"?<KitchenAsset name="range-hood" size={[w,h,d]} fallback={fallback}/>:fallback;
+}
+function ProceduralExtractorHood({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
   const finish=applianceFinish(i.colourVariant),style=i.productStyle??"Contemporary",minimal=style==="Minimal",professional=style==="Professional";
   return <group>
     {minimal?<mesh position={[0,-h*.18,.02]} castShadow><boxGeometry args={[w,.12,d*.62]}/><meshStandardMaterial color={finish} metalness={.62} roughness={.22}/></mesh>:<>
@@ -806,13 +810,17 @@ function OvenTower({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:strin
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={activeConstructionView?3:0}/>
       <group position={[0,lowerY,0]}><DoorFronts i={{...i,doors:1}} w={w} h={lowerH-.012} d={bodyD} colour={c}/></group>
       <group position={[0,topY,0]}><DoorFronts i={{...i,doors:1}} w={w} h={topH-.012} d={bodyD} colour={c}/></group>
-      <mesh position={[0,ovenY,bodyD/2+.002]} castShadow><boxGeometry args={[w-.055,ovenH-.02,.08]}/><meshStandardMaterial color="#242628" metalness={.28} roughness={.25}/></mesh>
-      <ApplianceGlass position={[0,ovenY,bodyD/2+.049]} size={[w-.11,ovenH-.115,.026]}/>
-      <Metal position={[0,ovenY+ovenH*.34,bodyD/2+.071]} size={[w-.18,.018,.018]}/>
-      <group position={[0,ovenY,bodyD/2+.073]}>
+      <group position={[0,ovenY,bodyD/2+.08-Math.min(.43,bodyD)/2]}>
+        <KitchenAsset name="built-in-oven" size={[Math.max(.1,w-.055),ovenH-.02,Math.min(.43,bodyD)]} fallback={<group position={[0,0,Math.min(.43,bodyD)/2-.08-bodyD/2]}>
+      <mesh position={[0,0,bodyD/2+.002]} castShadow><boxGeometry args={[w-.055,ovenH-.02,.08]}/><meshStandardMaterial color="#242628" metalness={.28} roughness={.25}/></mesh>
+      <ApplianceGlass position={[0,0,bodyD/2+.049]} size={[w-.11,ovenH-.115,.026]}/>
+      <Metal position={[0,ovenH*.34,bodyD/2+.071]} size={[w-.18,.018,.018]}/>
+      <group position={[0,0,bodyD/2+.073]}>
         {[-1,1].map(side=><mesh key={side} position={[side*(w/2-.024),0,0]}><boxGeometry args={[.012,ovenH-.016,.014]}/><meshStandardMaterial color="#aab0b2" metalness={.85} roughness={.28}/></mesh>)}
         <mesh position={[0,ovenH*.41,.004]}><boxGeometry args={[w*.25,.025,.004]}/><meshStandardMaterial color="#061515" emissive="#264744" emissiveIntensity={.25}/></mesh>
         {[-.33,.33].map(x=><mesh key={x} position={[x*w,ovenH*.41,.013]} rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[.016,.016,.014,24]}/><meshStandardMaterial color="#9b9fa0" metalness={.85} roughness={.24}/></mesh>)}
+      </group>
+        </group>}/>
       </group>
       {activeConstructionView&&<>
         <mesh position={[0,ovenY,bodyD*.08]} castShadow><boxGeometry args={[Math.max(.2,w-.12),Math.max(.2,ovenH-.11),Math.max(.18,bodyD*.58)]}/><meshStandardMaterial color="#333638" roughness={.48} metalness={.12}/></mesh>
@@ -920,6 +928,10 @@ function FreestandingFridge({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}
   </group>
 }
 function SingleOven({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
+  const fallback=<ProceduralSingleOven i={i} w={w} h={h} d={d}/>;
+  return (i.productStyle??"Contemporary")==="Contemporary"&&(i.colourVariant??"Black")==="Black"?<KitchenAsset name="built-in-oven" size={[w,h,d]} fallback={fallback}/>:fallback;
+}
+function ProceduralSingleOven({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
   const finish=applianceFinish(i.colourVariant??"Black"),style=i.productStyle??"Contemporary",minimal=style==="Minimal",professional=style==="Professional";
   return <group>
     <mesh castShadow><boxGeometry args={[w,h,d]}/><meshStandardMaterial color={finish} metalness={.3} roughness={minimal?.2:.28}/></mesh>
@@ -949,9 +961,9 @@ function WineRack({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string
     {Array.from({length:levels},(_,n)=>{const y=-bodyH/2+bodyH*(n+.5)/(levels+1);return <group key={n} position={[0,y,d*.06]} rotation={[Math.PI/2,0,0]}><mesh castShadow><cylinderGeometry args={[Math.min(.033,w*.2),Math.min(.033,w*.2),d*.48,20]}/><meshPhysicalMaterial color={n%2?"#3e5134":"#634037"} roughness={.23} metalness={.05}/></mesh><mesh position={[0,d*.28,0]} castShadow><cylinderGeometry args={[.012,.017,d*.12,14]}/><meshPhysicalMaterial color="#34442b" roughness={.2}/></mesh></group>})}
   </group></group>;
 }
-function BarStool({w,h,d,c}:{w:number;h:number;d:number;c:string}){
+function BarStool({w,h,d,c,materialId}:{w:number;h:number;d:number;c:string;materialId:string}){
   const top=Math.min(.055,h*.08),legH=h-top,legW=Math.min(.035,w*.09),spread=.34;
-  return <group><Panel position={[0,h/2-top/2,0]} size={[w,top,d]} colour={c} front/>
+  return <group><Panel position={[0,h/2-top/2,0]} size={[w,top,d]} colour={c} materialId={materialId} front/>
     {[-1,1].flatMap(x=>[-1,1].map(z=><mesh key={x+"-"+z} position={[x*w*spread,-top/2,z*d*spread]} castShadow><boxGeometry args={[legW,legH,legW]}/><meshStandardMaterial color="#292c2b" roughness={.28} metalness={.7}/></mesh>))}
     {[-1,1].map(sign=><mesh key={sign} position={[0,-h*.22,sign*d*spread]} castShadow><boxGeometry args={[w*spread*2,legW*.6,legW*.6]}/><meshStandardMaterial color="#353b39" roughness={.3} metalness={.6}/></mesh>)}
   </group>;
@@ -962,7 +974,7 @@ function CabinetGeometry({i,project,construction=false}:{i:JoineryItem;project:P
   i=renderItem;
   if(i.type==="Cornice")return <Cornice w={w} h={h} d={d} c={c}/>;
   if(i.type==="Wine rack")return <WineRack i={i} w={w} h={h} d={d} c={c}/>;
-  if(i.type==="Bar stool")return <BarStool w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Bar stool")return <BarStool w={w} h={h} d={d} c={c} materialId={i.materialId}/>;
   if(i.type==="Worktop"){const topId=i.worktopMaterialId??i.materialId;return <WorktopSurface w={w} h={h} d={d} materialId={topId} edge={i.worktopEdge} finish={i.finish} cutouts={worktopCutouts(i,project.items)}/>;}
   if(i.type==="Wall segment"||i.type==="Chimney breast"||i.type==="Column"||i.type==="Ceiling bulkhead"||i.type==="Filler panel"||i.type==="End panel"||i.type==="Internal divider"||i.type==="Loft box")return <SimpleBlock w={w} h={h} d={d} c={c} materialId={i.materialId}/>;
   if(i.type==="Corner cabinet")return <CornerCabinet i={i} w={w} h={h} d={d} c={c}/>;
@@ -1062,7 +1074,7 @@ function CameraRig({preset,command,rw,rh,rd}:{preset:CameraPreset;command:number
   return null;
 }
 
-function SceneCapture({project,requestedView,onReady,onCameraReady,onRenderReady}:{project:Project;requestedView:SavedCamera|null;onReady:(fn:()=>string)=>void;onCameraReady:(fn:()=>Omit<SavedCamera,"id"|"name">)=>void;onRenderReady:(fn:()=>Promise<Uint8Array>)=>void}){
+function SceneCapture({project,requestedView,onReady,onCameraReady,onRenderReady,renderQuality}:{renderQuality:"preview"|"customer";project:Project;requestedView:SavedCamera|null;onReady:(fn:()=>string)=>void;onCameraReady:(fn:()=>Omit<SavedCamera,"id"|"name">)=>void;onRenderReady:(fn:()=>Promise<Uint8Array>)=>void}){
   const {gl,scene,camera,size,controls}=useThree();
   useEffect(()=>{
     if(!requestedView)return;
@@ -1083,22 +1095,24 @@ function SceneCapture({project,requestedView,onReady,onCameraReady,onRenderReady
       const root=new THREE.Scene(),geometry=model.clone(true),remove:THREE.Object3D[]=[];
       geometry.traverse(o=>{if(o.userData.editorOnly)remove.push(o)});remove.forEach(o=>o.removeFromParent());root.add(geometry);root.add(camera.clone());root.updateMatrixWorld(true);
       const glb=await new GLTFExporter().parseAsync(root,{binary:true,onlyVisible:true}) as ArrayBuffer;
-      const [response,hdr]=await Promise.all([fetch("/render/render.py"),fetch("/materials/pbr/studio_small_09.hdr")]);if(!response.ok||!hdr.ok)throw new Error("Render assets could not be loaded.");
+      const [response,hdr,mac,windows]=await Promise.all([fetch("/render/render.py"),fetch("/materials/pbr/studio_small_09.hdr"),fetch("/render/run-render.command"),fetch("/render/run-render.bat")]);if(!response.ok||!hdr.ok||!mac.ok||!windows.ok)throw new Error("Render assets could not be loaded.");
       const enc=new TextEncoder();return renderZip([
         {name:"scene.glb",bytes:new Uint8Array(glb)},
-        {name:"settings.json",bytes:enc.encode(JSON.stringify({reference:project.reference,revision:project.revision,aspect:size.width/size.height,lighting:project.lighting??DEFAULT_LIGHTING},null,2))},
+        {name:"settings.json",bytes:enc.encode(JSON.stringify({reference:project.reference,revision:project.revision,aspect:size.width/size.height,quality:renderQuality,room:{width:project.roomWidth/1000,height:project.roomHeight/1000,depth:project.roomDepth/1000},lighting:project.lighting??DEFAULT_LIGHTING},null,2))},
         {name:"render.py",bytes:enc.encode(await response.text())},
         {name:"environment.hdr",bytes:new Uint8Array(await hdr.arrayBuffer())},
-        {name:"README.txt",bytes:enc.encode("JOINERY STUDIO / BLENDER CYCLES\nExtract all files into a folder. Install Blender 4.x, then run from that folder:\nblender --background --python render.py -- scene.glb settings.json final.png\n\nThis renders the exact exported scene and camera at 4096 pixels wide.\nMaterials, UVs, textures, aperture geometry and door positions are included.\nRendering runs on your workstation. The website does not run a remote render job.\nAdjust lighting or assets in the generated .blend file for art direction.\n")}
+        {name:"run-render.command",bytes:enc.encode(await mac.text()),executable:true},
+        {name:"run-render.bat",bytes:enc.encode(await windows.text())},
+        {name:"README.txt",bytes:enc.encode("JOINERY STUDIO / FINAL RENDER\nExtract all files into a folder and install Blender 4.x.\nWindows: double-click run-render.bat.\nMac: run ./run-render.command in Terminal; if needed run chmod +x run-render.command first.\nLinux: run sh run-render.command.\nThe launcher finds Blender and produces final.png and an editable final.blend.\nManual command: blender --background --disable-autoexec --python render.py -- scene.glb settings.json final.png\n\nPreview quality: 2048 pixels wide, 96 samples. Customer quality: 4096 pixels wide, 256 samples.\nThis renders the exact exported scene and camera.\nMaterials, UVs, textures, aperture geometry and door positions are included.\nRendering runs on your workstation. The website does not run a remote render job.\nAdjust lighting or assets in the generated .blend file for art direction.\n")}
       ]);
     });
-  },[gl,scene,camera,size.width,size.height,controls,project,onReady,onCameraReady,onRenderReady]);
+  },[gl,scene,camera,size.width,size.height,controls,project,renderQuality,onReady,onCameraReady,onRenderReady]);
   return null;
 }
-export function JoineryModel({project,showWalls=true,realistic=true,construction=false,selected,selectedPart,transformMode="translate",moveAxis="xz",onSelect,onSelectPart,onMove,onRotate,onMoveStart}:{project:Project;showWalls?:boolean;realistic?:boolean;construction?:boolean;selected?:string|null;selectedPart?:JoineryPart|null;transformMode?:"translate"|"rotate";moveAxis?:"xz"|"x"|"y"|"z";onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onMove?:(id:string,x:number,y:number,z:number)=>boolean|void;onRotate?:(id:string,rotation:number)=>boolean|void;onMoveStart?:()=>void}){
+export function JoineryModel({project,showWalls=true,showCeiling=true,realistic=true,construction=false,selected,selectedPart,transformMode="translate",moveAxis="xz",onSelect,onSelectPart,onMove,onRotate,onMoveStart}:{project:Project;showCeiling?:boolean;showWalls?:boolean;realistic?:boolean;construction?:boolean;selected?:string|null;selectedPart?:JoineryPart|null;transformMode?:"translate"|"rotate";moveAxis?:"xz"|"x"|"y"|"z";onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onMove?:(id:string,x:number,y:number,z:number)=>boolean|void;onRotate?:(id:string,rotation:number)=>boolean|void;onMoveStart?:()=>void}){
   project=kitchenProject(project);
   activeCustomMaterials=project.customMaterials??[];activeWarmLights=(project.lighting??DEFAULT_LIGHTING).warmLights;activeConstructionView=construction;
-  return <group name="Joinery design"><RoomShell project={project} rw={mm(project.roomWidth)} rh={mm(project.roomHeight)} rd={mm(project.roomDepth)} showWalls={showWalls} realistic={realistic} floorMaterial={sceneMaterial(project.floorMaterialId??"floor-oak")} studioMode={construction}/>
+  return <group name="Joinery design"><RoomShell project={project} rw={mm(project.roomWidth)} rh={mm(project.roomHeight)} rd={mm(project.roomDepth)} showWalls={showWalls} realistic={realistic} floorMaterial={sceneMaterial(project.floorMaterialId??"floor-oak")} studioMode={construction} showCeiling={showCeiling}/>
     {project.items.filter(i=>i.visible!==false).map(i=><ItemNode key={i.id} i={i} project={project} selected={selected===i.id} selectedPart={selected===i.id?selectedPart:null} mode={transformMode} moveAxis={moveAxis} construction={construction} onSelect={id=>onSelect?.(i.id.includes(":top")||i.id.includes(":dining")?i.sourceUnitIds?.[0]??id:id)} onSelectPart={(id,part)=>onSelectPart?.(i.id.includes(":top")||i.id.includes(":dining")?i.sourceUnitIds?.[0]??id:id,part)} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>)}
   </group>;
 }
@@ -1115,12 +1129,13 @@ export function Scene3D({project,onProjectChange,presentationOnly=false,selected
   const [requestedView,setRequestedView]=useState<SavedCamera|null>(null),[cameraName,setCameraName]=useState(""),[renderBusy,setRenderBusy]=useState(false);
   const cameraCapture=useRef<(()=>Omit<SavedCamera,"id"|"name">)|null>(null),renderExport=useRef<(()=>Promise<Uint8Array>)|null>(null);
   const imageExport=useRef<(()=>string)|null>(null);
+  const [renderQuality,setRenderQuality]=useState<"preview"|"customer">("customer");
   const [imageNotice,setImageNotice]=useState("");
   const dropProjector=useRef<((clientX:number,clientY:number)=>{x:number;y:number;z:number})|null>(null);
   activeConstructionView=construction;
   activeExplodedPanels=construction&&explodePanels;
   const download=(data:Blob,name:string)=>{const url=URL.createObjectURL(data),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
-  const exportRender=async()=>{if(!renderExport.current||renderBusy)return;setRenderBusy(true);setImageNotice("Preparing the scene and textures…");try{const bytes=await renderExport.current();download(new Blob([bytes as BlobPart],{type:"application/zip"}),project.reference+"-cycles-render.zip");setImageNotice("Render kit exported. Extract it and follow README.txt in Blender.")}catch(error){setImageNotice(error instanceof Error?error.message:"Render export failed.")}finally{setRenderBusy(false)}};
+  const exportRender=async()=>{if(!renderExport.current||renderBusy)return;setRenderBusy(true);setImageNotice("Preparing the scene and textures…");try{const bytes=await renderExport.current();download(new Blob([bytes as BlobPart],{type:"application/zip"}),project.reference+"-cycles-render.zip");setImageNotice("Render kit exported. Extract it and run the included launcher.")}catch(error){setImageNotice(error instanceof Error?error.message:"Render export failed.")}finally{setRenderBusy(false)}};
   return <div className={"three "+(construction?"constructionView ":"")+(dropReady?"dropReady":"")} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="copy";setDropReady(true)}} onDragLeave={e=>{if(e.currentTarget===e.target)setDropReady(false)}} onDrop={e=>{e.preventDefault();setDropReady(false);const type=e.dataTransfer.getData("application/x-joinery-component")||e.dataTransfer.getData("text/plain");if(!type)return;const point=dropProjector.current?.(e.clientX,e.clientY)??{x:project.roomWidth/2,y:0,z:project.roomDepth/2};onDropType?.(type,point.x,point.y,point.z)}}><div className="sceneToolbar"><button onClick={()=>{try{const data=imageExport.current?.();if(!data){setImageNotice("3D view is still loading.");return}const a=document.createElement("a");a.href=data;a.download=project.reference+"-3d.png";a.click();setImageNotice("Image exported.")}catch(error){setImageNotice(error instanceof Error?error.message:"Image export failed. Please try again.")}}}>Export high-resolution image</button><div className="cameraPresets">{(["iso","interior","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={!requestedView&&preset===v?"active":""} onClick={()=>{setRequestedView(null);setPreset(v);setCameraCommand(n=>n+1)}}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles renderModes"><button className={renderMode==="design"?"active":""} onClick={()=>setRenderMode("design")}>Design</button><button className={renderMode==="presentation"?"active":""} onClick={()=>{setRenderMode("presentation");setRequestedView(null);setPreset("interior");setCameraCommand(n=>n+1)}}>Presentation</button><button className={renderMode==="technical"?"active":""} onClick={()=>setRenderMode("technical")}>Technical</button><button className={renderMode==="construction"?"active":""} onClick={()=>{setRenderMode("construction");setRequestedView(null);setPreset("iso");setCameraCommand(n=>n+1);setShowGrid(false)}}>Construction</button>{construction&&<button className={explodePanels?"active":""} onClick={()=>setExplodePanels(v=>!v)}>Explode panels</button>}<span className="sceneToggleDivider"/><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button>{!construction&&<button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button>}</div><details className="sceneOptions"><summary>Views & lighting</summary><div className="sceneOptionsBody">
       <b>Saved customer views</b><div className="savedViewEntry"><input aria-label="View name" placeholder="View name" maxLength={80} value={cameraName} onChange={e=>setCameraName(e.target.value)}/><button disabled={!cameraName.trim()||(project.savedCameras??[]).length>=20} onClick={()=>{const view=cameraCapture.current?.();if(!view)return;onProjectChange?.({savedCameras:[...(project.savedCameras??[]),{...view,id:newId(),name:cameraName.trim()}]});setCameraName("")}}>Save view</button></div>
       {(project.savedCameras??[]).map(view=><div key={view.id} className="savedViewRow"><button onClick={()=>setRequestedView({...view})}>{view.name}</button><button aria-label={"Delete view "+view.name} onClick={()=>onProjectChange?.({savedCameras:project.savedCameras?.filter(v=>v.id!==view.id)})}>×</button></div>)}
@@ -1128,9 +1143,10 @@ export function Scene3D({project,onProjectChange,presentationOnly=false,selected
       <label>Daylight <input type="range" min="0" max="4" step=".1" value={lighting.daylight} onChange={e=>onProjectChange?.({lighting:{...lighting,daylight:+e.target.value}})}/></label>
       <label><input type="checkbox" checked={lighting.warmLights} onChange={e=>onProjectChange?.({lighting:{...lighting,warmLights:e.target.checked}})}/> Under-cabinet lighting</label>
       <label><input type="checkbox" checked={lighting.ceiling} onChange={e=>onProjectChange?.({lighting:{...lighting,ceiling:e.target.checked}})}/> Show ceiling</label>
-      <button disabled={renderBusy||construction} onClick={exportRender}>{renderBusy?"Preparing render…":"Export Blender Cycles render kit"}</button><small>Final rendering runs in Blender on your workstation. The kit includes the current geometry, textures and camera.</small>
+      <label>Final render quality<select aria-label="Final render quality" value={renderQuality} onChange={e=>setRenderQuality(e.target.value as "preview"|"customer")}><option value="preview">Quick preview · 2K</option><option value="customer">Customer image · 4K</option></select></label>
+      <button disabled={renderBusy||construction} onClick={exportRender}>{renderBusy?"Preparing render…":"Download final render package"}</button><small>Final rendering runs in Blender on your workstation. The kit includes the current geometry, textures and camera.</small>
     </div></details></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(3.8,rh*1.65),Math.max(4.3,rd*1.35)],fov:38}} dpr={presentationOnly||renderMode==="presentation"?[1,2]:[1,1.5]} performance={{min:.6}} shadows gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:.9}}>
-    <SceneCapture project={project} requestedView={requestedView} onReady={fn=>{imageExport.current=fn}} onCameraReady={fn=>{cameraCapture.current=fn}} onRenderReady={fn=>{renderExport.current=fn}}/><Exposure value={lighting.exposure}/>
+    <SceneCapture project={project} requestedView={requestedView} onReady={fn=>{imageExport.current=fn}} onCameraReady={fn=>{cameraCapture.current=fn}} onRenderReady={fn=>{renderExport.current=fn}} renderQuality={renderQuality}/><Exposure value={lighting.exposure}/>
     <CameraRig preset={preset} command={cameraCommand} rw={rw} rh={rh} rd={rd}/>
     <DropProjector rw={rw} rd={rd} onReady={fn=>{dropProjector.current=fn}}/>
     <color attach="background" args={[construction?"#e7ded1":realistic?"#f2efea":"#f2f1ee"]}/>
@@ -1140,7 +1156,7 @@ export function Scene3D({project,onProjectChange,presentationOnly=false,selected
     <directionalLight castShadow position={[3.5,6.5,4.5]} intensity={realistic?lighting.daylight:2.15} color={realistic?"#fff6e8":"#ffffff"} shadow-mapSize-width={renderMode==="design"?1024:2048} shadow-mapSize-height={renderMode==="design"?1024:2048} shadow-bias={-0.00008} shadow-normalBias={.012} shadow-radius={4} shadow-camera-left={-roomMax} shadow-camera-right={roomMax} shadow-camera-top={roomMax} shadow-camera-bottom={-roomMax} shadow-camera-far={20}/>
     <directionalLight position={[-4,3,1]} intensity={realistic?.65:.3} color="#e9eef5"/>
     {showGrid&&<Grid userData={{editorOnly:true}} position={[0,.002,0]} args={[Math.max(rw,rd)*1.25,Math.max(rw,rd)*1.25]} cellSize={.1} sectionSize={.5} cellColor="#cbc6bf" sectionColor="#aaa49b" fadeDistance={15} fadeStrength={1.5}/>}
-<JoineryModel project={project} showWalls={showWalls&&!construction} realistic={realistic} construction={construction} selected={presentationOnly?null:selected} selectedPart={selectedPart} transformMode={transformMode} moveAxis={moveAxis} onSelect={presentationOnly?undefined:onSelect} onSelectPart={presentationOnly?undefined:onSelectPart} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>
+<JoineryModel project={project} showWalls={showWalls&&!construction} showCeiling={renderMode==="presentation"||preset==="interior"} realistic={realistic} construction={construction} selected={presentationOnly?null:selected} selectedPart={selectedPart} transformMode={transformMode} moveAxis={moveAxis} onSelect={presentationOnly?undefined:onSelect} onSelectPart={presentationOnly?undefined:onSelectPart} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>
     {construction&&<group userData={{editorOnly:true}}><RoomDimensionOverlay rw={rw} rh={rh} rd={rd} project={project}/></group>}
     <ContactShadows key={project.updatedAt} frames={1} resolution={renderMode==="design"?256:512} position={[0,.003,0]} opacity={construction?.52:realistic?.42:.32} scale={Math.max(5,roomMax*1.8)} blur={construction?2.4:realistic?3.2:2.6} far={Math.max(5,roomMax*1.8)}/>
     <OrbitControls makeDefault target={[0,Math.min(1.15,rh*.48),0]} enableDamping dampingFactor={.08} enablePan enableZoom minDistance={1} maxDistance={Math.max(8,roomMax*4)}/>

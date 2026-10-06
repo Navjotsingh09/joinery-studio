@@ -1,8 +1,8 @@
-import {DesignRules,JoineryItem} from "@/types/model";
+import {DesignRules,JoineryItem,LightingSettings} from "@/types/model";
 import {newItem} from "./defaults";
 
 export type DesignKind="kitchen"|"bedroom"|"stairs";
-export type ScenarioPlan={kind:DesignKind;scenario:string;name:string;roomWidth:number;roomHeight:number;roomDepth:number;rules:DesignRules;items:JoineryItem[]};
+export type ScenarioPlan={kind:DesignKind;scenario:string;name:string;roomWidth:number;roomHeight:number;roomDepth:number;rules:DesignRules;lighting?:LightingSettings;items:JoineryItem[]};
 
 export const DESIGN_KINDS=[
   {id:"kitchen" as const,title:"Kitchen",description:"Cabinet runs, appliances, worktops, islands and storage",scenarios:[
@@ -179,7 +179,7 @@ export function createScenarioPlan(kind:DesignKind,scenario:string,roomWidth:num
   const w=Math.max(2600,roomWidth),h=Math.max(2200,roomHeight),d=Math.max(2200,roomDepth);
   const items=scenario==="blank"?[]:kind==="kitchen"?kitchen(scenario,w,h,d):kind==="bedroom"?bedroom(scenario,w,h,d):stairs(scenario,w,h,d);
   const label=DESIGN_KINDS.find(x=>x.id===kind)?.scenarios.find(x=>x.id===scenario)?.title??scenario;
-  return {kind,scenario,name:label,roomWidth:w,roomHeight:h,roomDepth:d,rules:{wallClearance:0,componentGap:0,snap:50,serviceClearance:50},items};
+  return {kind,scenario,...(scenario==="showroom"?{lighting:{exposure:.9,daylight:1.7,warmLights:true,ceiling:true}}:{}),name:label,roomWidth:w,roomHeight:h,roomDepth:d,rules:{wallClearance:0,componentGap:0,snap:50,serviceClearance:50},items};
 }
 
 export function inferDesignKind(items:JoineryItem[]):DesignKind{

@@ -390,6 +390,7 @@ export default function Studio(){
             roomHeight:plan.roomHeight,
             roomDepth:plan.roomDepth,
             rules:plan.rules,
+            lighting:plan.lighting,
             items:plan.items
           });
         }else{
@@ -401,6 +402,7 @@ export default function Studio(){
             roomHeight:plan.roomHeight,
             roomDepth:plan.roomDepth,
             rules:plan.rules,
+            lighting:plan.lighting,
             items:plan.items
           });
         }
@@ -425,7 +427,7 @@ export default function Studio(){
         <details className="topMenu"><summary><Icon name="download" size={15}/> Export</summary><div>
           <button onClick={()=>exportPdf(p)}>PDF drawing pack</button>
           <button onClick={exportJson}>Export JSON</button>
-          <button onClick={()=>file.current?.click()}>Import JSON</button><button onClick={()=>{setLeftOpen(true);setTab("professional");s.setView("top")}}>Import PDF drawing</button>
+          <button onClick={()=>file.current?.click()}>Import JSON</button><button onClick={()=>{setLeftOpen(true);setTab("professional");s.setView("top")}}>Import CAD / PDF drawing</button>
         </div></details>
         <input ref={file} hidden type="file" accept=".json" onChange={importJson}/>
         {hasSupabase()&&user&&<button className="quietBtn" disabled={busy} onClick={cloudSave}>{busy?"Saving…":"Save"}</button>}

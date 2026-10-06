@@ -43,10 +43,25 @@ Run `npm ci`, `npm run build`, then `npm start`. The start script includes publi
 
 Export → PDF drawing pack produces separate base, wall and worktop plans, four wall elevations, unit/material and service schedules. References remain consistent as units are removed or reordered. Tools → Joinery intelligence regenerates connected worktop sections; Undo restores the previous tops.
 
-In the 3D view, Views & lighting saves customer views and adjusts exposure/daylight. Export Blender Cycles render kit downloads one ZIP containing scene.glb, settings.json, render.py and instructions. Extract it, install Blender 4.x, and run:
+In the 3D view, Views & lighting saves customer views and adjusts exposure/daylight. Download final render package includes the scene, saved camera, materials, HDR lighting and launchers for Windows, Mac and Linux. Choose a 2K preview or a 4K customer image. Extract the ZIP and install Blender 4.x; double-click run-render.bat on Windows or run run-render.command on Mac/Linux. You can also run:
 
 ```bash
-blender --background --python render.py -- scene.glb settings.json final.png
+blender --background --disable-autoexec --python render.py -- scene.glb settings.json final.png
 ```
 
 This is a workstation workflow using the exported model and camera, not a hosted rendering queue. The current browser renderer and generic parametric assets should not be presented as equivalent to fully art-directed photorealistic examples.
+
+
+## Measured CAD reference import
+
+Export → Import CAD / PDF drawing opens the tools panel. Upload an ASCII DXF under 8 MB, check the detected mm/cm/m/in units, choose layers and add the measured reference. Lines, polylines with bulges, arcs, circles and nested block inserts are supported. Unsupported annotations are reported. The example plan is 4200 × 3400 mm. The reference is stored with the project and JSON backups; it does not turn CAD entities into editable cabinets. DWG, 3D solids and general editable CAD import remain unsupported.
+
+## Reproducible Blender showroom rendering
+
+With Blender 4.x installed, render the same JoineryModel geometry and locally served CC0 models without a browser GPU:
+
+```bash
+npm run render:customer -- --design kitchen-backup.json --output customer.png --quality customer
+```
+
+Use `--project-index 0` to select a project from a JSON backup, `--blender /path/to/blender` for a non-standard install and `--threads 2` to limit CPU usage. Omit `--design` to render the Sage & oak starter. Draft is 1400 pixels wide / 32 samples; customer is 2400 pixels wide / 128 samples. This command writes a PNG and an editable Blender scene. The browser export uses its selected 2K/4K quality instead. Uploaded embedded textures are supported; external texture URLs need to be downloaded and embedded first. The headless command is a workstation tool, not a remote rendering service.
