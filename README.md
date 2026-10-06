@@ -38,3 +38,15 @@ See [SHOWROOM_READINESS.md](SHOWROOM_READINESS.md) for completed work, configura
 ## Production Node host
 
 Run `npm ci`, `npm run build`, then `npm start`. The start script includes public images and Next static assets in the standalone output. Configure `PORT` and `HOSTNAME` for your host. Cloud saving requires the public Supabase variables at build time and the applied migration; without them the studio runs in local team testing mode.
+
+## Customer drawings and final renders
+
+Export → PDF drawing pack produces separate base, wall and worktop plans, four wall elevations, unit/material and service schedules. References remain consistent as units are removed or reordered. Tools → Joinery intelligence regenerates connected worktop sections; Undo restores the previous tops.
+
+In the 3D view, Views & lighting saves customer views and adjusts exposure/daylight. Export Blender Cycles render kit downloads one ZIP containing scene.glb, settings.json, render.py and instructions. Extract it, install Blender 4.x, and run:
+
+```bash
+blender --background --python render.py -- scene.glb settings.json final.png
+```
+
+This is a workstation workflow using the exported model and camera, not a hosted rendering queue. The current browser renderer and generic parametric assets should not be presented as equivalent to fully art-directed photorealistic examples.

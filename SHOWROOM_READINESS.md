@@ -55,3 +55,11 @@ The continued suite passes 116 tests across 22 files; the production build also 
 ## Temporary team testing access
 
 At the owner’s request, `/studio` opens without login when Supabase is not configured. A persistent notice explains that projects save only in the current browser and JSON backups should be exported. No database calls or shared account data are exposed by this mode. Configuring both public Supabase variables restores the existing authentication gate automatically. Team members can test kitchens, bedrooms and stairs directly; browser data is not shared between team members or devices. This temporarily replaces the previous closed-until-configured deployment behavior.
+
+## Customer drawing and presentation update — 6 October 2026
+
+Implemented: separate base-unit, wall-unit and worktop plans; one sheet per wall elevation; dimension chains and zero datum; stable unit/surface/service references; colour legends; item/material and service schedules; slab and Shaker fronts; cornice, wine rack and stool components; corrected floor-relative plinths and cabinet front depths; wall apertures for windows/doors; worktop sections grouped by connected runs, island overhangs, thickness, edge-finish annotations and shared sink/hob aperture geometry. Worktop regeneration is atomic and reversible.
+
+Saved customer cameras and lighting settings persist in local recovery, JSON backups and revisions. Design mode uses lower render resolution; presentation exports target a 4096-pixel long edge. The downloadable Cycles ZIP contains the actual scene GLB, camera, embedded textures, settings and Blender 4.x script. It runs on a workstation; there is no remote render service or automated Blender installation. The script is syntax-checked and ZIP integrity is verified. A Blender render has not been executed in this environment.
+
+Validation: 145 tests pass across 24 files; production build passes. The nine-sheet reference PDF was rendered through PDF.js and visually inspected. Live browser verification is recorded separately after deployment. The supplied cloud browser has WebGL disabled, so 3D manipulation, saved-camera capture, GLB export and visual realism require acceptance on a WebGL-capable browser. No claim of reference-level photorealism is made. Native editable CAD import and a premium rendering service remain future integrations.

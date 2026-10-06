@@ -1,4 +1,5 @@
 "use client";
+import {referenceLabel} from "@/lib/drawingPack";
 import {formatMeasure} from "@/lib/units";
 import {referenceDepth} from "@/lib/drawingReference";
 import {stairPlan} from "@/lib/stairGeometry";
@@ -169,6 +170,7 @@ export function Drawing2D({
           <title>{i.name+" · "+r.width+" × "+r.height+" mm"}</title>
           <rect className="itemBody" width={rw} height={rh} rx="2" fill={planOverlay?"none":fill} strokeDasharray={planOverlay?"5 4":undefined} pointerEvents={planOverlay?"stroke":undefined} stroke={invalid?"#e15544":sel?"#c8102e":i.edgeBanding==="None / raw"?"#777":"#292929"} strokeWidth={sel?4:invalid?3:i.edgeBanding.includes("2mm")?3:1.5} filter={sel?"url(#selectionShadow)":undefined}/>
           {faceView&&i.doors===0&&Array.from({length:Math.max(0,i.shelves)}).map((_,n)=><line key={"s"+n} x1="0" x2={rw} y1={rh*(n+1)/(i.shelves+1)} y2={rh*(n+1)/(i.shelves+1)} stroke={tc} opacity=".58"/>)}
+          {faceView&&i.frontStyle==="shaker"&&rw>18&&rh-plinthPx>18&&<rect x="6" y="6" width={rw-12} height={rh-plinthPx-12} fill="none" stroke={tc} opacity=".5"/>}
           {faceView&&!isDrawer&&i.doors>1&&Array.from({length:i.doors-1}).map((_,n)=><line key={"d"+n} y1="2" y2={rh-plinthPx-2} x1={rw*(n+1)/i.doors} x2={rw*(n+1)/i.doors} stroke={tc} opacity=".72"/>)}
           {faceView&&isDrawer&&i.doors>1&&Array.from({length:i.doors-1}).map((_,n)=><line key={"dr"+n} x1="2" x2={rw-2} y1={(rh-plinthPx)*(n+1)/i.doors} y2={(rh-plinthPx)*(n+1)/i.doors} stroke={tc} opacity=".72"/>)}
           {faceView&&hasPlinth&&<><line x1="0" x2={rw} y1={rh-plinthPx} y2={rh-plinthPx} stroke={tc} opacity=".5"/><rect x={rw*.06} y={rh-plinthPx} width={rw*.88} height={plinthPx} fill={fill} opacity=".78"/></>}
@@ -189,9 +191,9 @@ export function Drawing2D({
           {isDoor&&view==="top"&&<><line x1={rw*.08} y1={rh*.88} x2={rw*.08} y2={rh*.08} stroke="#555" strokeWidth="3"/><path d={"M "+(rw*.08)+" "+(rh*.88)+" A "+(rw*.8)+" "+(rh*.8)+" 0 0 1 "+(rw*.88)+" "+(rh*.08)} fill="none" stroke="#888" strokeDasharray="5 4"/></>}
           {isWindow&&faceView&&<><rect x={rw*.04} y={rh*.04} width={rw*.92} height={rh*.92} fill="#b6d0da" opacity=".45" stroke="#555" strokeWidth="3"/><line x1={rw*.5} y1={rh*.05} x2={rw*.5} y2={rh*.95} stroke="#666" strokeWidth="2"/><line x1={rw*.05} y1={rh*.5} x2={rw*.95} y2={rh*.5} stroke="#666" strokeWidth="2"/></>}
           {(isGlassBal||isTimberBal)&&faceView&&<>{Array.from({length:7}).map((_,n)=><line key={"bal"+n} x1={rw*n/6} x2={rw*n/6} y1={rh*.12} y2={rh*.92} stroke={isGlassBal?"#7795a1":tc} strokeWidth={isGlassBal?2:3} opacity={isGlassBal?.65:.9}/>)}<line x1="0" x2={rw} y1={rh*.1} y2={rh*.1} stroke={isGlassBal?"#555":tc} strokeWidth="4"/></>}
-          {(sel||(!planOverlay&&rw>=65&&rh>=45))&&<g pointerEvents="none">
-            <text x={rw/2} y={Math.max(15,rh/2-2)} textAnchor="middle" className="itemLabel" fill={planOverlay?"#292929":tc} textLength={i.name.length*6>rw-12?Math.max(40,rw-12):undefined} lengthAdjust="spacingAndGlyphs">{i.name}</text>
-            {rh>=55&&<text x={rw/2} y={Math.max(30,rh/2+15)} textAnchor="middle" className="itemSub" fill={planOverlay?"#292929":tc}>{r.width} × {measure(r.height)}</text>}
+          {(!planOverlay&&rw>=65&&rh>=45)&&<g pointerEvents="none">
+            <text x={rw/2} y={Math.max(15,rh/2-2)} textAnchor="middle" className="itemLabel" fill={planOverlay?"#292929":tc} textLength={(i.name.length+6)*6>rw-12?Math.max(40,rw-12):undefined} lengthAdjust="spacingAndGlyphs">{referenceLabel(i)} · {i.name}</text>
+            {rh>=55&&<text x={rw/2} y={Math.max(30,rh/2+15)} textAnchor="middle" className="itemSub" fill={planOverlay?"#292929":tc}>{measure(r.width)} × {measure(r.height)}</text>}
           </g>}
           {sel&&<>
             <line x1="0" y1={rh+11} x2={rw} y2={rh+11} stroke="#c8102e"/><text x={rw/2} y={rh+27} textAnchor="middle" className="dim selectionDim">{measure(r.width)}</text>

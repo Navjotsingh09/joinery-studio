@@ -6,7 +6,7 @@ export type WallSide="back"|"front"|"left"|"right";
 export type PlinthStyle="recessed"|"flush"|"none";
 export type JoineryPart="carcass"|"fronts"|"left-side"|"right-side"|"plinth"|"worktop"|"backsplash"|"treads"|"risers"|"railing";
 export type JoineryItem={
-  id:string;name:string;type:string;x:number;y:number;z:number;width:number;height:number;depth:number;
+  sourceUnitIds?:string[];unitNumber?:number;frontStyle?:"slab"|"shaker";worktopFinishedEdges?:("front"|"back"|"left"|"right")[];id:string;name:string;type:string;x:number;y:number;z:number;width:number;height:number;depth:number;
   shelves:number;doors:number;materialId:string;finish:string;notes:string;locked:boolean;hardware:string;
   edgeBanding:string;rotation:number;visible?:boolean;layer?:ItemLayer;groupId?:string;
   carcassMaterialId?:string;doorMaterialId?:string;sideMaterialId?:string;
@@ -16,15 +16,17 @@ export type JoineryItem={
 };
 export type DesignRules={wallClearance:number;componentGap:number;snap:number;serviceClearance?:number};
 export type DrawingReference={name:string;dataUrl:string;pixelWidth:number;pixelHeight:number;widthMm:number;x:number;z:number;opacity:number;visible:boolean};
+export type SavedCamera={id:string;name:string;position:[number,number,number];target:[number,number,number];up:[number,number,number];fov:number};
+export type LightingSettings={exposure:number;daylight:number;warmLights:boolean;ceiling:boolean};
 export type ProjectSnapshot={
   name:string;customer:string;reference:string;status:ProjectStatus;roomWidth:number;roomHeight:number;roomDepth:number;
   rules:DesignRules;items:JoineryItem[];address?:string;notes?:string;archived?:boolean;
-  customMaterials?:Material[];floorMaterialId?:string;designKind?:"kitchen"|"bedroom"|"stairs";displayUnit?:"mm"|"cm"|"in";drawingReference?:DrawingReference
+  nextItemNumber?:number;savedCameras?:SavedCamera[];lighting?:LightingSettings;customMaterials?:Material[];floorMaterialId?:string;designKind?:"kitchen"|"bedroom"|"stairs";displayUnit?:"mm"|"cm"|"in";drawingReference?:DrawingReference
 };
 export type Revision={id:string;revision:number;createdAt:string;snapshot:ProjectSnapshot};
 export type Project={
   id:string;name:string;customer:string;reference:string;status:ProjectStatus;revision:number;
   roomWidth:number;roomHeight:number;roomDepth:number;rules:DesignRules;items:JoineryItem[];revisions:Revision[];
   createdAt:string;updatedAt:string;cloudVersion?:number;address?:string;notes?:string;archived?:boolean;
-  customMaterials?:Material[];floorMaterialId?:string;designKind?:"kitchen"|"bedroom"|"stairs";displayUnit?:"mm"|"cm"|"in";drawingReference?:DrawingReference
+  nextItemNumber?:number;savedCameras?:SavedCamera[];lighting?:LightingSettings;customMaterials?:Material[];floorMaterialId?:string;designKind?:"kitchen"|"bedroom"|"stairs";displayUnit?:"mm"|"cm"|"in";drawingReference?:DrawingReference
 };

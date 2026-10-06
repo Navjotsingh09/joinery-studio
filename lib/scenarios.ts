@@ -169,11 +169,11 @@ export function inferDesignKind(items:JoineryItem[]):DesignKind{
 
 export const COMPONENT_GROUPS_BY_KIND:Record<DesignKind,{title:string;items:string[]}[]>={
   kitchen:[
-    {title:"Cabinetry",items:["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Corner cabinet","Filler panel","End panel","Worktop","Kitchen island","Shelving"]},
+    {title:"Cabinetry",items:["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Corner cabinet","Filler panel","End panel","Cornice","Wine rack","Worktop","Kitchen island","Shelving"]},
     {title:"Appliances",items:["Sink base","Hob base","Oven tower","Fridge housing","Dishwasher","Washing machine","Microwave","Extractor hood","Freestanding fridge","Single oven","Range cooker"]},
     {title:"Sinks, taps & wall finishes",items:["Tap","Arc mixer tap","Pull-out tap","Bridge tap","Square neck tap","Backsplash"]},
     {title:"Room architecture",items:["Wall segment","Door opening","Window","Chimney breast","Column","Ceiling bulkhead"]},
-    {title:"Services & context",items:["Radiator","Socket","Switch","Ceiling light","Pendant light"]}
+    {title:"Services & context",items:["Bar stool","Radiator","Socket","Switch","Ceiling light","Pendant light"]}
   ],
   bedroom:[
     {title:"Fitted furniture",items:["Wardrobe","Sliding wardrobe","Drawer unit","Wall cabinet","Shelving","Media unit"]},

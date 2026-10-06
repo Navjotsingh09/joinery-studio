@@ -3,12 +3,16 @@ import {createContext,useContext,useEffect,useLayoutEffect,useRef,useState} from
 import {Canvas,useThree} from "@react-three/fiber";
 import {OrbitControls,Grid,GizmoHelper,GizmoViewport,TransformControls,ContactShadows,Html,Line,RoundedBox,Environment,Lightformer} from "@react-three/drei";
 import * as THREE from "three";
-import {Project,JoineryItem,Material,JoineryPart} from "@/types/model";
+import {Project,JoineryItem,Material,JoineryPart,SavedCamera} from "@/types/model";
 import {material} from "@/lib/materials";
 import {formatMeasure} from "@/lib/units";
 import {worktopCutouts,SinkCutout,roomShellWalls,splashbackTextureUV} from "@/lib/renderGeometry";
 import {moveItemOnAxes,isWallMounted,footprint,normalizeRotation} from "@/lib/geometry";
 
+import {wallCells} from "@/lib/roomOpenings";
+import {DEFAULT_LIGHTING} from "@/lib/renderSettings";
+import {renderZip} from "@/lib/renderZip";
+import {newId} from "@/lib/id";
 import {textureUV,textureDimensions} from "@/lib/textureMapping";
 import {stairPlan} from "@/lib/stairGeometry";
 const mm=(v:number)=>v/1000;
@@ -18,6 +22,7 @@ const REVEAL=3;
 let activeCustomMaterials:Material[]=[];
 let activeConstructionView=false;
 let activeExplodedPanels=false;
+let activeWarmLights=true;
 type PartSelectionState={selected:boolean;selectedPart?:JoineryPart|null;onSelectPart?:(part:JoineryPart)=>void};
 const PartSelectionContext=createContext<PartSelectionState>({selected:false});
 const sceneMaterial=(id:string)=>material(id,activeCustomMaterials);
@@ -163,7 +168,7 @@ function builtInFloorTexture(id:string,colour:string){
   const tex=new THREE.CanvasTexture(canvas);tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(1,1);tex.colorSpace=THREE.SRGBColorSpace;tex.anisotropy=8;roomTextureCache.set(key,tex);return tex;
 }
 
-function RoomShell({rw,rh,rd,showWalls,realistic,floorMaterial,studioMode=false}:{rw:number;rh:number;rd:number;showWalls:boolean;realistic:boolean;floorMaterial:Material;studioMode?:boolean}){
+function RoomShell({project,rw,rh,rd,showWalls,realistic,floorMaterial,studioMode=false}:{project:Project;rw:number;rh:number;rd:number;showWalls:boolean;realistic:boolean;floorMaterial:Material;studioMode?:boolean}){
   const uploadedFloor=useDataTexture(floorMaterial.textureDataUrl);
   const floor=studioMode?null:realistic?(uploadedFloor??builtInFloorTexture(floorMaterial.id,floorMaterial.colour)):null;
   if(uploadedFloor){const tile=textureDimensions(floorMaterial);uploadedFloor.repeat.set(rw/tile.width,rd/tile.height);uploadedFloor.rotation=tile.rotation*Math.PI/180;uploadedFloor.center.set(.5,.5)}
@@ -175,20 +180,17 @@ function RoomShell({rw,rh,rd,showWalls,realistic,floorMaterial,studioMode=false}
       <meshStandardMaterial map={floor??undefined} color={studioMode?"#d8cdbc":floor?"#ffffff":floorMaterial.colour} roughness={studioMode?.9:realistic?.72:.9}/>
     </mesh>
     {showWalls&&<>
-      <mesh position={walls.back.position} receiveShadow>
-        <boxGeometry args={walls.back.size}/>
-        <meshStandardMaterial color={realistic?"#eeeae2":"#f7f6f3"} roughness={realistic ? .93 : .96}/>
-      </mesh>
-      <mesh position={walls.left.position} receiveShadow>
-        <boxGeometry args={walls.left.size}/>
-        <meshStandardMaterial color={realistic?"#f4f1eb":"#f4f3f0"} roughness={realistic ? .93 : .96}/>
-      </mesh>
-      {realistic&&<>
-        <mesh position={[0,skirting/2,-rd/2+.032]} receiveShadow><boxGeometry args={[rw,skirting,skirtingD]}/><meshStandardMaterial color="#f8f7f3" roughness={.78}/></mesh>
-        <mesh position={[-rw/2+.032,skirting/2,0]} receiveShadow><boxGeometry args={[skirtingD,skirting,rd]}/><meshStandardMaterial color="#f8f7f3" roughness={.78}/></mesh>
-        <mesh position={[0,rh-.028,-rd/2+.034]}><boxGeometry args={[rw,.035,.02]}/><meshStandardMaterial color="#faf9f6" roughness={.82}/></mesh>
-        <mesh position={[-rw/2+.034,rh-.028,0]}><boxGeometry args={[.02,.035,rd]}/><meshStandardMaterial color="#faf9f6" roughness={.82}/></mesh>
-      </>}
+      {(["back","left"] as const).flatMap(wall=>wallCells(project,wall).map((cell,n)=>{
+        const cw=mm(cell.width),ch=mm(cell.height),cx=mm(cell.x+cell.width/2),cy=mm(cell.y+cell.height/2);
+        const position:[number,number,number]=wall==="back"?[cx-rw/2,cy,-rd/2-.025]:[-rw/2-.025,cy,rd/2-cx];
+        const size:[number,number,number]=wall==="back"?[cw,ch,.05]:[.05,ch,cw];
+        return <mesh key={wall+n} position={position} receiveShadow><boxGeometry args={size}/><meshStandardMaterial color={realistic?"#eeeae2":"#f7f6f3"} roughness={.93}/></mesh>;
+      }))}
+      {realistic&&(["back","left"] as const).flatMap(wall=>wallCells(project,wall).filter(c=>c.y===0).map((c,n)=>{
+        const span=mm(c.width),height=Math.min(skirting,mm(c.height)),offset=mm(c.x+c.width/2);
+        return <mesh key={wall+"skirt"+n} position={wall==="back"?[offset-rw/2,height/2,-rd/2+.009]:[-rw/2+.009,height/2,rd/2-offset]} receiveShadow><boxGeometry args={wall==="back"?[span,height,skirtingD]:[skirtingD,height,span]}/><meshStandardMaterial color="#f8f7f3" roughness={.78}/></mesh>;
+      }))}
+      {project.lighting?.ceiling&&<mesh position={[0,rh+.02,0]} receiveShadow><boxGeometry args={[rw,.04,rd]}/><meshStandardMaterial color="#faf9f6" roughness={.9}/></mesh>}
     </>}
   </group>;
 }
@@ -204,7 +206,8 @@ function Panel({position,size,colour,front=false,materialId,part}:{position:[num
   if(tex){tex.repeat.set(1,1);if(photo)tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping;}
   const category=exact?.category??custom?.category??"";
   const isStone=category==="Worktop",isMetal=category==="Metal",isSplashback=category==="Splashback",mirror=exact?.splashbackFinish==="Mirrored",metallic=exact?.splashbackFinish==="Metallic";
-  const roughness=isSplashback?(exact?.surfaceFinish==="Matt"?.8:mirror?.06:.16):isMetal?.2:isStone?.26:front?(category==="Woodgrain"?.7:.82):.72,metalness=mirror?.95:metallic?.5:isMetal?.78:0;
+  const surfaceFinish=(exact?.surfaceFinish??custom?.surfaceFinish??"").toLowerCase();
+  const roughness=surfaceFinish.includes("gloss")&&!surfaceFinish.includes("semi")?.14:surfaceFinish.includes("semi")?.35:surfaceFinish.includes("oiled")?.42:isSplashback?(exact?.surfaceFinish==="Matt"?.8:mirror?.06:.16):isMetal?.2:isStone?.26:front?(category==="Woodgrain"?.7:.82):.72,metalness=mirror?.95:metallic?.5:isMetal?.78:0;
   const panelMesh=useRef<THREE.Mesh>(null);
   useLayoutEffect(()=>{
     const mesh=panelMesh.current;if(!mesh)return;
@@ -217,7 +220,7 @@ function Panel({position,size,colour,front=false,materialId,part}:{position:[num
   const picked=!!part&&picker.selected&&picker.selectedPart===part;
   return <RoundedBox args={size} radius={Math.min(.0012,Math.min(...size)*.12)} smoothness={2} position={position} castShadow receiveShadow ref={panelMesh} onClick={part?e=>{e.stopPropagation();picker.onSelectPart?.(part)}:undefined}>
     <meshPhysicalMaterial map={tex??undefined} color={tex?"#ffffff":front?boardColour(baseColour,.025):baseColour} roughness={roughness} metalness={metalness} clearcoat={isSplashback&&!mirror?1:0} clearcoatRoughness={roughness} bumpMap={photo?undefined:tex??undefined} bumpScale={category==="Woodgrain"?.00035:.00012}/>
-    {picked&&<lineSegments><edgesGeometry args={[new THREE.BoxGeometry(...size)]}/><lineBasicMaterial color="#c8102e"/></lineSegments>}
+    {picked&&<lineSegments userData={{editorOnly:true}}><edgesGeometry args={[new THREE.BoxGeometry(...size)]}/><lineBasicMaterial color="#c8102e"/></lineSegments>}
   </RoundedBox>
 }
 function Metal({position,size,rotation=[0,0,0]}:{position:[number,number,number];size:[number,number,number];rotation?:[number,number,number]}){
@@ -344,7 +347,7 @@ function Carcass({i,w,h,d,colour,shelves=0,openBack=false}:{i:JoineryItem;w:numb
   const leftId=i.leftSideMaterialId??i.sideMaterialId??carcassId;
   const rightId=i.rightSideMaterialId??i.sideMaterialId??carcassId;
   const leftColour=sceneMaterial(leftId).colour,rightColour=sceneMaterial(rightId).colour,carcassColour=sceneMaterial(carcassId).colour;
-  const t=mm(BOARD),back=mm(BACK),innerW=Math.max(.02,w-2*t),innerH=Math.max(.02,h-2*t),bodyD=Math.max(.04,d);
+  const t=Math.min(mm(BOARD),w*.2,h*.2,d*.2),back=Math.min(mm(BACK),d*.1),innerW=Math.max(.02,w-2*t),innerH=Math.max(.02,h-2*t),bodyD=Math.max(.04,d);
   const shelfD=Math.max(.03,bodyD-t*.7),explode=activeExplodedPanels ? .11 : 0,topExplode=activeExplodedPanels ? .075 : 0,backExplode=activeExplodedPanels ? .08 : 0;
   return <group>
     <Panel position={[-w/2+t/2-explode,0,0]} size={[t,h,bodyD]} colour={leftColour} materialId={leftId} part="left-side"/>
@@ -367,16 +370,26 @@ function Carcass({i,w,h,d,colour,shelves=0,openBack=false}:{i:JoineryItem;w:numb
     </>}
   </group>;
 }
+function CabinetFront({i,position,size,colour,materialId}:{i:JoineryItem;position:[number,number,number];size:[number,number,number];colour:string;materialId:string}){
+  const [w,h,t]=size,rail=Math.min(.065,w*.2,h*.2);
+  if(i.frontStyle!=="shaker")return <Panel position={position} size={size} colour={colour} materialId={materialId} part="fronts" front/>;
+  return <group position={position}>
+    <Panel position={[-w/2+rail/2,0,0]} size={[rail,h,t]} colour={colour} materialId={materialId} part="fronts" front/>
+    <Panel position={[w/2-rail/2,0,0]} size={[rail,h,t]} colour={colour} materialId={materialId} part="fronts" front/>
+    {[-1,1].map(sign=><Panel key={sign} position={[0,sign*(h/2-rail/2),0]} size={[w-rail*2,rail,t]} colour={colour} materialId={materialId} part="fronts" front/>)}
+    <Panel position={[0,0,-t/2+.003]} size={[w-rail*2,h-rail*2,.006]} colour={colour} materialId={materialId} part="fronts" front/>
+  </group>;
+}
 function DoorFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number;colour:string}){
   const faceId=i.doorMaterialId??i.materialId,faceColour=sceneMaterial(faceId).colour;
   const count=Math.max(1,i.doors),gap=mm(REVEAL),frontT=mm(BOARD);
   const baseOpen=Math.min(110,(i.openAmount??0)*1.1),constructionOpen=activeConstructionView?Math.max(78,baseOpen):baseOpen,open=THREE.MathUtils.degToRad(constructionOpen);
-  const faceW=(w-gap*(count+1))/count,faceH=h-gap*2,z=d/2-frontT/2+(activeExplodedPanels ? .09 : 0);
+  const faceW=(w-gap*(count+1))/count,faceH=h-gap*2,z=d/2+frontT/2+(activeExplodedPanels ? .09 : 0);
   return <>{Array.from({length:count},(_,n)=>{
     const x=-w/2+gap+faceW/2+n*(faceW+gap);
     const leftHinge=n<count/2,pivot=x+(leftHinge?-faceW/2:faceW/2),localX=leftHinge?faceW/2:-faceW/2;
     return <group key={n} position={[pivot,0,z]} rotation={[0,leftHinge?-open:open,0]}>
-      <Panel position={[localX,0,0]} size={[faceW,faceH,frontT]} colour={faceColour} materialId={faceId} part="fronts" front/>
+      <CabinetFront i={i} position={[localX,0,0]} size={[faceW,faceH,frontT]} colour={faceColour} materialId={faceId}/>
       {open>.08&&<HingePair height={faceH} side={leftHinge?1:-1}/>}
       <Handle x={localX+(leftHinge?faceW*.38:-faceW*.38)} y={-.02} z={frontT/2+.014} height={faceH} hardware={i.hardware}/>
     </group>;
@@ -389,10 +402,10 @@ function DrawerFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number
   return <>{Array.from({length:count},(_,n)=>{
     const y=-h/2+gap+faceH/2+n*(faceH+gap);
     const stagger=activeConstructionView ? .12+Math.min(.16,(count-1-n)*.035) : 0;
-    const openDist=Math.max(requested,stagger),z=d/2-frontT/2+openDist;
+    const openDist=Math.max(requested,stagger),z=d/2+frontT/2+openDist;
     return <group key={n}>
       {openDist>.02&&<group position={[0,y,0]}><DrawerBox w={faceW*.92} h={faceH*.78} d={d*.78} z={z-frontT/2} colour={sceneMaterial(i.carcassMaterialId??i.materialId).colour}/></group>}
-      <Panel position={[0,y,z]} size={[faceW,faceH,frontT]} colour={faceColour} materialId={faceId} part="fronts" front/>
+      <CabinetFront i={i} position={[0,y,z]} size={[faceW,faceH,frontT]} colour={faceColour} materialId={faceId}/>
       <Handle x={0} y={y+faceH*.28} z={z+frontT/2+.014} height={faceW} hardware={i.hardware} orientation="horizontal"/>
     </group>;
   })}</>;
@@ -407,9 +420,9 @@ function WardrobeInternals({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number})
   </group>;
 }
 function Wardrobe({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  const plinth=i.plinthStyle==="none"?0:mm(i.plinthHeight??80),bodyH=Math.max(.3,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
+  const plinth=i.plinthStyle==="none"?0:Math.min(mm(i.plinthHeight??80),h*.25),bodyH=Math.max(.01,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
   return <group>
-    <Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/>
+    <group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
     <group position={[0,bodyY,-mm(BOARD)/2]}>
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={i.wardrobeLayout==="shelves"?Math.max(1,i.shelves):0}/>
       <WardrobeInternals i={i} w={w} h={bodyH} d={bodyD}/>
@@ -419,9 +432,9 @@ function Wardrobe({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string
 }
 
 function BaseCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  const plinth=Math.min(.1,h*.2),top=Math.min(.025,h*.08),bodyH=Math.max(.03,h-plinth-top),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD),explode=activeExplodedPanels;
+  const plinth=i.plinthStyle==="none"?0:Math.min(mm(i.plinthHeight??100),h*.25),top=Math.min(.025,h*.08),bodyH=Math.max(.03,h-plinth-top),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD),explode=activeExplodedPanels;
   return <group>
-    <group position={[0,explode?-.055:0,explode?.035:0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
+    <group position={[0,explode?-.055:0,explode?.035:0]}><group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group></group>
     <group position={[0,bodyY,-mm(BOARD)/2+(explode?-.045:0)]}>
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={Math.max(0,i.shelves)}/>
       {i.doors>0&&<DoorFronts i={i} w={w} h={bodyH} d={bodyD} colour={c}/>}
@@ -431,7 +444,7 @@ function BaseCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:str
 }
 
 function CornerCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  const plinth=Math.min(.1,h*.2),top=Math.min(.025,h*.08),bodyH=Math.max(.03,h-plinth-top),bodyY=-h/2+plinth+bodyH/2;
+  const plinth=i.plinthStyle==="none"?0:Math.min(mm(i.plinthHeight??100),h*.25),top=Math.min(.025,h*.08),bodyH=Math.max(.03,h-plinth-top),bodyY=-h/2+plinth+bodyH/2;
   const carcassId=i.carcassMaterialId??i.materialId,faceId=i.doorMaterialId??i.materialId;
   const carcassColour=sceneMaterial(carcassId).colour,faceColour=sceneMaterial(faceId).colour;
   const t=mm(BOARD),legD=Math.max(.22,Math.min(d*.52,.5)),legW=Math.max(.22,Math.min(w*.52,.5)),explode=activeExplodedPanels;
@@ -442,8 +455,8 @@ function CornerCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:s
   const shelfLevels=Math.max(1,i.shelves||1);
   return <group>
     <group position={[0,explode?-.055:0,explode?.035:0]}>
-      <Plinth w={w} d={legD} h={plinth} colour={sceneMaterial(i.plinthMaterialId??carcassId).colour} materialId={i.plinthMaterialId??carcassId} style={i.plinthStyle} recessMm={i.plinthRecess}/>
-      <group position={[-w/2+legW/2,0,legD/2]}><Plinth w={legW} d={Math.max(.08,d-legD)} h={plinth} colour={sceneMaterial(i.plinthMaterialId??carcassId).colour} materialId={i.plinthMaterialId??carcassId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
+      <group position={[0,-h/2,0]}><Plinth w={w} d={legD} h={plinth} colour={sceneMaterial(i.plinthMaterialId??carcassId).colour} materialId={i.plinthMaterialId??carcassId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
+      <group position={[-w/2+legW/2,0,legD/2]}><group position={[0,-h/2,0]}><Plinth w={legW} d={Math.max(.08,d-legD)} h={plinth} colour={sceneMaterial(i.plinthMaterialId??carcassId).colour} materialId={i.plinthMaterialId??carcassId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group></group>
     </group>
     <group position={[0,bodyY,0]}>
       <Panel position={[0,0,rearZ]} size={[w,bodyH,legD]} colour={carcassColour} materialId={carcassId} part="carcass"/>
@@ -462,16 +475,16 @@ function CornerCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:s
       </group>
     </group>
     <group position={[0,h/2-top/2+(explode?.055:0),0]}>
-      <Panel position={[0,0,-d/2+legD/2]} size={[w+.02,top,legD+.02]} colour={boardColour(c,.05)} materialId={i.worktopMaterialId??carcassId} part="worktop" front/>
-      <Panel position={[-w/2+legW/2,0,legD/2]} size={[legW+.02,top,Math.max(.08,d-legD)+.02]} colour={boardColour(c,.05)} materialId={i.worktopMaterialId??carcassId} part="worktop" front/>
+      <Panel position={[0,0,-d/2+legD/2]} size={[w,top,legD]} colour={boardColour(c,.05)} materialId={i.worktopMaterialId??carcassId} part="worktop" front/>
+      <Panel position={[-w/2+legW/2,0,legD/2]} size={[legW,top,Math.max(.03,d-legD)]} colour={boardColour(c,.05)} materialId={i.worktopMaterialId??carcassId} part="worktop" front/>
     </group>
   </group>;
 }
 
 function TallCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  const plinth=.1,bodyH=Math.max(.03,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD),explode=activeExplodedPanels;
+  const plinth=i.plinthStyle==="none"?0:Math.min(mm(i.plinthHeight??100),h*.25),bodyH=Math.max(.03,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD),explode=activeExplodedPanels;
   return <group>
-    <group position={[0,explode?-.06:0,explode?.04:0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
+    <group position={[0,explode?-.06:0,explode?.04:0]}><group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group></group>
     <group position={[0,bodyY+(explode?.025:0),-mm(BOARD)/2+(explode?-.05:0)]}>
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={Math.max(2,i.shelves)}/>
       <KitchenShelfProps w={w} h={bodyH} d={bodyD} levels={Math.min(4,Math.max(2,i.shelves))}/>
@@ -489,7 +502,7 @@ function WallCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:str
     </group>
     {i.doors>0&&<DoorFronts i={i} w={w} h={h} d={bodyD} colour={c}/>}
     <Panel position={[0,-h/2+.008-(explode?.045:0),.012+(explode?.03:0)]} size={[Math.max(.03,w-.04),.01,Math.max(.03,d-.05)]} colour={boardColour(c,-.06)}/>
-    {!activeConstructionView&&<>
+    {!activeConstructionView&&activeWarmLights&&<>
       <mesh position={[0,-h/2-.006,d*.18]}><boxGeometry args={[Math.max(.08,w-.08),.012,.025]}/><meshStandardMaterial color="#fff1c8" emissive="#ffe7a8" emissiveIntensity={2.2} roughness={.35}/></mesh>
       <pointLight position={[0,-h/2-.06,d*.2]} intensity={.18} distance={1.55} decay={2} color="#ffe4aa"/>
     </>}
@@ -497,9 +510,9 @@ function WallCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:str
 }
 
 function DrawerUnit({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  const plinth=.1,bodyH=Math.max(.03,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD),explode=activeExplodedPanels;
+  const plinth=i.plinthStyle==="none"?0:Math.min(mm(i.plinthHeight??100),h*.25),bodyH=Math.max(.03,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD),explode=activeExplodedPanels;
   return <group>
-    <group position={[0,explode?-.055:0,explode?.035:0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
+    <group position={[0,explode?-.055:0,explode?.035:0]}><group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group></group>
     <group position={[0,bodyY,-mm(BOARD)/2+(explode?-.045:0)]}>
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c}/>
       <DrawerFronts i={i} w={w} h={bodyH} d={bodyD} colour={c}/>
@@ -510,7 +523,7 @@ function DrawerUnit({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:stri
 function MediaUnit({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
   const plinth=.07,bodyH=Math.max(.22,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
   return <group>
-    <Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/>
+    <group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
     <group position={[0,bodyY,-mm(BOARD)/2]}>
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c}/>
       <DrawerFronts i={i} w={w} h={bodyH} d={bodyD} colour={c}/>
@@ -545,13 +558,13 @@ function WorktopSurface({w,h,d,materialId,position=[0,0,0],edge="rounded",finish
   }
   return <RoundedBox args={[w,h,d]} radius={edge==="square"?.0001:Math.min(.007,h*.24)} smoothness={4} position={position} castShadow receiveShadow ref={surfaceRef} onClick={e=>{e.stopPropagation();picker.onSelectPart?.("worktop")}}>
     <meshStandardMaterial map={tex??undefined} color={tex?"#ffffff":m.colour} roughness={roughness} metalness={0}/>
-    {picked&&<lineSegments><edgesGeometry args={[new THREE.BoxGeometry(w,h,d)]}/><lineBasicMaterial color="#c8102e"/></lineSegments>}
+    {picked&&<lineSegments userData={{editorOnly:true}}><edgesGeometry args={[new THREE.BoxGeometry(w,h,d)]}/><lineBasicMaterial color="#c8102e"/></lineSegments>}
   </RoundedBox>
 }
 
 function Countertop({w,d,y,colour="#e8e4dc",materialId}:{w:number;d:number;y:number;colour?:string;materialId?:string}){
   const id=materialId??"stone-light";
-  return <WorktopSurface w={w+.025} h={.032} d={d+.025} materialId={id} position={[0,y,0]}/>;
+  return <WorktopSurface w={w} h={.032} d={d} materialId={id} position={[0,y,0]}/>;
 }
 
 function Sink({i,w,d,y}:{i:JoineryItem;w:number;d:number;y:number}){
@@ -729,28 +742,32 @@ function Bed({w,h,d,c}:{w:number;h:number;d:number;c:string}){
 }
 
 function KitchenIsland({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  const plinth=.09,bodyH=h-plinth-.035,bodyY=-h/2+plinth+bodyH/2;
+  const plinth=i.plinthStyle==="none"?0:Math.min(mm(i.plinthHeight??90),h*.2),bodyH=Math.max(.03,h-plinth-Math.min(.035,h*.1)),bodyY=-h/2+plinth+bodyH/2;
   return <group>
-    <Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/>
+    <group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
     <group position={[0,bodyY,0]}><Carcass i={i} w={w} h={bodyH} d={d-.04} colour={c}/><DrawerFronts i={{...i,doors:Math.max(3,i.doors)}} w={w} h={bodyH} d={d-.04} colour={c}/></group>
-    <Countertop w={w+.06} d={d+.08} y={h/2-.014} materialId={i.worktopMaterialId??"stone-light"} colour="#ddd7cc"/>
+    <Countertop w={w} d={d} y={h/2-.016} materialId={i.worktopMaterialId??"stone-light"} colour="#ddd7cc"/>
   </group>;
 }
 
-function SinkBase({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  return <group><BaseCabinet i={i} w={w} h={h} d={d} c={c}/><Sink i={i} w={w} d={d} y={h/2+.048}/></group>;
+function SinkBase({i,project,w,h,d,c}:{i:JoineryItem;project:Project;w:number;h:number;d:number;c:string}){
+  const surface=project.items.find(top=>top.visible!==false&&top.type==="Worktop"&&worktopCutouts(top,[i]).length);
+  const rim=surface?mm(surface.y+surface.height-i.y)-h/2+.002:h/2+.002;
+  return <group><BaseCabinet i={i} w={w} h={h} d={d} c={c}/><Sink i={i} w={w} d={d} y={rim}/></group>;
 }
 
-function HobBase({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  return <group><BaseCabinet i={i} w={w} h={h} d={d} c={c}/><Hob w={w} d={d} y={h/2+.044}/></group>;
+function HobBase({i,project,w,h,d,c}:{i:JoineryItem;project:Project;w:number;h:number;d:number;c:string}){
+  const surface=project.items.find(top=>top.visible!==false&&top.type==="Worktop"&&worktopCutouts(top,[i]).length);
+  const rim=surface?mm(surface.y+surface.height-i.y)-h/2+.009:h/2+.009;
+  return <group><BaseCabinet i={i} w={w} h={h} d={d} c={c}/><Hob w={w} d={d} y={rim}/></group>;
 }
 
 function OvenTower({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  const plinth=.1,bodyH=Math.max(.9,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
-  const ovenH=Math.min(.62,bodyH*.3),lowerH=Math.max(.34,bodyH*.29),topH=Math.max(.34,bodyH-ovenH-lowerH-.035);
+  const plinth=i.plinthStyle==="none"?0:Math.min(mm(i.plinthHeight??100),h*.25),bodyH=Math.max(.03,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
+  const ovenH=Math.min(.62,bodyH*.3),lowerH=bodyH*.29,topH=Math.max(.015,bodyH-ovenH-lowerH-Math.min(.035,bodyH*.05));
   const lowerY=-bodyH/2+lowerH/2,ovenY=lowerY+lowerH/2+ovenH/2+.012,topY=bodyH/2-topH/2;
   return <group>
-    <Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/>
+    <group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
     <group position={[0,bodyY,-mm(BOARD)/2]}>
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={activeConstructionView?3:0}/>
       <group position={[0,lowerY,0]}><DoorFronts i={{...i,doors:1}} w={w} h={lowerH-.012} d={bodyD} colour={c}/></group>
@@ -772,10 +789,10 @@ function OvenTower({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:strin
 }
 
 function FridgeHousing({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  const plinth=.1,bodyH=Math.max(.9,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD),split=.42;
+  const plinth=i.plinthStyle==="none"?0:Math.min(mm(i.plinthHeight??100),h*.25),bodyH=Math.max(.03,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD),split=.42;
   const lowerH=bodyH*split,upperH=bodyH-lowerH-.012,lowerY=-bodyH/2+lowerH/2,upperY=bodyH/2-upperH/2;
   return <group>
-    <Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/>
+    <group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
     <group position={[0,bodyY,-mm(BOARD)/2]}>
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={activeConstructionView?2:0}/>
       <mesh position={[0,0,bodyD*.03]} castShadow><boxGeometry args={[Math.max(.2,w-.09),Math.max(.5,bodyH-.08),Math.max(.22,bodyD*.7)]}/><meshStandardMaterial color="#4d5153" metalness={.14} roughness={.42}/></mesh>
@@ -884,10 +901,29 @@ function RangeCooker({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
 }
 function Backsplash({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){const m=sceneMaterial(i.materialId);return <group><Panel position={[0,0,0]} size={[w,h,Math.max(.004,d)]} colour={m.colour} materialId={i.materialId} part="backsplash" front/><lineSegments position={[0,0,d/2+.004]}><edgesGeometry args={[new THREE.BoxGeometry(w,h,.008)]}/><lineBasicMaterial color="#918a82"/></lineSegments></group>}
 
+function Cornice({w,h,d,c}:{w:number;h:number;d:number;c:string}){
+  return <group><Panel position={[0,-h*.32,-d*.15]} size={[w,h*.36,d*.7]} colour={c}/><Panel position={[0,h*.14,0]} size={[w,h*.56,d]} colour={c}/><Panel position={[0,h*.44,d*.12]} size={[w,h*.12,d*.76]} colour={c}/></group>;
+}
+function WineRack({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
+  const plinth=Math.min(.1,h*.2),bodyH=h-plinth,levels=Math.max(1,Math.min(12,i.shelves));
+  return <group><group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={c} materialId={i.plinthMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group><group position={[0,plinth/2,-.009]}><Carcass i={i} w={w} h={bodyH} d={d-.018} colour={c} shelves={levels}/>
+    {Array.from({length:levels},(_,n)=>{const y=-bodyH/2+bodyH*(n+.5)/(levels+1);return <group key={n} position={[0,y,d*.06]} rotation={[Math.PI/2,0,0]}><mesh castShadow><cylinderGeometry args={[Math.min(.033,w*.2),Math.min(.033,w*.2),d*.48,20]}/><meshPhysicalMaterial color={n%2?"#3e5134":"#634037"} roughness={.23} metalness={.05}/></mesh><mesh position={[0,d*.28,0]} castShadow><cylinderGeometry args={[.012,.017,d*.12,14]}/><meshPhysicalMaterial color="#34442b" roughness={.2}/></mesh></group>})}
+  </group></group>;
+}
+function BarStool({w,h,d,c}:{w:number;h:number;d:number;c:string}){
+  const top=Math.min(.055,h*.08),legH=h-top,legW=Math.min(.035,w*.09),spread=.34;
+  return <group><Panel position={[0,h/2-top/2,0]} size={[w,top,d]} colour={c} front/>
+    {[-1,1].flatMap(x=>[-1,1].map(z=><mesh key={x+"-"+z} position={[x*w*spread,-top/2,z*d*spread]} castShadow><boxGeometry args={[legW,legH,legW]}/><meshStandardMaterial color="#292c2b" roughness={.28} metalness={.7}/></mesh>))}
+    {[-1,1].map(sign=><mesh key={sign} position={[0,-h*.22,sign*d*spread]} castShadow><boxGeometry args={[w*spread*2,legW*.6,legW*.6]}/><meshStandardMaterial color="#353b39" roughness={.3} metalness={.6}/></mesh>)}
+  </group>;
+}
 function CabinetGeometry({i,project,construction=false}:{i:JoineryItem;project:Project;construction?:boolean}){
   const renderItem=construction?{...i,openAmount:Math.max(72,i.openAmount??0)}:i;
   const c=sceneMaterial(renderItem.carcassMaterialId??renderItem.materialId).colour,w=mm(renderItem.width),h=mm(renderItem.height),d=mm(renderItem.depth);
   i=renderItem;
+  if(i.type==="Cornice")return <Cornice w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Wine rack")return <WineRack i={i} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Bar stool")return <BarStool w={w} h={h} d={d} c={c}/>;
   if(i.type==="Worktop"){const topId=i.worktopMaterialId??i.materialId;return <WorktopSurface w={w} h={h} d={d} materialId={topId} edge={i.worktopEdge} finish={i.finish} cutouts={worktopCutouts(i,project.items)}/>;}
   if(i.type==="Wall segment"||i.type==="Chimney breast"||i.type==="Column"||i.type==="Ceiling bulkhead"||i.type==="Filler panel"||i.type==="End panel"||i.type==="Internal divider"||i.type==="Loft box")return <SimpleBlock w={w} h={h} d={d} c={c} materialId={i.materialId}/>;
   if(i.type==="Corner cabinet")return <CornerCabinet i={i} w={w} h={h} d={d} c={c}/>;
@@ -908,8 +944,8 @@ function CabinetGeometry({i,project,construction=false}:{i:JoineryItem;project:P
   if(i.type==="Bed wall")return <BedWall i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Bed")return <Bed w={w} h={h} d={d} c={c}/>;
   if(i.type==="Base cabinet")return <BaseCabinet i={i} w={w} h={h} d={d} c={c}/>;
-  if(i.type==="Sink base")return <SinkBase i={i} w={w} h={h} d={d} c={c}/>;
-  if(i.type==="Hob base")return <HobBase i={i} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Sink base")return <SinkBase i={i} project={project} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Hob base")return <HobBase i={i} project={project} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Oven tower")return <OvenTower i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Fridge housing")return <FridgeHousing i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Kitchen island")return <KitchenIsland i={i} w={w} h={h} d={d} c={c}/>;
@@ -941,13 +977,13 @@ function ItemNode({i,project,selected,selectedPart,mode,moveAxis,construction,on
   const position:[number,number,number]=[mm(i.x+fp.width/2-project.roomWidth/2),mm(i.y+i.height/2),mm(i.z+fp.depth/2-project.roomDepth/2)];
   const sync=()=>{const g=group.current;if(!g)return;if(mode==="rotate"){const accepted=onRotate?.(i.id,normalizeRotation(THREE.MathUtils.radToDeg(g.rotation.y)));if(accepted===false)g.rotation.y=THREE.MathUtils.degToRad(rotation);return}const current={...i,rotation},box=footprint(current);const raw={...current,x:(g.position.x+mm(project.roomWidth)/2)*1000-box.width/2,y:g.position.y*1000-i.height/2,z:(g.position.z+mm(project.roomDepth)/2)*1000-box.depth/2};const q=moveItemOnAxes(i,project,raw,moveAxis==="xz"?["x","z"]:[moveAxis]);const accepted=onMove?.(i.id,q.x,q.y,q.z);if(accepted===false){g.position.set(...position);g.rotation.y=THREE.MathUtils.degToRad(rotation)}};
   const node=<group ref={group} position={position} rotation={[0,THREE.MathUtils.degToRad(rotation),0]} onClick={e=>{e.stopPropagation();onSelect?.(i.id)}}>
-    {i.type==="Wall cabinet"&&<group position={[0,-mm(i.height)/2-.012,mm(i.depth)*.35]}><mesh rotation={[-Math.PI/2,0,0]}><planeGeometry args={[Math.max(.1,mm(i.width)-.06),.012]}/><meshStandardMaterial color="#ffe5b2" emissive="#ffe1a2" emissiveIntensity={2} toneMapped={false}/></mesh><pointLight color="#ffdf9f" intensity={.12} distance={1.5} decay={2}/></group>}
+    {i.type==="Wall cabinet"&&activeWarmLights&&<group position={[0,-mm(i.height)/2-.012,mm(i.depth)*.35]}><mesh rotation={[-Math.PI/2,0,0]}><planeGeometry args={[Math.max(.1,mm(i.width)-.06),.012]}/><meshStandardMaterial color="#ffe5b2" emissive="#ffe1a2" emissiveIntensity={2} toneMapped={false}/></mesh><pointLight color="#ffdf9f" intensity={.12} distance={1.5} decay={2}/></group>}
     <PartSelectionContext.Provider value={{selected,selectedPart,onSelectPart:part=>onSelectPart?.(i.id,part)}}><CabinetGeometry i={i} project={project} construction={construction}/></PartSelectionContext.Provider>
     {selected&&construction&&<><DimensionOverlay i={i} project={project}/><ConstructionLabels i={i}/></>}
-    {selected&&!selectedPart&&<mesh><boxGeometry args={[mm(i.width)+.035,mm(i.height)+.035,mm(i.depth)+.035]}/><meshBasicMaterial color="#c8102e" wireframe transparent opacity={.4}/></mesh>}
+    {selected&&!selectedPart&&<mesh userData={{editorOnly:true}}><boxGeometry args={[mm(i.width)+.035,mm(i.height)+.035,mm(i.depth)+.035]}/><meshBasicMaterial color="#c8102e" wireframe transparent opacity={.4}/></mesh>}
   </group>;
   if(!selected||i.locked||activeExplodedPanels)return node;
-  return <>{node}<TransformControls object={group} mode={mode} rotationSnap={Math.PI/2} size={.8} space="world" showX={mode==="translate"&&(moveAxis==="x"||moveAxis==="xz")} showY={mode==="rotate"||moveAxis==="y"} showZ={mode==="translate"&&(moveAxis==="z"||moveAxis==="xz")} onMouseDown={()=>onMoveStart?.()} onObjectChange={sync}/></>;
+  return <>{node}<TransformControls userData={{editorOnly:true}} object={group} mode={mode} rotationSnap={Math.PI/2} size={.8} space="world" showX={mode==="translate"&&(moveAxis==="x"||moveAxis==="xz")} showY={mode==="rotate"||moveAxis==="y"} showZ={mode==="translate"&&(moveAxis==="z"||moveAxis==="xz")} onMouseDown={()=>onMoveStart?.()} onObjectChange={sync}/></>;
 }
 
 function DropProjector({rw,rd,onReady}:{rw:number;rd:number;onReady:(fn:(clientX:number,clientY:number)=>{x:number;y:number;z:number})=>void}){
@@ -984,42 +1020,84 @@ function CameraRig({preset,rw,rh,rd}:{preset:CameraPreset;rw:number;rh:number;rd
   return null;
 }
 
-function SceneImageExport({onReady}:{onReady:(fn:()=>string)=>void}){
-  const {gl,scene,camera,size}=useThree();
-  useEffect(()=>{onReady(()=>{const ratio=gl.getPixelRatio();try{gl.setPixelRatio(Math.min(4,4096/Math.max(size.width,size.height)));gl.render(scene,camera);return gl.domElement.toDataURL("image/png")}finally{gl.setPixelRatio(ratio);gl.render(scene,camera)}})},[gl,scene,camera,size.width,size.height,onReady]);
+function SceneCapture({project,requestedView,onReady,onCameraReady,onRenderReady}:{project:Project;requestedView:SavedCamera|null;onReady:(fn:()=>string)=>void;onCameraReady:(fn:()=>Omit<SavedCamera,"id"|"name">)=>void;onRenderReady:(fn:()=>Promise<Uint8Array>)=>void}){
+  const {gl,scene,camera,size,controls}=useThree();
+  useEffect(()=>{
+    if(!requestedView)return;
+    camera.position.fromArray(requestedView.position);camera.up.fromArray(requestedView.up);
+    if(camera instanceof THREE.PerspectiveCamera){camera.fov=requestedView.fov;camera.updateProjectionMatrix()}
+    const orbit=controls as any;orbit?.target?.fromArray(requestedView.target);camera.lookAt(new THREE.Vector3(...requestedView.target));orbit?.update?.();
+  },[requestedView,camera,controls]);
+  useEffect(()=>{
+    onCameraReady(()=>({position:camera.position.toArray(),target:((controls as any)?.target??new THREE.Vector3()).toArray(),up:camera.up.toArray(),fov:camera instanceof THREE.PerspectiveCamera?camera.fov:38}));
+    onReady(()=>{const ratio=gl.getPixelRatio(),hidden:THREE.Object3D[]=[];
+      scene.traverse(o=>{if(o.visible&&o.userData.editorOnly){o.visible=false;hidden.push(o)}});
+      try{gl.setPixelRatio(4096/Math.max(size.width,size.height));gl.render(scene,camera);return gl.domElement.toDataURL("image/png")}finally{hidden.forEach(o=>o.visible=true);gl.setPixelRatio(ratio);gl.render(scene,camera)}
+    });
+    onRenderReady(async()=>{
+      const {GLTFExporter}=await import("three/examples/jsm/exporters/GLTFExporter.js");
+      const model=scene.getObjectByName("Joinery design");if(!model)throw new Error("3D geometry is still loading.");
+      const root=new THREE.Scene(),geometry=model.clone(true),remove:THREE.Object3D[]=[];
+      geometry.traverse(o=>{if(o.userData.editorOnly)remove.push(o)});remove.forEach(o=>o.removeFromParent());root.add(geometry);root.add(camera.clone());root.updateMatrixWorld(true);
+      const glb=await new GLTFExporter().parseAsync(root,{binary:true,onlyVisible:true}) as ArrayBuffer;
+      const response=await fetch("/render/render.py");if(!response.ok)throw new Error("Render script could not be loaded.");
+      const enc=new TextEncoder();return renderZip([
+        {name:"scene.glb",bytes:new Uint8Array(glb)},
+        {name:"settings.json",bytes:enc.encode(JSON.stringify({reference:project.reference,revision:project.revision,aspect:size.width/size.height,lighting:project.lighting??DEFAULT_LIGHTING},null,2))},
+        {name:"render.py",bytes:enc.encode(await response.text())},
+        {name:"README.txt",bytes:enc.encode("JOINERY STUDIO / BLENDER CYCLES\nExtract all files into a folder. Install Blender 4.x, then run from that folder:\nblender --background --python render.py -- scene.glb settings.json final.png\n\nThis renders the exact exported scene and camera at 4096 pixels wide.\nMaterials, UVs, textures, aperture geometry and door positions are included.\nRendering runs on your workstation. The website does not run a remote render job.\nAdjust lighting or assets in the generated .blend file for art direction.\n")}
+      ]);
+    });
+  },[gl,scene,camera,size.width,size.height,controls,project,onReady,onCameraReady,onRenderReady]);
   return null;
 }
-export function Scene3D({project,presentationOnly=false,selected,selectedPart,transformMode="translate",moveAxis="xz",onSelect,onSelectPart,onDropType,onMove,onRotate,onMoveStart}:{project:Project;presentationOnly?:boolean;selected?:string|null;selectedPart?:JoineryPart|null;transformMode?:"translate"|"rotate";moveAxis?:"xz"|"x"|"y"|"z";onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onDropType?:(type:string,x:number,y:number,z:number)=>void;onMove?:(id:string,x:number,y:number,z:number)=>boolean|void;onRotate?:(id:string,rotation:number)=>boolean|void;onMoveStart?:()=>void}){
+function Exposure({value}:{value:number}){const {gl}=useThree();useEffect(()=>{gl.toneMappingExposure=value},[gl,value]);return null}
+export function Scene3D({project,onProjectChange,presentationOnly=false,selected,selectedPart,transformMode="translate",moveAxis="xz",onSelect,onSelectPart,onDropType,onMove,onRotate,onMoveStart}:{project:Project;onProjectChange?:(patch:Partial<Project>)=>void;presentationOnly?:boolean;selected?:string|null;selectedPart?:JoineryPart|null;transformMode?:"translate"|"rotate";moveAxis?:"xz"|"x"|"y"|"z";onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onDropType?:(type:string,x:number,y:number,z:number)=>void;onMove?:(id:string,x:number,y:number,z:number)=>boolean|void;onRotate?:(id:string,rotation:number)=>boolean|void;onMoveStart?:()=>void}){
   activeCustomMaterials=project.customMaterials??[];
   const rw=mm(project.roomWidth),rh=mm(project.roomHeight),rd=mm(project.roomDepth),roomMax=Math.max(rw,rh,rd),floorMaterial=sceneMaterial(project.floorMaterialId??"floor-oak");
-  const [preset,setPreset]=useState<CameraPreset>("iso"),[showGrid,setShowGrid]=useState(false),[showWalls,setShowWalls]=useState(true),[renderMode,setRenderMode]=useState<"presentation"|"technical"|"construction">("presentation"),[dropReady,setDropReady]=useState(false),[explodePanels,setExplodePanels]=useState(false);
+  const [preset,setPreset]=useState<CameraPreset>("iso"),[showGrid,setShowGrid]=useState(false),[showWalls,setShowWalls]=useState(true),[renderMode,setRenderMode]=useState<"design"|"presentation"|"technical"|"construction">("design"),[dropReady,setDropReady]=useState(false),[explodePanels,setExplodePanels]=useState(false);
   useEffect(()=>{if(presentationOnly){setRenderMode("presentation");setExplodePanels(false)}},[presentationOnly]);
   const realistic=renderMode!=="technical",construction=renderMode==="construction";
+  const lighting=project.lighting??DEFAULT_LIGHTING;
+  activeWarmLights=lighting.warmLights;
+  const [requestedView,setRequestedView]=useState<SavedCamera|null>(null),[cameraName,setCameraName]=useState(""),[renderBusy,setRenderBusy]=useState(false);
+  const cameraCapture=useRef<(()=>Omit<SavedCamera,"id"|"name">)|null>(null),renderExport=useRef<(()=>Promise<Uint8Array>)|null>(null);
   const imageExport=useRef<(()=>string)|null>(null);
   const [imageNotice,setImageNotice]=useState("");
   const dropProjector=useRef<((clientX:number,clientY:number)=>{x:number;y:number;z:number})|null>(null);
   activeConstructionView=construction;
   activeExplodedPanels=construction&&explodePanels;
-  return <div className={"three "+(construction?"constructionView ":"")+(dropReady?"dropReady":"")} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="copy";setDropReady(true)}} onDragLeave={e=>{if(e.currentTarget===e.target)setDropReady(false)}} onDrop={e=>{e.preventDefault();setDropReady(false);const type=e.dataTransfer.getData("application/x-joinery-component")||e.dataTransfer.getData("text/plain");if(!type)return;const point=dropProjector.current?.(e.clientX,e.clientY)??{x:project.roomWidth/2,y:0,z:project.roomDepth/2};onDropType?.(type,point.x,point.y,point.z)}}><div className="sceneToolbar"><button onClick={()=>{try{const data=imageExport.current?.();if(!data){setImageNotice("3D view is still loading.");return}const a=document.createElement("a");a.href=data;a.download=project.reference+"-3d.png";a.click();setImageNotice("Image exported.")}catch{setImageNotice("Image export failed. Please try again.")}}}>Export high-resolution image</button><div className="cameraPresets">{(["iso","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={preset===v?"active":""} onClick={()=>setPreset(v)}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles renderModes"><button className={renderMode==="presentation"?"active":""} onClick={()=>setRenderMode("presentation")}>Presentation</button><button className={renderMode==="technical"?"active":""} onClick={()=>setRenderMode("technical")}>Technical</button><button className={renderMode==="construction"?"active":""} onClick={()=>{setRenderMode("construction");setPreset("iso");setShowGrid(false)}}>Construction</button>{construction&&<button className={explodePanels?"active":""} onClick={()=>setExplodePanels(v=>!v)}>Explode panels</button>}<span className="sceneToggleDivider"/><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button>{!construction&&<button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button>}</div></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(3.8,rh*1.65),Math.max(4.3,rd*1.35)],fov:38}} dpr={presentationOnly||renderMode==="presentation"?[1,2]:[1,1.5]} performance={{min:.6}} shadows gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:.9}}>
-    <SceneImageExport onReady={fn=>{imageExport.current=fn}}/>
+  const download=(data:Blob,name:string)=>{const url=URL.createObjectURL(data),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
+  const exportRender=async()=>{if(!renderExport.current||renderBusy)return;setRenderBusy(true);setImageNotice("Preparing the scene and textures…");try{const bytes=await renderExport.current();download(new Blob([bytes as BlobPart],{type:"application/zip"}),project.reference+"-cycles-render.zip");setImageNotice("Render kit exported. Extract it and follow README.txt in Blender.")}catch(error){setImageNotice(error instanceof Error?error.message:"Render export failed.")}finally{setRenderBusy(false)}};
+  return <div className={"three "+(construction?"constructionView ":"")+(dropReady?"dropReady":"")} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="copy";setDropReady(true)}} onDragLeave={e=>{if(e.currentTarget===e.target)setDropReady(false)}} onDrop={e=>{e.preventDefault();setDropReady(false);const type=e.dataTransfer.getData("application/x-joinery-component")||e.dataTransfer.getData("text/plain");if(!type)return;const point=dropProjector.current?.(e.clientX,e.clientY)??{x:project.roomWidth/2,y:0,z:project.roomDepth/2};onDropType?.(type,point.x,point.y,point.z)}}><div className="sceneToolbar"><button onClick={()=>{try{const data=imageExport.current?.();if(!data){setImageNotice("3D view is still loading.");return}const a=document.createElement("a");a.href=data;a.download=project.reference+"-3d.png";a.click();setImageNotice("Image exported.")}catch{setImageNotice("Image export failed. Please try again.")}}}>Export high-resolution image</button><div className="cameraPresets">{(["iso","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={preset===v?"active":""} onClick={()=>{setRequestedView(null);setPreset(v)}}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles renderModes"><button className={renderMode==="design"?"active":""} onClick={()=>setRenderMode("design")}>Design</button><button className={renderMode==="presentation"?"active":""} onClick={()=>setRenderMode("presentation")}>Presentation</button><button className={renderMode==="technical"?"active":""} onClick={()=>setRenderMode("technical")}>Technical</button><button className={renderMode==="construction"?"active":""} onClick={()=>{setRenderMode("construction");setPreset("iso");setShowGrid(false)}}>Construction</button>{construction&&<button className={explodePanels?"active":""} onClick={()=>setExplodePanels(v=>!v)}>Explode panels</button>}<span className="sceneToggleDivider"/><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button>{!construction&&<button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button>}</div><details className="sceneOptions"><summary>Views & lighting</summary><div className="sceneOptionsBody">
+      <b>Saved customer views</b><div className="savedViewEntry"><input aria-label="View name" placeholder="View name" maxLength={80} value={cameraName} onChange={e=>setCameraName(e.target.value)}/><button disabled={!cameraName.trim()||(project.savedCameras??[]).length>=20} onClick={()=>{const view=cameraCapture.current?.();if(!view)return;onProjectChange?.({savedCameras:[...(project.savedCameras??[]),{...view,id:newId(),name:cameraName.trim()}]});setCameraName("")}}>Save view</button></div>
+      {(project.savedCameras??[]).map(view=><div key={view.id} className="savedViewRow"><button onClick={()=>setRequestedView({...view})}>{view.name}</button><button aria-label={"Delete view "+view.name} onClick={()=>onProjectChange?.({savedCameras:project.savedCameras?.filter(v=>v.id!==view.id)})}>×</button></div>)}
+      <label>Exposure <input type="range" min=".2" max="2" step=".05" value={lighting.exposure} onChange={e=>onProjectChange?.({lighting:{...lighting,exposure:+e.target.value}})}/></label>
+      <label>Daylight <input type="range" min="0" max="4" step=".1" value={lighting.daylight} onChange={e=>onProjectChange?.({lighting:{...lighting,daylight:+e.target.value}})}/></label>
+      <label><input type="checkbox" checked={lighting.warmLights} onChange={e=>onProjectChange?.({lighting:{...lighting,warmLights:e.target.checked}})}/> Under-cabinet lighting</label>
+      <label><input type="checkbox" checked={lighting.ceiling} onChange={e=>onProjectChange?.({lighting:{...lighting,ceiling:e.target.checked}})}/> Show ceiling</label>
+      <button disabled={renderBusy||construction} onClick={exportRender}>{renderBusy?"Preparing render…":"Export Blender Cycles render kit"}</button><small>Final rendering runs in Blender on your workstation. The kit includes the current geometry, textures and camera.</small>
+    </div></details></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(3.8,rh*1.65),Math.max(4.3,rd*1.35)],fov:38}} dpr={presentationOnly||renderMode==="presentation"?[1,2]:[1,1.5]} performance={{min:.6}} shadows gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:.9}}>
+    <SceneCapture project={project} requestedView={requestedView} onReady={fn=>{imageExport.current=fn}} onCameraReady={fn=>{cameraCapture.current=fn}} onRenderReady={fn=>{renderExport.current=fn}}/><Exposure value={lighting.exposure}/>
     <CameraRig preset={preset} rw={rw} rh={rh} rd={rd}/>
     <DropProjector rw={rw} rd={rd} onReady={fn=>{dropProjector.current=fn}}/>
     <color attach="background" args={[construction?"#e7ded1":realistic?"#e7e2da":"#f2f1ee"]}/>
-    {realistic&&<Environment resolution={128} frames={1} environmentIntensity={.35}>
+    {realistic&&<Environment resolution={renderMode==="design"?64:128} frames={1} environmentIntensity={.35}>
       <Lightformer form="rect" intensity={2.5} color="#fff5e8" position={[-3,4,3]} rotation={[0,Math.PI/4,0]} scale={[4,5,1]}/>
       <Lightformer form="rect" intensity={1.2} color="#e7eef8" position={[4,2,1]} rotation={[0,-Math.PI/2,0]} scale={[3,4,1]}/>
       <Lightformer form="rect" intensity={1.5} color="#ffffff" position={[0,6,0]} rotation={[Math.PI/2,0,0]} scale={[5,5,1]}/>
     </Environment>}
     <ambientLight intensity={realistic ? .22 : .72}/>
     <hemisphereLight args={["#fffaf0",realistic?"#8f826f":"#b6afa5",realistic ? .45 : 1.25]}/>
-    <directionalLight castShadow position={[3.5,6.5,4.5]} intensity={realistic?1.7:2.15} color={realistic?"#fff6e8":"#ffffff"} shadow-mapSize-width={2048} shadow-mapSize-height={2048} shadow-bias={-0.00018} shadow-camera-left={-roomMax} shadow-camera-right={roomMax} shadow-camera-top={roomMax} shadow-camera-bottom={-roomMax} shadow-camera-far={20}/>
+    <directionalLight castShadow position={[3.5,6.5,4.5]} intensity={realistic?lighting.daylight:2.15} color={realistic?"#fff6e8":"#ffffff"} shadow-mapSize-width={renderMode==="design"?1024:2048} shadow-mapSize-height={renderMode==="design"?1024:2048} shadow-bias={-0.00018} shadow-camera-left={-roomMax} shadow-camera-right={roomMax} shadow-camera-top={roomMax} shadow-camera-bottom={-roomMax} shadow-camera-far={20}/>
     <directionalLight position={[-4,3,1]} intensity={realistic?.65:.3} color="#e9eef5"/>
-    <RoomShell rw={rw} rh={rh} rd={rd} showWalls={showWalls&&!construction} realistic={realistic} floorMaterial={floorMaterial} studioMode={construction}/>
-{showGrid&&<Grid position={[0,.002,0]} args={[Math.max(rw,rd)*1.25,Math.max(rw,rd)*1.25]} cellSize={.1} sectionSize={.5} cellColor="#cbc6bf" sectionColor="#aaa49b" fadeDistance={15} fadeStrength={1.5}/>}
+    {showGrid&&<Grid userData={{editorOnly:true}} position={[0,.002,0]} args={[Math.max(rw,rd)*1.25,Math.max(rw,rd)*1.25]} cellSize={.1} sectionSize={.5} cellColor="#cbc6bf" sectionColor="#aaa49b" fadeDistance={15} fadeStrength={1.5}/>}
+<group name="Joinery design"><RoomShell project={project} rw={rw} rh={rh} rd={rd} showWalls={showWalls&&!construction} realistic={realistic} floorMaterial={floorMaterial} studioMode={construction}/>
 
-    {construction&&<RoomDimensionOverlay rw={rw} rh={rh} rd={rd} project={project}/>}
+
+    {construction&&<group userData={{editorOnly:true}}><RoomDimensionOverlay rw={rw} rh={rh} rd={rd} project={project}/></group>}
     {project.items.filter(i=>i.visible!==false).map(i=><ItemNode key={i.id} i={i} project={project} selected={!presentationOnly&&selected===i.id} selectedPart={!presentationOnly&&selected===i.id?selectedPart:null} mode={transformMode} moveAxis={moveAxis} construction={construction} onSelect={presentationOnly?undefined:onSelect} onSelectPart={presentationOnly?undefined:onSelectPart} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>)}
-    <ContactShadows position={[0,.003,0]} opacity={construction?.52:realistic?.42:.32} scale={Math.max(5,roomMax*1.8)} blur={construction?2.4:realistic?3.2:2.6} far={Math.max(5,roomMax*1.8)}/>
+    </group><ContactShadows key={project.updatedAt} frames={1} resolution={renderMode==="design"?256:512} position={[0,.003,0]} opacity={construction?.52:realistic?.42:.32} scale={Math.max(5,roomMax*1.8)} blur={construction?2.4:realistic?3.2:2.6} far={Math.max(5,roomMax*1.8)}/>
     <OrbitControls makeDefault target={[0,Math.min(1.15,rh*.48),0]} enableDamping dampingFactor={.08} enablePan enableZoom minDistance={1} maxDistance={Math.max(8,roomMax*4)}/>
     {!presentationOnly&&<GizmoHelper alignment="bottom-right" margin={[70,70]}><GizmoViewport axisColors={["#c8102e","#2f8f5b","#315fa8"]} labelColor="#222"/></GizmoHelper>}
   </Canvas>{construction&&explodePanels&&<div className="explodedNotice">Exploded inspection · panel sizes stay unchanged · dimensions show assembled size</div>}{imageNotice&&<div className="sceneExportNotice" role="status">{imageNotice}</div>}</div>;

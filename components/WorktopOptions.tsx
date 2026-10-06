@@ -18,6 +18,7 @@ export function WorktopOptions({item,materials,onChange}:{item:JoineryItem;mater
     <p className="surfaceHelp">Selected: {current.name}</p>
     <label>Worktop thickness (mm)<input type="number" min="6" max="100" value={item.height} onChange={e=>{const h=Number(e.target.value);if(Number.isFinite(h)&&h>=6&&h<=100)onChange({height:h})}}/></label>
     <label>Worktop edge profile<select value={item.worktopEdge??"rounded"} onChange={e=>onChange({worktopEdge:e.target.value as "square"|"rounded"})}><option value="square">Square</option><option value="rounded">Rounded</option></select></label>
+    <fieldset><legend>Finished edges</legend>{(["front","back","left","right"] as const).map(edge=><label key={edge} className="checkRow"><input type="checkbox" checked={(item.worktopFinishedEdges??["front","left","right"]).includes(edge)} onChange={e=>{const edges=item.worktopFinishedEdges??["front","left","right"];onChange({worktopFinishedEdges:e.target.checked?[...edges,edge]:edges.filter(v=>v!==edge)})}}/>{edge}</label>)}</fieldset>
     <label>Worktop surface finish<select value={["Matt","Textured matt","Semi-gloss","Gloss","Oiled"].includes(item.finish)?item.finish:"Matt"} onChange={e=>onChange({finish:e.target.value})}>{["Matt","Textured matt","Semi-gloss","Gloss","Oiled"].map(v=><option key={v}>{v}</option>)}</select></label>
   </div>;
 }

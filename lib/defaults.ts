@@ -23,6 +23,9 @@ const PRESETS:Record<string,Preset>={
 "Corner cabinet":{width:900,height:870,depth:900,shelves:1,doors:2,y:0},
 "Filler panel":{width:100,height:870,depth:600,shelves:0,doors:0,y:0},
 "End panel":{width:18,height:870,depth:600,shelves:0,doors:0,y:0},
+"Cornice":{width:1200,height:60,depth:80,shelves:0,doors:0,y:2170},
+"Wine rack":{width:150,height:870,depth:560,shelves:5,doors:0,y:0},
+"Bar stool":{width:420,height:750,depth:420,shelves:0,doors:0,y:0},
 "Worktop":{width:1800,height:38,depth:650,shelves:0,doors:0,y:870},
 "Straight staircase":{width:950,height:2400,depth:3200,shelves:0,doors:0,y:0},
 "L staircase":{width:2000,height:2400,depth:3000,shelves:0,doors:0,y:0},
@@ -61,12 +64,12 @@ const PRESETS:Record<string,Preset>={
 "Glass balustrade":{width:1800,height:1000,depth:70,shelves:0,doors:0,y:0},
 "Timber balustrade":{width:1800,height:1000,depth:90,shelves:0,doors:0,y:0}};
 
-const noHardware=new Set(["Shelving","Straight staircase","L staircase","U staircase","Bed wall","Bed","Dishwasher","Washing machine","Microwave","Extractor hood","Door opening","Window","Wall segment","Glass balustrade","Timber balustrade","Worktop","Filler panel","End panel","Chimney breast","Column","Ceiling bulkhead","Radiator","Socket","Switch","Mirror","Ceiling light","Pendant light","Tap","Arc mixer tap","Pull-out tap","Bridge tap","Square neck tap","Backsplash","Freestanding fridge","Single oven","Range cooker","Hanging rail","Shoe rack","Internal divider"]);
+const noHardware=new Set(["Cornice","Wine rack","Bar stool","Shelving","Straight staircase","L staircase","U staircase","Bed wall","Bed","Dishwasher","Washing machine","Microwave","Extractor hood","Door opening","Window","Wall segment","Glass balustrade","Timber balustrade","Worktop","Filler panel","End panel","Chimney breast","Column","Ceiling bulkhead","Radiator","Socket","Switch","Mirror","Ceiling light","Pendant light","Tap","Arc mixer tap","Pull-out tap","Bridge tap","Square neck tap","Backsplash","Freestanding fridge","Single oven","Range cooker","Hanging rail","Shoe rack","Internal divider"]);
 const architecture=new Set(["Door opening","Window","Wall segment","Chimney breast","Column","Ceiling bulkhead"]);
 const services=new Set(["Dishwasher","Washing machine","Microwave","Extractor hood","Freestanding fridge","Single oven","Range cooker","Radiator","Socket","Switch","Ceiling light","Pendant light","Tap","Arc mixer tap","Pull-out tap","Bridge tap","Square neck tap","Backsplash"]);
-const decor=new Set(["Bed","Mirror"]);
+const decor=new Set(["Bar stool","Bed","Mirror"]);
 const layerFor=(type:string):ItemLayer=>architecture.has(type)?"Architecture":services.has(type)?"Services":decor.has(type)?"Decor":"Joinery";
-const kitchenCabinet=new Set(["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Sink base","Hob base","Oven tower","Fridge housing","Kitchen island","Corner cabinet"]);
+const kitchenCabinet=new Set(["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Sink base","Hob base","Oven tower","Fridge housing","Kitchen island","Corner cabinet","Wine rack"]);
 
 export function newItem(type="Wardrobe"):JoineryItem{
   const p=PRESETS[type]??PRESETS.Wardrobe;

@@ -1,4 +1,5 @@
 "use client";
+import {generateWorktops} from "@/lib/worktops";
 import {DrawingReferencePanel} from "./DrawingReferencePanel";
 import {newId} from "@/lib/id";
 import {useEffect,useMemo,useState} from "react";
@@ -14,6 +15,7 @@ const baseTypes=new Set(["Base cabinet","Drawer unit","Sink base","Hob base","Co
 export function ProfessionalPanel({project}:{project:Project}){
   const s=useStudio();
   const [ids,setIds]=useState<string[]>([]);
+  const [overhang,setOverhang]=useState(30),[thickness,setThickness]=useState(38);
   const [message,setMessage]=useState("");
   useEffect(()=>{setIds(v=>v.filter(id=>project.items.some(i=>i.id===id)))},[project.id,project.items.length]);
   useEffect(()=>{if(s.selectedId&&project.items.some(i=>i.id===s.selectedId))setIds(v=>v.includes(s.selectedId!)?v:[s.selectedId!])},[s.selectedId,project.id]);
@@ -61,55 +63,12 @@ export function ProfessionalPanel({project}:{project:Project}){
     setMessage(made.length?"Added "+made.length+" copies along the wall.":"No clear space for another copy.");
   };
   const makeWorktop=()=>{
-    const bases=project.items.filter(i=>baseTypes.has(i.type)&&i.visible!==false);
-    if(!bases.length)return setMessage("No kitchen base cabinets found.");
-    const wallFor=(i:JoineryItem):WallSide|null=>{
-      if(i.wallSide)return i.wallSide;
-      const c=wallClearances(project,i),pairs:[WallSide,number][]=[["back",c.back],["front",c.front],["left",c.left],["right",c.right]];
-      pairs.sort((a,b)=>a[1]-b[1]);
-      return pairs[0][1]<=180?pairs[0][0]:null;
-    };
-    const groups=new Map<WallSide,JoineryItem[]>();
-    for(const i of bases){const wall=wallFor(i);if(!wall)continue;groups.set(wall,[...(groups.get(wall)??[]),i])}
-    if(!groups.size)return setMessage("Move the base cabinets close to a wall before generating worktops.");
-
-    const runDepth=(wall:WallSide,items:JoineryItem[])=>{
-      const horizontal=wall==="back"||wall==="front";
-      return Math.max(...items.map(i=>horizontal?footprint(i).depth:footprint(i).width))+40;
-    };
-    const existing=project.items.filter(i=>i.type==="Worktop"&&i.name.startsWith("Auto worktop · "));
-    const keep=new Set<string>(),created:string[]=[];
-
-    for(const [wall,items] of groups){
-      const horizontal=wall==="back"||wall==="front";
-      let min=horizontal?Math.min(...items.map(i=>i.x)):Math.min(...items.map(i=>i.z));
-      let max=horizontal?Math.max(...items.map(i=>i.x+footprint(i).width)):Math.max(...items.map(i=>i.z+footprint(i).depth));
-      const across=runDepth(wall,items);
-
-      // Horizontal runs own the room corners. Perpendicular side runs are trimmed
-      // to meet them cleanly, preventing duplicate worktop geometry and Z-fighting.
-      if(!horizontal){
-        const backItems=groups.get("back");
-        if(backItems?.length){
-          const backDepth=runDepth("back",backItems);
-          if(min<backDepth)min=backDepth;
-        }
-        const frontItems=groups.get("front");
-        if(frontItems?.length){
-          const frontDepth=runDepth("front",frontItems),frontStart=project.roomDepth-frontDepth;
-          if(max>frontStart)max=frontStart;
-        }
-      }
-
-      const span=max-min;
-      if(span<100)continue;
-      const top=Math.max(...items.map(i=>i.y+i.height)),name="Auto worktop · "+wall;
-      const found=existing.find(i=>i.name===name),q={...newItem("Worktop"),id:found?.id??newId(),name,y:top,width:span,height:38,depth:across,materialId:found?.materialId??"stone-light",worktopMaterialId:found?.worktopMaterialId??found?.materialId??"stone-light",layer:"Joinery" as const,rotation:horizontal?(wall==="front"?180:0):90,wallSide:wall,x:horizontal?min:(wall==="left"?0:Math.max(0,project.roomWidth-across)),z:horizontal?(wall==="back"?0:Math.max(0,project.roomDepth-across)):min};
-      keep.add(q.id);created.push(wall);
-      found?s.updateItem(found.id,q):s.addItem(q);
-    }
-    for(const old of existing)if(!keep.has(old.id))s.deleteItem(old.id);
-    setMessage(created.length?"Generated clean worktop runs for "+created.join(", ")+" wall"+(created.length>1?"s":"")+".":"No valid worktop run could be generated.");
+    const tops=generateWorktops(project,overhang,thickness);
+    if(!tops.length)return setMessage("Add base cabinets or an island first.");
+    const items=[...project.items.filter(i=>i.type!=="Worktop"),...tops];
+    const proposed={...project,items};
+    if(tops.some(t=>!canPlace(proposed,t,t.id)))return setMessage("A worktop intersects another object. Adjust the run or overhang.");
+    s.updateProject({items});setMessage("Generated "+tops.length+" connected worktop section(s), with automatic sink and hob cutouts. Undo restores the previous tops.");
   };
   const addWardrobeInternals=()=>{
     if(!primary||!wardrobeTypes.has(primary.type))return setMessage("Select a wardrobe first.");
@@ -139,7 +98,7 @@ export function ProfessionalPanel({project}:{project:Project}){
       <button className="proDanger" onClick={()=>{if(picked.length&&confirm("Delete "+picked.length+" selected item"+(picked.length===1?"":"s")+"?")){s.deleteItems(picked.map(i=>i.id));setIds([])}}}>Delete selected</button>
     </details>
     <details open><summary>Joinery intelligence</summary>
-      <button className="proWide" onClick={makeWorktop}>Generate continuous kitchen worktop</button>
+      <p className="surfaceHelp">Rebuild all worktop sections from the current units. Existing tops are replaced; Undo restores them.</p><div className="fieldGrid2"><label>Front overhang (mm)<input type="number" min="0" max="300" value={overhang} onChange={e=>setOverhang(Math.max(0,Math.min(300,+e.target.value)))}/></label><label>Thickness (mm)<input type="number" min="6" max="100" value={thickness} onChange={e=>setThickness(Math.max(6,Math.min(100,+e.target.value)))}/></label></div><button className="proWide" onClick={makeWorktop}>Regenerate kitchen worktops</button>
       <button className="proWide" onClick={addWardrobeInternals}>Auto-fit selected wardrobe internals</button>
       {stairs&&<div className={"stairMetrics "+(stairs.review?"needsReview":"")}><b>Stair geometry</b><div><span>Risers<strong>{stairs.risers}</strong></span><span>Rise<strong>{stairs.rise} mm</strong></span><span>Going<strong>{stairs.going} mm</strong></span><span>Pitch<strong>{stairs.pitch}°</strong></span></div><small>{stairs.review?"Review these proportions before manufacture.":"Proportions look workable."} Planning aid only — verify site dimensions and applicable regulations.</small></div>}
     </details>
