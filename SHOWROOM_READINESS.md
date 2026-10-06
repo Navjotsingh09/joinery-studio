@@ -107,3 +107,14 @@ Two additional free CC0 BlendSwap sources add a built-in oven and extractor hood
 Validation: 185 tests across 29 files pass, including actual GLB loading and DXF unit/block/arc checks. ZIP CRC integrity, Mac launcher permissions and Python script syntax were checked. Production deployment and live CAD workflow verification are recorded after rollout. Shared accounts/cloud saves remain deferred at the owner's request. Reference-level customer satisfaction and desktop/tablet WebGL acceptance remain open checks, not conclusions from automated tests.
 
 Live production verification: the example DXF loads with millimetres and three selectable layers, adds a measured reference to the plan and exposes calibration controls. Live model, launcher, script, DXF and preview bytes match the tested repository. CAD references now retain the original vector aspect ratio so raster pixel rounding does not change measured depth. An additional regression check verifies exact dimensions after JSON round-trip.
+
+
+## Current export and presentation verification · 6 October 2026
+
+The workstation command now uses the same Three.js GLB exporter, ZIP contents and Blender script as the browser render package. A real 2048 × 1365, 96-sample Cycles render completed from 317 captured meshes and six imported component instances. All 13 images, including lighting, are packed into the editable Blender file. The output also includes a reusable render ZIP. Browser geometry, world-space camera transforms, embedded texture pixels, physical finishes and texture scale are checked through actual GLB export rather than a mocked exporter.
+
+Model, texture and environment failures are isolated from the scene. The editor shows loading or a specific failure and Retry loading; final exports wait for complete assets. A regression check triggers a real React resource boundary failure, verifies the procedural preview remains visible and verifies export succeeds after recovery. Retrying preserves the camera.
+
+Customer presentation hides editing controls and editing shortcuts. Escape returns to editing; the 2D fallback also returns to editing. The Interior camera is now inside the room with a wider field of view, removing the exposed ceiling edge from the default customer framing. Saved customer views remain available, alongside image and render-package exports.
+
+Validation: 193 checks across 32 test files pass. The production build is required before deployment. The browser session here cannot initialize WebGL, so GPU-backed desktop/tablet acceptance and reference-level customer approval remain unverified. Rendering remains on a workstation; shared accounts and cloud saving remain deferred at the owner's request.

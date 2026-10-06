@@ -186,6 +186,7 @@ export default function Studio(){
 
   useEffect(()=>{
     const key=(e:KeyboardEvent)=>{
+      if(presentationMode){if(e.key==="Escape"){setPresentationMode(false);setLeftOpen(true)}return}
       const tag=(e.target as HTMLElement)?.tagName;
       if(["INPUT","TEXTAREA","SELECT"].includes(tag))return;
       if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="s"){e.preventDefault();cloudSave()}
@@ -203,7 +204,7 @@ export default function Studio(){
       else if(e.key==="Escape")s.select(null);
     };
     window.addEventListener("keydown",key); return()=>window.removeEventListener("keydown",key)
-  },[s,item,p,user]);
+  },[s,item,p,user,presentationMode]);
 
   const add=(type:string,at?:{x:number;y:number;z:number})=>{
     let i=newItem(type);
@@ -420,18 +421,18 @@ export default function Studio(){
       </button>
       <div className="topActions">
         <button className={"presentationToggle "+(presentationMode?"active":"")} title="Client presentation view" onClick={()=>{const next=!presentationMode;setPresentationMode(next);if(next){s.setView("3d");setLeftOpen(false);setRightOpen(false)}else{setLeftOpen(true)}}}><Icon name="box" size={16}/><span>{presentationMode?"Exit presentation":"Present"}</span></button>
-        <button className="iconBtn topIcon" title="Undo" onClick={s.undo}><Icon name="undo" size={17}/></button>
+        {!presentationMode&&<><button className="iconBtn topIcon" title="Undo" onClick={s.undo}><Icon name="undo" size={17}/></button>
         <button className="iconBtn topIcon" title="Redo" onClick={s.redo}><Icon name="redo" size={17}/></button>
         <div className="viewSwitcher">{(["front","top","side","3d"] as const).map(v=><button key={v} className={s.view===v?"active":""} onClick={()=>s.setView(v)}>{v==="3d"?"3D":v==="front"?"Elevations":v[0].toUpperCase()+v.slice(1)}</button>)}</div>
         {s.view==="front"&&<div className="wallElevationPicker">{(["back","right","front","left"] as WallSide[]).map(w=><button key={w} className={elevationWall===w?"active":""} onClick={()=>setElevationWall(w)}>{w[0].toUpperCase()+w.slice(1)}</button>)}</div>}
-        <details className="topMenu"><summary><Icon name="download" size={15}/> Export</summary><div>
+        </>}<details className="topMenu"><summary><Icon name="download" size={15}/> Export</summary><div>
           <button onClick={()=>exportPdf(p)}>PDF drawing pack</button>
           <button onClick={exportJson}>Export JSON</button>
-          <button onClick={()=>file.current?.click()}>Import JSON</button><button onClick={()=>{setLeftOpen(true);setTab("professional");s.setView("top")}}>Import CAD / PDF drawing</button>
+          {!presentationMode&&<><button onClick={()=>file.current?.click()}>Import JSON</button><button onClick={()=>{setLeftOpen(true);setTab("professional");s.setView("top")}}>Import CAD / PDF drawing</button></>}
         </div></details>
         <input ref={file} hidden type="file" accept=".json" onChange={importJson}/>
-        {hasSupabase()&&user&&<button className="quietBtn" disabled={busy} onClick={cloudSave}>{busy?"Saving…":"Save"}</button>}
-        <button disabled={issues.length>0} className="primary compactPrimary saveRevisionBtn" onClick={s.saveRevision}><Icon name="save" size={15}/> Save revision</button>
+        {!presentationMode&&hasSupabase()&&user&&<button className="quietBtn" disabled={busy} onClick={cloudSave}>{busy?"Saving…":"Save"}</button>}
+        {!presentationMode&&<button disabled={issues.length>0} className="primary compactPrimary saveRevisionBtn" onClick={s.saveRevision}><Icon name="save" size={15}/> Save revision</button>}
       </div>
     </header>
 
@@ -467,9 +468,9 @@ export default function Studio(){
     </aside>
 
     <section className="workspace">
-      {!p.items.length&&!presentationMode&&<div className="blankCanvasGuide"><b>Your blank {designKind} canvas</b><span>1. Add a unit from the library. 2. Set its size in the inspector. 3. Position it in plan view.</span><button onClick={()=>{setLeftOpen(true);setTab("components");s.setView("top")}}>Add your first unit</button></div>}<div className="stage">{s.view==="3d"?<SceneBoundary onUsePlan={()=>s.setView("top")}><Scene3D project={p} onProjectChange={s.updateProject} presentationOnly={presentationMode} selected={s.selectedId} selectedPart={selectedPart} transformMode={transformMode} moveAxis={moveAxis} onSelect={id=>{s.select(id);if(id!==s.selectedId)setSelectedPart(null)}} onSelectPart={(id,part)=>{if(id!==s.selectedId)partSelectionItem.current=id;s.select(id);setSelectedPart(part)}} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onMove={(id,x,y,z)=>moveSafely(id,x,y,z,moveAxis==="xz")} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint}/></SceneBoundary>:<Drawing2D project={p} view={s.view} wallSide={s.view==="front"?elevationWall:undefined} selected={s.selectedId} onSelect={s.select} onMove={moveSafely} onResize={(id,patch)=>s.moveItem(id,patch)} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onContext={(e,id)=>{s.select(id);setMenu({x:e.clientX,y:e.clientY,id})}}/>}</div>
+      {!p.items.length&&!presentationMode&&<div className="blankCanvasGuide"><b>Your blank {designKind} canvas</b><span>1. Add a unit from the library. 2. Set its size in the inspector. 3. Position it in plan view.</span><button onClick={()=>{setLeftOpen(true);setTab("components");s.setView("top")}}>Add your first unit</button></div>}<div className="stage">{s.view==="3d"?<SceneBoundary onUsePlan={()=>{setPresentationMode(false);setLeftOpen(true);s.setView("top")}}><Scene3D project={p} onProjectChange={s.updateProject} presentationOnly={presentationMode} selected={s.selectedId} selectedPart={selectedPart} transformMode={transformMode} moveAxis={moveAxis} onSelect={id=>{s.select(id);if(id!==s.selectedId)setSelectedPart(null)}} onSelectPart={(id,part)=>{if(id!==s.selectedId)partSelectionItem.current=id;s.select(id);setSelectedPart(part)}} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onMove={(id,x,y,z)=>moveSafely(id,x,y,z,moveAxis==="xz")} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint}/></SceneBoundary>:<Drawing2D project={p} view={s.view} wallSide={s.view==="front"?elevationWall:undefined} selected={s.selectedId} onSelect={s.select} onMove={moveSafely} onResize={(id,patch)=>s.moveItem(id,patch)} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onContext={(e,id)=>{s.select(id);setMenu({x:e.clientX,y:e.clientY,id})}}/>}</div>
 
-      {item&&<div className="selectionBar" onClick={e=>e.stopPropagation()}>
+      {item&&!presentationMode&&<div className="selectionBar" onClick={e=>e.stopPropagation()}>
         <span className="selectionName">{item.name}</span>{selectedPart&&<button className="selectedPartPill" onClick={()=>setSelectedPart(null)}>Surface: {selectedPart.replace("-"," ")} ×</button>}
         <button className={transformMode==="translate"?"activeTool":""} onClick={()=>setTransformMode("translate")}><Icon name="move" size={15}/> Move</button><label className="axisControl">Axis<select aria-label="Movement axis" value={moveAxis} onChange={e=>setMoveAxis(e.target.value as typeof moveAxis)}><option value="xz">Floor X / Z</option><option value="x">X · left / right</option><option value="y">Y · height</option><option value="z">Z · forward / back</option></select></label><button className={transformMode==="rotate"?"activeTool":""} onClick={()=>setTransformMode("rotate")}><Icon name="rotate" size={15}/> Rotate</button><button title="Rotate 90° left" onClick={()=>rotateSelected(-90)}>−90°</button><button title="Rotate 90° right" onClick={()=>rotateSelected(90)}>+90°</button>
         <button onClick={()=>s.duplicateItem(item.id)}><Icon name="copy" size={15}/> Copy</button>

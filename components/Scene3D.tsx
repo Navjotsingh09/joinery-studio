@@ -1,8 +1,8 @@
 "use client";
-import {KitchenAsset,kitchenAssetsReady} from "./KitchenAsset";
-import {createContext,useContext,useEffect,useLayoutEffect,useRef,useState} from "react";
+import {KitchenAsset} from "./KitchenAsset";
+import {createContext,useContext,useEffect,useLayoutEffect,useRef,useState,useSyncExternalStore,Suspense} from "react";
 import {Canvas,useThree} from "@react-three/fiber";
-import {OrbitControls,Grid,GizmoHelper,GizmoViewport,TransformControls,ContactShadows,Html,Line,RoundedBox,Environment} from "@react-three/drei";
+import {OrbitControls,Grid,GizmoHelper,GizmoViewport,TransformControls,ContactShadows,Html,Line,RoundedBox,Environment,useEnvironment,useGLTF} from "@react-three/drei";
 import * as THREE from "three";
 import {Project,JoineryItem,Material,JoineryPart,SavedCamera} from "@/types/model";
 import {material} from "@/lib/materials";
@@ -14,7 +14,9 @@ import {moveItemOnAxes,isWallMounted,footprint,normalizeRotation} from "@/lib/ge
 
 import {wallCells} from "@/lib/roomOpenings";
 import {DEFAULT_LIGHTING} from "@/lib/renderSettings";
-import {renderZip} from "@/lib/renderZip";
+import {exportRenderPackage,RENDER_ENVIRONMENT} from "@/lib/sceneExport";
+import {assertSceneResourcesReady,getSceneResources,retainSceneResource,sceneResourceState,setSceneResourceStatus,subscribeSceneResources} from "@/lib/sceneResources";
+import {ResourceBoundary} from "./ResourceBoundary";
 import {newId} from "@/lib/id";
 import {textureUV,textureDimensions} from "@/lib/textureMapping";
 import {stairPlan} from "@/lib/stairGeometry";
@@ -42,9 +44,12 @@ function useDataTexture(url?:string,data=false,scope="surface"){
       const texture=new THREE.TextureLoader().load(url,t=>{t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(1,1);t.colorSpace=data?THREE.NoColorSpace:THREE.SRGBColorSpace;t.anisotropy=8;resolve(t)},undefined,reject);
       entry={texture,promise,users:0,ready:false};sharedTextures.set(key,entry);promise.then(()=>{const current=sharedTextures.get(key);if(current&&current===entry)current.ready=true}).catch(()=>{});
     }
+    const resource={id:'texture:'+key,url,label:scope==='floor'?'Floor texture':data?'Material detail map':'Material texture',kind:'texture' as const};
+    const release=retainSceneResource(resource);
+    entry.promise.then(()=>{if(sharedTextures.get(key)===entry)setSceneResourceStatus(resource,'ready')}).catch(()=>{if(sharedTextures.get(key)===entry)setSceneResourceStatus(resource,'error')});
     entry.users++;
     entry.promise.then(t=>{if(alive)setLoaded({key,texture:t})}).catch(()=>{if(alive)setLoaded(null)});
-    return()=>{alive=false;const current=sharedTextures.get(key);if(current&&--current.users===0){current.texture.dispose();sharedTextures.delete(key)}};
+    return()=>{alive=false;const current=sharedTextures.get(key);if(current&&--current.users===0){current.texture.dispose();sharedTextures.delete(key)}release()};
   },[key,url,data]);
   return loaded?.key===key?loaded.texture:null;
 }
@@ -1055,13 +1060,14 @@ function DropProjector({rw,rd,onReady}:{rw:number;rd:number;onReady:(fn:(clientX
 }
 
 type CameraPreset="iso"|"interior"|"front"|"side"|"top";
-function CameraRig({preset,command,rw,rh,rd}:{preset:CameraPreset;command:number;rw:number;rh:number;rd:number}){
+function CameraRig({preset,command,rw,rh,rd,enabled=true}:{enabled?:boolean;preset:CameraPreset;command:number;rw:number;rh:number;rd:number}){
   const {camera,controls}=useThree();
   useEffect(()=>{
+    if(!enabled)return;
     const m=Math.max(rw,rh,rd),target=new THREE.Vector3(0,Math.min(1.15,rh*.45),0);
     camera.up.set(0,1,0);
-    if(camera instanceof THREE.PerspectiveCamera)camera.fov=preset==="interior"?60:38;
-    if(preset==="interior"){camera.position.set(rw*.55,1.65,rd*.7);target.set(-rw*.12,1.2,-rd*.25)}
+    if(camera instanceof THREE.PerspectiveCamera)camera.fov=preset==="interior"?70:38;
+    if(preset==="interior"){camera.position.set(rw*.44,1.65,rd*.46);target.set(-rw*.12,1.2,-rd*.25)}
     else if(preset==="front")camera.position.set(0,Math.max(1.4,rh*.5),Math.max(4.2,m*1.7));
     else if(preset==="side")camera.position.set(Math.max(4.2,m*1.7),Math.max(1.4,rh*.5),0);
     else if(preset==="top"){camera.up.set(0,0,-1);camera.position.set(0,Math.max(5,m*1.9),0);target.set(0,0,0)}
@@ -1070,7 +1076,7 @@ function CameraRig({preset,command,rw,rh,rd}:{preset:CameraPreset;command:number
     camera.updateProjectionMatrix();
     const orbit=controls as any;
     if(orbit?.target){orbit.target.copy(target);orbit.update?.()}
-  },[preset,command,rw,rh,rd,camera,controls]);
+  },[preset,command,rw,rh,rd,camera,controls,enabled]);
   return null;
 }
 
@@ -1084,27 +1090,14 @@ function SceneCapture({project,requestedView,onReady,onCameraReady,onRenderReady
   },[requestedView,camera,controls]);
   useEffect(()=>{
     onCameraReady(()=>({position:camera.position.toArray(),target:((controls as any)?.target??new THREE.Vector3()).toArray(),up:camera.up.toArray(),fov:camera instanceof THREE.PerspectiveCamera?camera.fov:38}));
-    onReady(()=>{if([...sharedTextures.values()].some(t=>!t.ready)||!kitchenAssetsReady(project))throw new Error("Materials and component models are still loading. Try again in a moment.");const ratio=gl.getPixelRatio(),hidden:THREE.Object3D[]=[];
+    onReady(()=>{assertSceneResourcesReady(project);const ratio=gl.getPixelRatio(),hidden:THREE.Object3D[]=[];
       scene.traverse(o=>{if(o.visible&&o.userData.editorOnly){o.visible=false;hidden.push(o)}});
       try{gl.setPixelRatio(4096/Math.max(size.width,size.height));gl.render(scene,camera);return gl.domElement.toDataURL("image/png")}finally{hidden.forEach(o=>o.visible=true);gl.setPixelRatio(ratio);gl.render(scene,camera)}
     });
     onRenderReady(async()=>{
-      if([...sharedTextures.values()].some(t=>!t.ready)||!kitchenAssetsReady(project))throw new Error("Materials and component models are still loading. Try again in a moment.");
-      const {GLTFExporter}=await import("three/examples/jsm/exporters/GLTFExporter.js");
+      assertSceneResourcesReady(project);
       const model=scene.getObjectByName("Joinery design");if(!model)throw new Error("3D geometry is still loading.");
-      const root=new THREE.Scene(),geometry=model.clone(true),remove:THREE.Object3D[]=[];
-      geometry.traverse(o=>{if(o.userData.editorOnly)remove.push(o)});remove.forEach(o=>o.removeFromParent());root.add(geometry);root.add(camera.clone());root.updateMatrixWorld(true);
-      const glb=await new GLTFExporter().parseAsync(root,{binary:true,onlyVisible:true}) as ArrayBuffer;
-      const [response,hdr,mac,windows]=await Promise.all([fetch("/render/render.py"),fetch("/materials/pbr/studio_small_09.hdr"),fetch("/render/run-render.command"),fetch("/render/run-render.bat")]);if(!response.ok||!hdr.ok||!mac.ok||!windows.ok)throw new Error("Render assets could not be loaded.");
-      const enc=new TextEncoder();return renderZip([
-        {name:"scene.glb",bytes:new Uint8Array(glb)},
-        {name:"settings.json",bytes:enc.encode(JSON.stringify({reference:project.reference,revision:project.revision,aspect:size.width/size.height,quality:renderQuality,room:{width:project.roomWidth/1000,height:project.roomHeight/1000,depth:project.roomDepth/1000},lighting:project.lighting??DEFAULT_LIGHTING},null,2))},
-        {name:"render.py",bytes:enc.encode(await response.text())},
-        {name:"environment.hdr",bytes:new Uint8Array(await hdr.arrayBuffer())},
-        {name:"run-render.command",bytes:enc.encode(await mac.text()),executable:true},
-        {name:"run-render.bat",bytes:enc.encode(await windows.text())},
-        {name:"README.txt",bytes:enc.encode("JOINERY STUDIO / FINAL RENDER\nExtract all files into a folder and install Blender 4.x.\nWindows: double-click run-render.bat.\nMac: run ./run-render.command in Terminal; if needed run chmod +x run-render.command first.\nLinux: run sh run-render.command.\nThe launcher finds Blender and produces final.png and an editable final.blend.\nManual command: blender --background --disable-autoexec --python render.py -- scene.glb settings.json final.png\n\nPreview quality: 2048 pixels wide, 96 samples. Customer quality: 4096 pixels wide, 256 samples.\nThis renders the exact exported scene and camera.\nMaterials, UVs, textures, aperture geometry and door positions are included.\nRendering runs on your workstation. The website does not run a remote render job.\nAdjust lighting or assets in the generated .blend file for art direction.\n")}
-      ]);
+      return exportRenderPackage({project,model,camera,aspect:size.width/size.height,quality:renderQuality});
     });
   },[gl,scene,camera,size.width,size.height,controls,project,renderQuality,onReady,onCameraReady,onRenderReady]);
   return null;
@@ -1117,11 +1110,15 @@ export function JoineryModel({project,showWalls=true,showCeiling=true,realistic=
   </group>;
 }
 function Exposure({value}:{value:number}){const {gl}=useThree();useEffect(()=>{gl.toneMappingExposure=value},[gl,value]);return null}
+const environmentResource={id:'environment:studio',url:RENDER_ENVIRONMENT,label:'Studio lighting',kind:'environment' as const};
+function EnvironmentMap(){const map=useEnvironment({files:RENDER_ENVIRONMENT});useEffect(()=>{setSceneResourceStatus(environmentResource,'ready')},[map]);return <Environment map={map} environmentIntensity={.75} environmentRotation={[0,.5,0]}/>}
+function SceneEnvironment(){useEffect(()=>retainSceneResource(environmentResource),[]);return <ResourceBoundary resource={environmentResource}><Suspense fallback={null}><EnvironmentMap/></Suspense></ResourceBoundary>}
+const emptyResources:ReturnType<typeof getSceneResources>=[];
 export function Scene3D({project,onProjectChange,presentationOnly=false,selected,selectedPart,transformMode="translate",moveAxis="xz",onSelect,onSelectPart,onDropType,onMove,onRotate,onMoveStart}:{project:Project;onProjectChange?:(patch:Partial<Project>)=>void;presentationOnly?:boolean;selected?:string|null;selectedPart?:JoineryPart|null;transformMode?:"translate"|"rotate";moveAxis?:"xz"|"x"|"y"|"z";onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onDropType?:(type:string,x:number,y:number,z:number)=>void;onMove?:(id:string,x:number,y:number,z:number)=>boolean|void;onRotate?:(id:string,rotation:number)=>boolean|void;onMoveStart?:()=>void}){
   activeCustomMaterials=project.customMaterials??[];
   const rw=mm(project.roomWidth),rh=mm(project.roomHeight),rd=mm(project.roomDepth),roomMax=Math.max(rw,rh,rd),floorMaterial=sceneMaterial(project.floorMaterialId??"floor-oak");
   const [preset,setPreset]=useState<CameraPreset>("iso"),[showGrid,setShowGrid]=useState(false),[showWalls,setShowWalls]=useState(true),[renderMode,setRenderMode]=useState<"design"|"presentation"|"technical"|"construction">("design"),[dropReady,setDropReady]=useState(false),[explodePanels,setExplodePanels]=useState(false);
-  useEffect(()=>{if(presentationOnly){setRenderMode("presentation");setPreset("interior");setCameraCommand(n=>n+1);setExplodePanels(false)}},[presentationOnly]);
+  useEffect(()=>{if(presentationOnly){setRenderMode("presentation");setPreset("interior");setCameraCommand(n=>n+1);setExplodePanels(false);setShowGrid(false)}},[presentationOnly]);
   const realistic=renderMode!=="technical",construction=renderMode==="construction";
   const [cameraCommand,setCameraCommand]=useState(0);
   const lighting=project.lighting??DEFAULT_LIGHTING;
@@ -1130,27 +1127,33 @@ export function Scene3D({project,onProjectChange,presentationOnly=false,selected
   const cameraCapture=useRef<(()=>Omit<SavedCamera,"id"|"name">)|null>(null),renderExport=useRef<(()=>Promise<Uint8Array>)|null>(null);
   const imageExport=useRef<(()=>string)|null>(null);
   const [renderQuality,setRenderQuality]=useState<"preview"|"customer">("customer");
-  const [imageNotice,setImageNotice]=useState("");
+  const [imageNotice,setImageNotice]=useState(""),[resourceAttempt,setResourceAttempt]=useState(0);
+  const resources=useSyncExternalStore(subscribeSceneResources,getSceneResources,()=>emptyResources),resourceState=sceneResourceState(project);
+  const retryResources=()=>{
+    for(const r of resources.filter(r=>r.status==='error')){if(r.kind==='model')useGLTF.clear(r.url);if(r.kind==='environment')useEnvironment.clear({files:r.url})}
+    const current=cameraCapture.current?.();if(current)setRequestedView({...current,id:'loading-retry',name:'Current view'});
+    setImageNotice('Retrying model, texture and lighting downloads…');setResourceAttempt(n=>n+1);
+  };
   const dropProjector=useRef<((clientX:number,clientY:number)=>{x:number;y:number;z:number})|null>(null);
   activeConstructionView=construction;
   activeExplodedPanels=construction&&explodePanels;
   const download=(data:Blob,name:string)=>{const url=URL.createObjectURL(data),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
   const exportRender=async()=>{if(!renderExport.current||renderBusy)return;setRenderBusy(true);setImageNotice("Preparing the scene and textures…");try{const bytes=await renderExport.current();download(new Blob([bytes as BlobPart],{type:"application/zip"}),project.reference+"-cycles-render.zip");setImageNotice("Render kit exported. Extract it and run the included launcher.")}catch(error){setImageNotice(error instanceof Error?error.message:"Render export failed.")}finally{setRenderBusy(false)}};
-  return <div className={"three "+(construction?"constructionView ":"")+(dropReady?"dropReady":"")} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="copy";setDropReady(true)}} onDragLeave={e=>{if(e.currentTarget===e.target)setDropReady(false)}} onDrop={e=>{e.preventDefault();setDropReady(false);const type=e.dataTransfer.getData("application/x-joinery-component")||e.dataTransfer.getData("text/plain");if(!type)return;const point=dropProjector.current?.(e.clientX,e.clientY)??{x:project.roomWidth/2,y:0,z:project.roomDepth/2};onDropType?.(type,point.x,point.y,point.z)}}><div className="sceneToolbar"><button onClick={()=>{try{const data=imageExport.current?.();if(!data){setImageNotice("3D view is still loading.");return}const a=document.createElement("a");a.href=data;a.download=project.reference+"-3d.png";a.click();setImageNotice("Image exported.")}catch(error){setImageNotice(error instanceof Error?error.message:"Image export failed. Please try again.")}}}>Export high-resolution image</button><div className="cameraPresets">{(["iso","interior","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={!requestedView&&preset===v?"active":""} onClick={()=>{setRequestedView(null);setPreset(v);setCameraCommand(n=>n+1)}}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles renderModes"><button className={renderMode==="design"?"active":""} onClick={()=>setRenderMode("design")}>Design</button><button className={renderMode==="presentation"?"active":""} onClick={()=>{setRenderMode("presentation");setRequestedView(null);setPreset("interior");setCameraCommand(n=>n+1)}}>Presentation</button><button className={renderMode==="technical"?"active":""} onClick={()=>setRenderMode("technical")}>Technical</button><button className={renderMode==="construction"?"active":""} onClick={()=>{setRenderMode("construction");setRequestedView(null);setPreset("iso");setCameraCommand(n=>n+1);setShowGrid(false)}}>Construction</button>{construction&&<button className={explodePanels?"active":""} onClick={()=>setExplodePanels(v=>!v)}>Explode panels</button>}<span className="sceneToggleDivider"/><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button>{!construction&&<button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button>}</div><details className="sceneOptions"><summary>Views & lighting</summary><div className="sceneOptionsBody">
-      <b>Saved customer views</b><div className="savedViewEntry"><input aria-label="View name" placeholder="View name" maxLength={80} value={cameraName} onChange={e=>setCameraName(e.target.value)}/><button disabled={!cameraName.trim()||(project.savedCameras??[]).length>=20} onClick={()=>{const view=cameraCapture.current?.();if(!view)return;onProjectChange?.({savedCameras:[...(project.savedCameras??[]),{...view,id:newId(),name:cameraName.trim()}]});setCameraName("")}}>Save view</button></div>
-      {(project.savedCameras??[]).map(view=><div key={view.id} className="savedViewRow"><button onClick={()=>setRequestedView({...view})}>{view.name}</button><button aria-label={"Delete view "+view.name} onClick={()=>onProjectChange?.({savedCameras:project.savedCameras?.filter(v=>v.id!==view.id)})}>×</button></div>)}
-      <label>Exposure <input type="range" min=".2" max="2" step=".05" value={lighting.exposure} onChange={e=>onProjectChange?.({lighting:{...lighting,exposure:+e.target.value}})}/></label>
+  return <div className={"three "+(construction?"constructionView ":"")+(dropReady?"dropReady":"")} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="copy";setDropReady(true)}} onDragLeave={e=>{if(e.currentTarget===e.target)setDropReady(false)}} onDrop={e=>{e.preventDefault();setDropReady(false);const type=e.dataTransfer.getData("application/x-joinery-component")||e.dataTransfer.getData("text/plain");if(!type)return;const point=dropProjector.current?.(e.clientX,e.clientY)??{x:project.roomWidth/2,y:0,z:project.roomDepth/2};onDropType?.(type,point.x,point.y,point.z)}}><div className="sceneToolbar"><button onClick={()=>{try{const data=imageExport.current?.();if(!data){setImageNotice("3D view is still loading.");return}const a=document.createElement("a");a.href=data;a.download=project.reference+"-3d.png";a.click();setImageNotice("Image exported.")}catch(error){setImageNotice(error instanceof Error?error.message:"Image export failed. Please try again.")}}}>Export high-resolution image</button><div className="cameraPresets">{(["iso","interior","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={!requestedView&&preset===v?"active":""} onClick={()=>{setRequestedView(null);setPreset(v);setCameraCommand(n=>n+1)}}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div>{!presentationOnly&&<div className="sceneToggles renderModes"><button className={renderMode==="design"?"active":""} onClick={()=>setRenderMode("design")}>Design</button><button className={renderMode==="presentation"?"active":""} onClick={()=>{setRenderMode("presentation");setRequestedView(null);setPreset("interior");setCameraCommand(n=>n+1)}}>Presentation</button><button className={renderMode==="technical"?"active":""} onClick={()=>setRenderMode("technical")}>Technical</button><button className={renderMode==="construction"?"active":""} onClick={()=>{setRenderMode("construction");setRequestedView(null);setPreset("iso");setCameraCommand(n=>n+1);setShowGrid(false)}}>Construction</button>{construction&&<button className={explodePanels?"active":""} onClick={()=>setExplodePanels(v=>!v)}>Explode panels</button>}<span className="sceneToggleDivider"/><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button>{!construction&&<button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button>}</div>}<details className="sceneOptions"><summary>{presentationOnly?"Customer views & export":"Views & lighting"}</summary><div className="sceneOptionsBody">
+      <b>Saved customer views</b>{!presentationOnly&&<div className="savedViewEntry"><input aria-label="View name" placeholder="View name" maxLength={80} value={cameraName} onChange={e=>setCameraName(e.target.value)}/><button disabled={!cameraName.trim()||(project.savedCameras??[]).length>=20} onClick={()=>{const view=cameraCapture.current?.();if(!view)return;onProjectChange?.({savedCameras:[...(project.savedCameras??[]),{...view,id:newId(),name:cameraName.trim()}]});setCameraName("")}}>Save view</button></div>}
+      {(project.savedCameras??[]).map(view=><div key={view.id} className="savedViewRow"><button onClick={()=>setRequestedView({...view})}>{view.name}</button>{!presentationOnly&&<button aria-label={"Delete view "+view.name} onClick={()=>onProjectChange?.({savedCameras:project.savedCameras?.filter(v=>v.id!==view.id)})}>×</button>}</div>)}
+      {!presentationOnly&&<><label>Exposure <input type="range" min=".2" max="2" step=".05" value={lighting.exposure} onChange={e=>onProjectChange?.({lighting:{...lighting,exposure:+e.target.value}})}/></label>
       <label>Daylight <input type="range" min="0" max="4" step=".1" value={lighting.daylight} onChange={e=>onProjectChange?.({lighting:{...lighting,daylight:+e.target.value}})}/></label>
       <label><input type="checkbox" checked={lighting.warmLights} onChange={e=>onProjectChange?.({lighting:{...lighting,warmLights:e.target.checked}})}/> Under-cabinet lighting</label>
-      <label><input type="checkbox" checked={lighting.ceiling} onChange={e=>onProjectChange?.({lighting:{...lighting,ceiling:e.target.checked}})}/> Show ceiling</label>
+      <label><input type="checkbox" checked={lighting.ceiling} onChange={e=>onProjectChange?.({lighting:{...lighting,ceiling:e.target.checked}})}/> Show ceiling</label></>}
       <label>Final render quality<select aria-label="Final render quality" value={renderQuality} onChange={e=>setRenderQuality(e.target.value as "preview"|"customer")}><option value="preview">Quick preview · 2K</option><option value="customer">Customer image · 4K</option></select></label>
       <button disabled={renderBusy||construction} onClick={exportRender}>{renderBusy?"Preparing render…":"Download final render package"}</button><small>Final rendering runs in Blender on your workstation. The kit includes the current geometry, textures and camera.</small>
-    </div></details></div><Canvas onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(3.8,rh*1.65),Math.max(4.3,rd*1.35)],fov:38}} dpr={presentationOnly||renderMode==="presentation"?[1,2]:[1,1.5]} performance={{min:.6}} shadows gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:.9}}>
+    </div></details></div>{(resourceState.loading>0||resourceState.failed.length>0)&&<div className="sceneResourceNotice" role={resourceState.failed.length?'alert':'status'}>{resourceState.failed.length?<><span>{resourceState.failed.map(r=>r.label).join(', ')} could not load. A simplified preview remains available; export waits for the original assets.</span><button onClick={retryResources}>Retry loading</button></>:<span>Loading {resourceState.loading} model, texture or lighting assets…</span>}</div>}<Canvas key={resourceAttempt} onPointerMissed={()=>onSelect?.(null)} camera={{position:[Math.max(3.7,rw*.95),Math.max(3.8,rh*1.65),Math.max(4.3,rd*1.35)],fov:38}} dpr={presentationOnly||renderMode==="presentation"?[1,2]:[1,1.5]} performance={{min:.6}} shadows gl={{antialias:true,toneMapping:THREE.ACESFilmicToneMapping,toneMappingExposure:.9}}>
     <SceneCapture project={project} requestedView={requestedView} onReady={fn=>{imageExport.current=fn}} onCameraReady={fn=>{cameraCapture.current=fn}} onRenderReady={fn=>{renderExport.current=fn}} renderQuality={renderQuality}/><Exposure value={lighting.exposure}/>
-    <CameraRig preset={preset} command={cameraCommand} rw={rw} rh={rh} rd={rd}/>
+    <CameraRig enabled={!requestedView} preset={preset} command={cameraCommand} rw={rw} rh={rh} rd={rd}/>
     <DropProjector rw={rw} rd={rd} onReady={fn=>{dropProjector.current=fn}}/>
     <color attach="background" args={[construction?"#e7ded1":realistic?"#f2efea":"#f2f1ee"]}/>
-    {realistic&&<Environment files="/materials/pbr/studio_small_09.hdr" environmentIntensity={.75} environmentRotation={[0,.5,0]}/>}
+    {realistic&&<SceneEnvironment/>}
     <ambientLight intensity={realistic ? .22 : .72}/>
     <hemisphereLight args={["#fffaf0",realistic?"#8f826f":"#b6afa5",realistic ? .45 : 1.25]}/>
     <directionalLight castShadow position={[3.5,6.5,4.5]} intensity={realistic?lighting.daylight:2.15} color={realistic?"#fff6e8":"#ffffff"} shadow-mapSize-width={renderMode==="design"?1024:2048} shadow-mapSize-height={renderMode==="design"?1024:2048} shadow-bias={-0.00008} shadow-normalBias={.012} shadow-radius={4} shadow-camera-left={-roomMax} shadow-camera-right={roomMax} shadow-camera-top={roomMax} shadow-camera-bottom={-roomMax} shadow-camera-far={20}/>

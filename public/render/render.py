@@ -85,5 +85,7 @@ area('Cool fill', (-4, -1, 3), (0, 0, 1), 450, (.83, .9, 1), 3)
 room = settings.get('room', {'width': 4.2, 'height': 2.4, 'depth': 3.4})
 area('Ceiling bounce', (0, 0, max(.5, room['height'] - .15)), (0, 0, 0), 180, (1, .96, .9), min(3, room['width'] * .6))
 # Imported materials, UVs, open doors and apertures are preserved from the app.
+# Pack textures and HDR lighting so the saved scene survives moving computers.
+bpy.ops.file.pack_all()
 bpy.ops.wm.save_as_mainfile(filepath=os.path.splitext(output_path)[0] + '.blend')
 bpy.ops.render.render(write_still=True)
