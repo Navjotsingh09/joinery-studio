@@ -153,7 +153,7 @@ export function Drawing2D({
     <text x={tx} y={52} className="viewHint">Click to select · drag to move · drag corner handle to resize</text>
     <g transform={"translate("+tx+","+ty+")"}>
       <rect className="roomCanvas" width={size.w*scale} height={size.h*scale} fill="url(#grid)" stroke="#383838" strokeWidth="2" onPointerDown={e=>{e.stopPropagation();onSelect(null)}}/>
-      {view==="top"&&project.drawingReference?.visible&&<g clipPath="url(#roomReferenceClip)" pointerEvents="none"><image href={project.drawingReference.dataUrl} x={project.drawingReference.x*scale} y={(project.roomDepth-project.drawingReference.z-referenceDepth(project.drawingReference))*scale} width={project.drawingReference.widthMm*scale} height={referenceDepth(project.drawingReference)*scale} opacity={project.drawingReference.opacity}/></g>}
+      {view==="top"&&project.drawingReference?.visible&&<g clipPath="url(#roomReferenceClip)" pointerEvents="none"><image preserveAspectRatio="none" href={project.drawingReference.dataUrl} x={project.drawingReference.x*scale} y={(project.roomDepth-project.drawingReference.z-referenceDepth(project.drawingReference))*scale} width={project.drawingReference.widthMm*scale} height={referenceDepth(project.drawingReference)*scale} opacity={project.drawingReference.opacity}/></g>}
       <line x1="0" y1={size.h*scale+25} x2={size.w*scale} y2={size.h*scale+25} stroke="#777"/>
       <line x1="0" y1={size.h*scale+19} x2="0" y2={size.h*scale+31} stroke="#777"/><line x1={size.w*scale} y1={size.h*scale+19} x2={size.w*scale} y2={size.h*scale+31} stroke="#777"/>
       <text x="0" y={size.h*scale+47} className="dim originDim">0</text><text x="-30" y={size.h*scale+4} textAnchor="end" className="dim originDim">0</text>

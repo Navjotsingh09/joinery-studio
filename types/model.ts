@@ -22,7 +22,7 @@ export type JoineryItem={
   worktopEdge?:"square"|"rounded";productStyle?:string;colourVariant?:string;openAmount?:number;plinthHeight?:number;wardrobeLayout?:"shelves"|"hanging"|"mixed";stairRisers?:number;stairRailHeight?:number;stairRailing?:"both"|"left"|"right"|"none";treadMaterialId?:string;riserMaterialId?:string;railingMaterialId?:string
 };
 export type DesignRules={wallClearance:number;componentGap:number;snap:number;serviceClearance?:number};
-export type DrawingReference={name:string;dataUrl:string;pixelWidth:number;pixelHeight:number;widthMm:number;x:number;z:number;opacity:number;visible:boolean};
+export type DrawingReference={name:string;dataUrl:string;pixelWidth:number;pixelHeight:number;aspectRatio?:number;widthMm:number;x:number;z:number;opacity:number;visible:boolean};
 export type SavedCamera={id:string;name:string;position:[number,number,number];target:[number,number,number];up:[number,number,number];fov:number};
 export type LightingSettings={exposure:number;daylight:number;warmLights:boolean;ceiling:boolean};
 export type ProjectSnapshot={
