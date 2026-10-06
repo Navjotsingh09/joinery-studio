@@ -43,7 +43,7 @@ export function Drawing2D({
   const [guides,setGuides]=useState<{x?:number;y?:number;label?:string}>({});
   const elevation=!!wallSide&&view==="front";
   const measure=(n:number)=>formatMeasure(n,project.displayUnit??"mm");
-  const size=elevation?wallViewSize(project,wallSide!):viewSize(project,view),pad=76,W=1000,H=650;
+  const size=elevation?wallViewSize(project,wallSide!):viewSize(project,view),pad=100,W=1000,H=650;
   const rectFor=(i:JoineryItem)=>elevation?wallItemRect(i,project,wallSide!):itemRect(i,project,view);
   const visibleItems=project.items.filter(i=>i.visible!==false&&(!elevation||isItemOnWall(project,i,wallSide!))).sort((a,b)=>{
     // Surface outlines and cutouts remain visible above base cabinetry.
@@ -218,9 +218,9 @@ export function Drawing2D({
           {sel&&<>
             <line x1="0" y1={rh+11} x2={rw} y2={rh+11} stroke="#c8102e"/><text x={rw/2} y={rh+27} textAnchor="middle" className="dim selectionDim">{measure(r.width)}</text>
             <line x1={(size.w-r.left)*scale+18} y1="0" x2={(size.w-r.left)*scale+18} y2={rh} stroke="#c8102e"/><text x={(size.w-r.left)*scale+34} y={rh/2} textAnchor="middle" className="dim selectionDim" transform={"rotate(-90 "+((size.w-r.left)*scale+34)+" "+(rh/2)+")"}>{measure(r.height)}</text>
-            <text x="4" y={rh+45} className="dim selectionDim">{view==="front"?"X "+measure(i.x)+" · Y "+measure(i.y):view==="top"?"X "+measure(i.x)+" · Z "+measure(i.z):"Z "+measure(i.z)+" · Y "+measure(i.y)}</text>
-            {view==="top"&&<text x="4" y={rh+61} className="dim clearanceDim">L {measure(clear.left)} · R {measure(clear.right)} · Back {measure(clear.back)} · Front {measure(clear.front)}</text>}
-            <g className="rotationBadge" transform={"translate("+(rw-6)+",-18)"}><rect x="-42" y="-13" width="42" height="18" rx="5" fill="#fff" stroke="#c8102e"/><text x="-21" y="0" textAnchor="middle" className="rotationText">{rotation}°</text></g>
+            <text x="4" y={rh+66} className="dim selectionDim">{view==="front"?"X "+measure(i.x)+" · Y "+measure(i.y):view==="top"?"X "+measure(i.x)+" · Z "+measure(i.z):"Z "+measure(i.z)+" · Y "+measure(i.y)}</text>
+            {view==="top"&&<text x="4" y={rh+82} className="dim clearanceDim">L {measure(clear.left)} · R {measure(clear.right)} · Back {measure(clear.back)} · Front {measure(clear.front)}</text>}
+            <g className="rotationBadge" transform={"translate("+(rw/2+60)+",-34)"}><rect x="-42" y="-13" width="42" height="18" rx="5" fill="#fff" stroke="#c8102e"/><text x="-21" y="0" textAnchor="middle" className="rotationText">{rotation}°</text></g>
             {!i.locked&&<>
               <g className="resizeHandle" transform={"translate("+rw+","+rh+")"} onPointerDown={e=>begin(e,i.id,"resize")}><circle r="10" fill="#fff" stroke="#c8102e" strokeWidth="3"/><circle r="3" fill="#c8102e"/></g>
               <g className="rotateHandle" transform={"translate("+(rw/2)+",-34)"} onPointerDown={e=>begin(e,i.id,"rotate")}><line x1="0" y1="12" x2="0" y2="24" stroke="#c8102e" strokeWidth="2"/><circle r="11" fill="#fff" stroke="#c8102e" strokeWidth="2.5"/><path d="M -4 -2 A 5 5 0 1 1 3 4 M 3 4 L 3 0 M 3 4 L -1 4" fill="none" stroke="#c8102e" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></g>
