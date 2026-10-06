@@ -33,8 +33,8 @@ function kitchen(kind:string,w:number,h:number,d:number):JoineryItem[]{
     const fitted=kitchen("l-shape",w,h,d).filter(i=>i.name!=="Wall unit 2").map(i=>{
       if(i.type==="Worktop")return {...i,height:20,materialId:"stone-light",worktopMaterialId:"stone-light",finish:"Semi-gloss",worktopEdge:"square" as const};
       if(i.type==="Backsplash")return {...i,y:890,height:130};
-      if(i.type.endsWith(" tap"))return {...i,y:888};
-      if(["Base cabinet","Drawer unit","Corner cabinet","Sink base","Hob base","Wall cabinet","Oven tower","Fridge housing"].includes(i.type))return {...i,materialId:"palette-17",doorMaterialId:"palette-17",carcassMaterialId:"w1000",leftSideMaterialId:"palette-17",rightSideMaterialId:"palette-17",plinthMaterialId:"palette-17",frontStyle:"shaker" as const,hardware:"Bar handle"};
+      if(i.type.endsWith(" tap"))return {...i,type:"Square neck tap",name:"Square neck mixer",productStyle:"Square neck",y:888,width:100,height:300,depth:276};
+      if(["Base cabinet","Drawer unit","Corner cabinet","Sink base","Hob base","Wall cabinet","Oven tower","Fridge housing"].includes(i.type))return {...i,materialId:"palette-17",doorMaterialId:"palette-17",carcassMaterialId:"w1000",leftSideMaterialId:"palette-17",rightSideMaterialId:"palette-17",plinthMaterialId:"palette-17",frontStyle:"shaker" as const,hardware:"Bar handle",...(i.type==="Hob base"?{hobStyle:"gas" as const,hobZones:4 as const}:{})};
       return i;
     });
     const sink=fitted.find(i=>i.type==="Sink base")!;
@@ -42,6 +42,7 @@ function kitchen(kind:string,w:number,h:number,d:number):JoineryItem[]{
     if(w>=4000&&d>=3300){
       const x=1600,z=1850,iw=Math.min(1800,w-x-100);
       fitted.push(item("Kitchen island","Oak island",{x,y:0,z,width:iw,height:920,depth:800,doors:3,shelves:0,materialId:"h1180",doorMaterialId:"h1180",carcassMaterialId:"w1000",leftSideMaterialId:"h1180",rightSideMaterialId:"h1180",plinthMaterialId:"h1180",worktopMaterialId:"stone-light",hardware:"Handleless",plinthRecess:70}));
+      fitted.push(item("Kitchen accessory","Ceramic mug",{x:x+iw*.65,y:920,z:z+200,width:150,height:125,depth:120,doors:0,shelves:0,productStyle:"Ceramic mug"}));
       for(const n of [0,1]){
         const cx=x+iw*(n?.7:.25);
         fitted.push(item("Pendant light","Island pendant "+(n+1),{x:cx,y:h-620,z:z+250,width:240,height:600,depth:240,doors:0,shelves:0,hardware:"None"}));
@@ -193,9 +194,9 @@ export const COMPONENT_GROUPS_BY_KIND:Record<DesignKind,{title:string;items:stri
   kitchen:[
     {title:"Cabinetry",items:["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Corner cabinet","Filler panel","End panel","Cornice","Wine rack","Worktop","Kitchen island","Shelving"]},
     {title:"Appliances",items:["Sink base","Hob base","Oven tower","Fridge housing","Dishwasher","Washing machine","Microwave","Extractor hood","Freestanding fridge","Single oven","Range cooker"]},
-    {title:"Sinks, taps & wall finishes",items:["Tap","Arc mixer tap","Pull-out tap","Bridge tap","Square neck tap","Backsplash"]},
+    {title:"Sinks, taps & wall finishes",items:["Tap","Arc mixer tap","Pull-out tap","Bridge tap","Square neck tap","Cross-handle tap","Backsplash"]},
     {title:"Room architecture",items:["Wall segment","Door opening","Window","Chimney breast","Column","Ceiling bulkhead"]},
-    {title:"Services & context",items:["Bar stool","Radiator","Socket","Switch","Ceiling light","Pendant light"]}
+    {title:"Services & context",items:["Bar stool","Kitchen accessory","Radiator","Socket","Switch","Ceiling light","Pendant light"]}
   ],
   bedroom:[
     {title:"Fitted furniture",items:["Wardrobe","Sliding wardrobe","Drawer unit","Wall cabinet","Shelving","Media unit"]},

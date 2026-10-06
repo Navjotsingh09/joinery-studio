@@ -1,3 +1,4 @@
+import {islandAppliance} from "./kitchenConfig";
 import {JoineryItem} from "@/types/model";
 import {footprint,normalizeRotation} from "./geometry";
 
@@ -6,7 +7,8 @@ export type SinkCutout={x:number;z:number;width:number;depth:number};
 export function sinkCutouts(top:JoineryItem,items:JoineryItem[]):SinkCutout[]{return worktopCutouts(top,items.filter(i=>i.type==="Sink base"))}
 export function worktopCutouts(top:JoineryItem,items:JoineryItem[]):SinkCutout[]{
   const tf=footprint(top),angle=normalizeRotation(top.rotation??0)*Math.PI/180,c=Math.cos(angle),s=Math.sin(angle);
-  return items.filter(i=>["Sink base","Hob base"].includes(i.type)&&i.visible!==false).flatMap(sink=>{
+  const appliances=items.map(i=>i.type==="Kitchen island"&&islandAppliance(i)!=="none"?{...i,type:islandAppliance(i)==="sink"?"Sink base":"Hob base",height:i.height-(i.topThickness??32)}:i);
+  return appliances.filter(i=>["Sink base","Hob base"].includes(i.type)&&i.visible!==false).flatMap(sink=>{
     if(top.y>sink.y+sink.height+65||top.y+top.height<sink.y+sink.height)return [];
     const sf=footprint(sink),sa=normalizeRotation(sink.rotation??0)*Math.PI/180;
     const offset=sink.type==="Sink base"?sink.depth*.03:15;

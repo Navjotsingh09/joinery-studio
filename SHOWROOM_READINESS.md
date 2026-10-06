@@ -71,3 +71,23 @@ CC0 PBR oak, marble and floor textures replace the procedural patterns for the s
 The Sage & oak showroom is an editable, measured scenario with Shaker fronts, an oak island, a window, pendants and stools. Its preview is labelled as a Cycles reference render, not a screenshot of the browser renderer. The offline verification captures 351 meshes from the same JoineryModel React component, applies the same PBR maps and generates an actual Blender 4.2.3 Cycles image. This validates scene geometry and a workstation rendering example; it does not validate the browser GLB download end-to-end or provide a hosted rendering service. The cloud browser still cannot initialize WebGL.
 
 Validation: 148 tests across 25 files and the production build pass. The measured showroom is checked at standard and minimum room sizes. The final live deployment is verified separately.
+
+
+## Kitchen customer configuration — 6 October 2026
+
+Added saved slab, shaker, slim shaker, raised panel and fluted fronts; bar, knob, cup and edge handles with five finishes and length; recessed, flush, exposed-leg and no-plinth configurations with editable height; shelf, full-height pull-out and internal-drawer larders; induction, gas, ceramic and grill hobs with two/four/five cooking zones. Existing sink and tap variants remain configurable, including an integrated island sink/tap. Fronts and handles can be applied throughout a kitchen in one undoable action.
+
+Islands now have storage, breakfast, dining, extended-counter, hob and grill layouts; doors/drawers; slab thickness, edge, finish and overhang; seating overhang and extension length. Dining extensions are 740 mm high with support legs. Worktop geometry is derived from the saved island and shared by Three.js, 2D/PDF drawings, cutouts and validation. Linked generated slabs follow moves/rotations and are deleted with the island. Counter extensions outside the room are rejected.
+
+Validation covers all layouts at four rotations, transformed appliance cutouts, worktop heights, backup recovery, atomic updates, undo/redo, drawing export and actual Three.js slab/front/handle/leg geometry. Detailed manufacturer appliance meshes are still a separate visual-quality gap. Browser WebGL acceptance cannot be claimed from the cloud test browser when it displays its 3D-unavailable fallback.
+
+Free3D asset review: the listed Kitchen Tap (465868), Extractor Hood (216460), White Kitchen (787060), kitchen (97041) and Gas Stove (271895) were labelled Personal Use License when checked. No files from those listings were redistributed in this commercial editor. Choose assets with terms allowing commercial use and web-app redistribution, or obtain author permission. Generic editable appliance geometry is not claimed to be an imported manufacturer model.
+
+
+## BlendSwap component integration — 6 October 2026
+
+Downloaded three free CC0 source files with the owner-provided API key and converted six reusable GLBs: inset sink, square mixer, cross-handle mixer, four-zone gas hob, ceramic mug and cooking pot. The deployed editor serves these locally; no BlendSwap key is included in source control or client code. Source credits and repeatable Blender conversion scripts are included. Modifiers are baked and procedural source shaders replaced with browser PBR materials. Models are dimensioned by the saved item settings, load only when used, and have procedural loading fallbacks. Presentation/GLB exports wait for model loading.
+
+The Sage & oak scenario uses the imported sink, square mixer, gas hob and mug. Existing stored designs are preserved. The reference Cycles image predates these component replacements and remains labelled a reference render. Six real binary GLBs are parsed by Three.js tests and checked for geometry, centred unit bounds, absence of cameras/lights and a size below 2 MB each. This is an incremental visual improvement, not completion of the entire customer-ready scope or manufacturer asset library.
+
+Final local validation: 177 tests across 28 files pass, along with TypeScript and the production build. An actual Blender/Cycles inspection render of the six converted GLBs confirms the tap, sink, hob, mug and closed-lid pot shapes. Browser WebGL verification remains limited by the cloud browser.

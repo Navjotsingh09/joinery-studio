@@ -32,7 +32,7 @@ const toItem=(i:any):JoineryItem=>{
     visible:i.visible??true,layer:(i.layer??"Joinery") as ItemLayer,groupId:i.group_id??undefined,
     carcassMaterialId:m.carcassMaterialId,doorMaterialId:m.doorMaterialId,sideMaterialId:m.sideMaterialId,
     leftSideMaterialId:m.leftSideMaterialId,rightSideMaterialId:m.rightSideMaterialId,plinthMaterialId:m.plinthMaterialId,worktopMaterialId:m.worktopMaterialId,worktopEdge:m.worktopEdge,
-    plinthStyle:m.plinthStyle,plinthRecess:m.plinthRecess,wallSide:m.wallSide,
+    handleFinish:m.handleFinish,handleLength:m.handleLength,larderLayout:m.larderLayout,hobStyle:m.hobStyle,hobZones:m.hobZones,islandStyle:m.islandStyle,islandAppliance:m.islandAppliance,islandFront:m.islandFront,topThickness:m.topThickness,topOverhang:m.topOverhang,seatingOverhang:m.seatingOverhang,counterExtension:m.counterExtension,islandSinkStyle:m.islandSinkStyle,islandSinkFinish:m.islandSinkFinish,islandTapStyle:m.islandTapStyle,islandTapFinish:m.islandTapFinish,frontStyle:m.frontStyle,sourceUnitIds:m.sourceUnitIds,unitNumber:m.unitNumber,worktopFinishedEdges:m.worktopFinishedEdges,plinthStyle:m.plinthStyle,plinthRecess:m.plinthRecess,wallSide:m.wallSide,
     plinthHeight:m.plinthHeight,wardrobeLayout:m.wardrobeLayout,stairRisers:m.stairRisers,stairRailHeight:m.stairRailHeight,stairRailing:m.stairRailing,treadMaterialId:m.treadMaterialId,riserMaterialId:m.riserMaterialId,railingMaterialId:m.railingMaterialId,productStyle:m.productStyle,colourVariant:m.colourVariant,openAmount:m.openAmount
   };
 };

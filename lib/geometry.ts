@@ -1,4 +1,5 @@
 import {JoineryItem,Project,ViewMode} from "@/types/model";
+import {islandWorktops,kitchenProject} from "./kitchenConfig";
 import {stairPlan} from "./stairGeometry";
 export const clamp=(n:number,min:number,max:number)=>Math.max(min,Math.min(max,n));
 export const snap=(n:number,step:number)=>step>0?Math.round(n/step)*step:n;
@@ -41,6 +42,7 @@ const wardrobeInternal=new Set(["Hanging rail","Internal drawers","Shoe rack","I
 const baseKitchen=new Set(["Base cabinet","Drawer unit","Sink base","Hob base","Corner cabinet","Wine rack","Kitchen island","Filler panel","End panel","Dishwasher","Washing machine"]);
 export function allowedOverlap(a:JoineryItem,b:JoineryItem){
   const pair=[a.type,b.type];
+  if(pair.includes("Kitchen accessory")&&pair.some(t=>baseKitchen.has(t)||t==="Worktop"))return true;
   if(pair.includes("Under-stair storage")&&pair.some(t=>t.includes("staircase")||t==="L staircase"||t==="U staircase"))return true;
   if(pair.some(t=>wardrobeInternal.has(t))&&pair.some(t=>t==="Wardrobe"||t==="Sliding wardrobe"))return true;
   if(wardrobeInternal.has(a.type)&&wardrobeInternal.has(b.type))return true;
@@ -66,6 +68,7 @@ export function serviceGapSatisfied(p:Project,i:JoineryItem){
 }
 export function canPlace(p:Project,candidate:JoineryItem,ignoreId?:string){
   const c=Math.max(0,p.rules.wallClearance),fp=footprint(candidate);
+  if(candidate.type==="Kitchen island"&&islandWorktops(candidate).some(top=>!canPlace({...p,items:p.items.filter(t=>!t.sourceUnitIds?.includes(candidate.id))},top,top.id)))return false;
   if(![candidate.x,candidate.y,candidate.z,candidate.width,candidate.height,candidate.depth].every(Number.isFinite))return false;
   if(!serviceGapSatisfied(p,candidate))return false;
   if(candidate.width<=0||candidate.height<=0||candidate.depth<=0)return false;
@@ -133,6 +136,7 @@ export function stairMetrics(i:JoineryItem){
 const stairTypesForValidation=new Set(["Straight staircase","L staircase","U staircase"]);
 const standardCabinetTypes=new Set(["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Sink base","Hob base","Oven tower","Fridge housing"]);
 export function validate(p:Project){
+  p=kitchenProject(p);
   const issues:string[]=[],c=p.rules.wallClearance,g=p.rules.componentGap;
   p.items.forEach(i=>{
     const fp=footprint(i);

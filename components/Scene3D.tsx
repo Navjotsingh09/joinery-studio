@@ -1,10 +1,12 @@
 "use client";
+import {KitchenAsset,kitchenAssetsReady} from "./KitchenAsset";
 import {createContext,useContext,useEffect,useLayoutEffect,useRef,useState} from "react";
 import {Canvas,useThree} from "@react-three/fiber";
 import {OrbitControls,Grid,GizmoHelper,GizmoViewport,TransformControls,ContactShadows,Html,Line,RoundedBox,Environment} from "@react-three/drei";
 import * as THREE from "three";
 import {Project,JoineryItem,Material,JoineryPart,SavedCamera} from "@/types/model";
 import {material} from "@/lib/materials";
+import {kitchenProject,islandAppliance} from "@/lib/kitchenConfig";
 import {surfaceMaps,surfaceMapping} from "@/lib/pbrMaterials";
 import {formatMeasure} from "@/lib/units";
 import {worktopCutouts,SinkCutout,roomShellWalls,splashbackTextureUV} from "@/lib/renderGeometry";
@@ -38,7 +40,7 @@ function useDataTexture(url?:string,data=false,scope="surface"){
       let resolve!:(t:THREE.Texture)=>void,reject!:(e:unknown)=>void;
       const promise=new Promise<THREE.Texture>((ok,no)=>{resolve=ok;reject=no});
       const texture=new THREE.TextureLoader().load(url,t=>{t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(1,1);t.colorSpace=data?THREE.NoColorSpace:THREE.SRGBColorSpace;t.anisotropy=8;resolve(t)},undefined,reject);
-      entry={texture,promise,users:0,ready:false};sharedTextures.set(key,entry);promise.then(()=>{const current=sharedTextures.get(key);if(current)current.ready=true}).catch(()=>{});
+      entry={texture,promise,users:0,ready:false};sharedTextures.set(key,entry);promise.then(()=>{const current=sharedTextures.get(key);if(current&&current===entry)current.ready=true}).catch(()=>{});
     }
     entry.users++;
     entry.promise.then(t=>{if(alive)setLoaded({key,texture:t})}).catch(()=>{if(alive)setLoaded(null)});
@@ -324,25 +326,23 @@ function ConstructionLabels({i}:{i:JoineryItem}){
   </group>
 }
 
-function Handle({x,y,z,height,hardware,orientation="vertical"}:{x:number;y:number;z:number;height:number;hardware:string;orientation?:"vertical"|"horizontal"}){
-  if(hardware==="None"||hardware==="Push-to-open"||hardware==="Handleless")return null;
-
-  if(hardware==="Knob")return <mesh position={[x,y,z]} castShadow><sphereGeometry args={[.018,18,18]}/><meshStandardMaterial color="#333" roughness={.2} metalness={.78}/></mesh>;
-  const len=Math.min(.24,Math.max(.11,height*.28));
+function Handle({x,y,z,height,hardware,orientation="vertical",finish="Brushed steel",length=160}:{x:number;y:number;z:number;height:number;hardware:string;orientation?:"vertical"|"horizontal";finish?:string;length?:number}){
+  if(["None","Push-to-open","Handleless"].includes(hardware))return null;
+  const colour=finish==="Copper"?"#b8734f":metalFinish(finish),roughness=finish==="Matt black"?.55:finish==="Brushed steel"?.35:.2;
+  const mat=<meshStandardMaterial color={colour} roughness={roughness} metalness={finish==="Matt black"?.3:.85}/>;
+  const len=Math.min(height*.7,Math.max(.032,length/1000));
+  if(hardware==="Knob")return <group position={[x,y,z]}><mesh castShadow><sphereGeometry args={[.017,24,16]}/>{mat}</mesh><mesh position={[0,0,-.014]} rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[.008,.01,.024,16]}/>{mat}</mesh></group>;
+  if(hardware==="Cup pull")return <group position={[x,y,z]}><mesh rotation={[0,0,Math.PI]} scale={[len/.08,1,.7]} castShadow><sphereGeometry args={[.04,24,12,0,Math.PI*2,0,Math.PI/2]}/>{mat}</mesh><mesh position={[0,-.006,-.004]}><boxGeometry args={[len*.8,.008,.018]}/><meshStandardMaterial color="#25282a" roughness={.6}/></mesh></group>;
+  if(hardware==="Edge pull")return <group position={[x,y,z]}><mesh castShadow><boxGeometry args={[len,.018,.028]}/>{mat}</mesh><mesh position={[0,.009,-.014]}><boxGeometry args={[len,.006,.028]}/>{mat}</mesh></group>;
   return <group position={[x,y,z]}>
-    <Metal position={[0,0,-.012]} size={orientation==="vertical"?[.012,len,.012]:[len,.012,.012]}/>
-    {orientation==="vertical"?<>
-      <Metal position={[0,-len/2+.015,-.022]} size={[.012,.012,.035]}/>
-      <Metal position={[0,len/2-.015,-.022]} size={[.012,.012,.035]}/>
-    </>:<>
-      <Metal position={[-len/2+.015,0,-.022]} size={[.012,.012,.035]}/>
-      <Metal position={[len/2-.015,0,-.022]} size={[.012,.012,.035]}/>
-    </>}
+    <mesh castShadow><boxGeometry args={orientation==="vertical"?[.012,len,.012]:[len,.012,.012]}/>{mat}</mesh>
+    {[-1,1].map(sign=><mesh key={sign} position={orientation==="vertical"?[0,sign*(len/2-.015),-.012]:[sign*(len/2-.015),0,-.012]} castShadow><boxGeometry args={[.012,.012,.035]}/>{mat}</mesh>)}
   </group>;
 }
 
-function Plinth({w,d,h,colour,materialId,style="recessed",recessMm=65}:{w:number;d:number;h:number;colour:string;materialId?:string;style?:"recessed"|"flush"|"none";recessMm?:number}){
+function Plinth({w,d,h,colour,materialId,style="recessed",recessMm=65}:{w:number;d:number;h:number;colour:string;materialId?:string;style?:"recessed"|"flush"|"legs"|"none";recessMm?:number}){
   if(style==="none")return null;
+  if(style==="legs")return <group>{[-1,1].flatMap(x=>[-1,1].map(z=><group key={`${x}-${z}`} position={[x*Math.max(.03,w/2-.07),h/2,z*Math.max(.03,d/2-.07)]}><mesh castShadow><cylinderGeometry args={[.024,.036,Math.max(.001,h),24]}/><meshStandardMaterial color={colour} roughness={.4}/></mesh><mesh position={[0,-h/2+.004,0]}><cylinderGeometry args={[.037,.037,.008,24]}/><meshStandardMaterial color="#333" roughness={.5}/></mesh></group>))}</group>;
   const recess=style==="flush"?0:Math.min(mm(Math.max(0,recessMm)),d*.3);
   const frontZ=d/2-recess-.012;
   if(activeConstructionView&&style==="recessed"){
@@ -389,13 +389,14 @@ function Carcass({i,w,h,d,colour,shelves=0,openBack=false}:{i:JoineryItem;w:numb
   </group>;
 }
 function CabinetFront({i,position,size,colour,materialId}:{i:JoineryItem;position:[number,number,number];size:[number,number,number];colour:string;materialId:string}){
-  const [w,h,t]=size,rail=Math.min(.065,w*.2,h*.2);
-  if(i.frontStyle!=="shaker")return <Panel position={position} size={size} colour={colour} materialId={materialId} part="fronts" front/>;
+  const [w,h,t]=size,rail=Math.min(i.frontStyle==="slim-shaker"?.025:.065,w*.2,h*.2);
+  if(i.frontStyle==="fluted"){const count=Math.min(48,Math.max(4,Math.round(w/.025)));return <group position={position}><Panel position={[0,0,-.003]} size={[w,h,t-.006]} colour={colour} materialId={materialId} part="fronts" front/>{Array.from({length:count},(_,n)=><Panel key={n} position={[-w/2+(n+.5)*w/count,0,t/2-.003]} size={[w/count*.7,h,.006]} colour={colour} materialId={materialId} part="fronts" front/>)}</group>}
+  if(!["shaker","slim-shaker","raised-panel"].includes(i.frontStyle??"slab"))return <Panel position={position} size={size} colour={colour} materialId={materialId} part="fronts" front/>;
   return <group position={position}>
     <Panel position={[-w/2+rail/2,0,0]} size={[rail,h,t]} colour={colour} materialId={materialId} part="fronts" front/>
     <Panel position={[w/2-rail/2,0,0]} size={[rail,h,t]} colour={colour} materialId={materialId} part="fronts" front/>
     {[-1,1].map(sign=><Panel key={sign} position={[0,sign*(h/2-rail/2),0]} size={[w-rail*2,rail,t]} colour={colour} materialId={materialId} part="fronts" front/>)}
-    <Panel position={[0,0,-t/2+.003]} size={[w-rail*2,h-rail*2,.006]} colour={colour} materialId={materialId} part="fronts" front/>
+    <Panel position={[0,0,i.frontStyle==="raised-panel"?t/2-.004:-t/2+.003]} size={[w-rail*2,h-rail*2,i.frontStyle==="raised-panel"?.014:.006]} colour={colour} materialId={materialId} part="fronts" front/>
   </group>;
 }
 function DoorFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number;colour:string}){
@@ -409,7 +410,7 @@ function DoorFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number;c
     return <group key={n} position={[pivot,0,z]} rotation={[0,leftHinge?-open:open,0]}>
       <CabinetFront i={i} position={[localX,0,0]} size={[faceW,faceH,frontT]} colour={faceColour} materialId={faceId}/>
       {open>.08&&<HingePair height={faceH} side={leftHinge?1:-1}/>}
-      <Handle x={localX+(leftHinge?faceW*.38:-faceW*.38)} y={-.02} z={frontT/2+.014} height={faceH} hardware={i.hardware}/>
+      <Handle x={i.hardware==="Edge pull"?localX:localX+(leftHinge?faceW*.38:-faceW*.38)} y={i.hardware==="Edge pull"?faceH/2-.01:-.02} z={frontT/2+.014} height={faceH} hardware={i.hardware} finish={i.handleFinish} length={i.handleLength}/>
     </group>;
   })}</>;
 }
@@ -424,7 +425,7 @@ function DrawerFronts({i,w,h,d,colour}:{i:JoineryItem;w:number;h:number;d:number
     return <group key={n}>
       {openDist>.02&&<group position={[0,y,0]}><DrawerBox w={faceW*.92} h={faceH*.78} d={d*.78} z={z-frontT/2} colour={sceneMaterial(i.carcassMaterialId??i.materialId).colour}/></group>}
       <CabinetFront i={i} position={[0,y,z]} size={[faceW,faceH,frontT]} colour={faceColour} materialId={faceId}/>
-      <Handle x={0} y={y+faceH*.28} z={z+frontT/2+.014} height={faceW} hardware={i.hardware} orientation="horizontal"/>
+      <Handle x={0} y={y+(i.hardware==="Edge pull"?faceH/2-.01:faceH*.28)} z={z+frontT/2+.014} height={faceW} hardware={i.hardware} finish={i.handleFinish} length={i.handleLength} orientation="horizontal"/>
     </group>;
   })}</>;
 }
@@ -488,7 +489,7 @@ function CornerCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:s
       })}
       <group position={[doorX,0,doorZ]} rotation={[0,-Math.PI/4-open,0]}>
         <Panel position={[0,0,0]} size={[doorW,Math.max(.16,bodyH-mm(REVEAL*2)),t]} colour={faceColour} materialId={faceId} part="fronts" front/>
-        <Handle x={doorW*.32} y={-.02} z={t/2+.014} height={bodyH} hardware={i.hardware}/>
+        <Handle x={doorW*.32} y={-.02} z={t/2+.014} height={bodyH} hardware={i.hardware} finish={i.handleFinish} length={i.handleLength}/>
         {(open>.08||activeConstructionView)&&<HingePair height={bodyH*.82} side={-1}/>}
       </group>
     </group>
@@ -504,9 +505,11 @@ function TallCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:str
   return <group>
     <group position={[0,explode?-.06:0,explode?.04:0]}><group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group></group>
     <group position={[0,bodyY+(explode?.025:0),-mm(BOARD)/2+(explode?-.05:0)]}>
-      <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={Math.max(2,i.shelves)}/>
-      <KitchenShelfProps w={w} h={bodyH} d={bodyD} levels={Math.min(4,Math.max(2,i.shelves))}/>
-      {i.doors>0&&<DoorFronts i={i} w={w} h={bodyH} d={bodyD} colour={c}/>}
+      <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={(i.larderLayout??"shelves")==="shelves"?Math.max(2,i.shelves):0}/>
+      {(i.larderLayout??"shelves")==="shelves"?<><KitchenShelfProps w={w} h={bodyH} d={bodyD} levels={Math.min(4,Math.max(2,i.shelves))}/>{i.doors>0&&<DoorFronts i={i} w={w} h={bodyH} d={bodyD} colour={c}/>}</>:<group position={[0,0,i.larderLayout==="pull-out"?Math.max(activeConstructionView?.35:0,(i.openAmount??0)/100*.45):0]}>
+        {Array.from({length:Math.max(2,Math.min(8,i.shelves||5))},(_,n)=>{const levels=Math.max(2,Math.min(8,i.shelves||5)),y=-bodyH/2+.1+(n+.5)*(bodyH-.2)/levels;return <group key={n} position={[0,y,0]}>{i.larderLayout==="internal-drawers"?<DrawerBox w={w-.07} h={.14} d={bodyD-.06} z={bodyD/2+(i.openAmount??0)/100*.3} colour={sceneMaterial(i.carcassMaterialId??i.materialId).colour}/>:<><Metal position={[0,0,0]} size={[w-.07,.015,bodyD-.06]}/>{[-1,1].map(sign=><group key={sign}><Metal position={[sign*(w/2-.045),.07,0]} size={[.008,.14,bodyD-.06]}/><Metal position={[0,.07,sign*(bodyD/2-.04)]} size={[w-.07,.14,.008]}/></group>)}</>}</group>})}
+        {i.doors>0&&<DoorFronts i={{...i,openAmount:i.larderLayout==="pull-out"?0:i.openAmount}} w={w} h={bodyH} d={bodyD} colour={c}/>}
+      </group>}
     </group>
   </group>;
 }
@@ -586,10 +589,14 @@ function Countertop({w,d,y,colour="#e8e4dc",materialId}:{w:number;d:number;y:num
 }
 
 function Sink({i,w,d,y}:{i:JoineryItem;w:number;d:number;y:number}){
+  if((i.productStyle??"Inset stainless")==="Inset stainless")return <group position={[0,y-.096,d*.03]}><KitchenAsset name="inset-sink" size={[Math.min(.56,w*.72),.2,Math.min(.43,d*.7)]} colour={i.colourVariant==="Black"?"#292e30":i.colourVariant==="White ceramic"?"#edece7":"#aab1b4"} metalness={i.colourVariant==="White ceramic"?0:.85} roughness={.3} fallback={<ProceduralSink i={i} w={w} d={d} y={.096} offset={0}/>}/></group>;
+  return <ProceduralSink i={i} w={w} d={d} y={y}/>;
+}
+function ProceduralSink({i,w,d,y,offset}:{i:JoineryItem;w:number;d:number;y:number;offset?:number}){
   const ceramic=i.productStyle==="Belfast ceramic"||i.colourVariant==="White ceramic",under=i.productStyle==="Undermount",sw=Math.min(.56,w*.72),sd=Math.min(.43,d*.7),rim=.026,basinH=ceramic?.22:.18;
   const finish=i.colourVariant==="Black"?"#292e30":ceramic?"#edece7":"#aab1b4",metalness=ceramic?0:.85;
   const mat=<meshStandardMaterial color={finish} roughness={ceramic?.3:.32} metalness={metalness}/>;
-  return <group position={[0,y-(under?.025:0),d*.03]}>
+  return <group position={[0,y-(under?.025:0),offset??d*.03]}>
     {[-1,1].map(side=><group key={side}>
       <RoundedBox args={[sw,.009,rim]} position={[0,0,side*(sd-rim)/2]} radius={.003} smoothness={2} castShadow receiveShadow>{mat}</RoundedBox>
       <RoundedBox args={[rim,.009,sd-rim*2]} position={[side*(sw-rim)/2,0,0]} radius={.003} smoothness={2} castShadow receiveShadow>{mat}</RoundedBox>
@@ -604,11 +611,17 @@ function Sink({i,w,d,y}:{i:JoineryItem;w:number;d:number;y:number}){
   </group>;
 }
 
-function Hob({w,d,y}:{w:number;d:number;y:number}){
-  const hw=Math.min(.6,w*.72),hd=Math.min(.52,d*.72);
+function Hob({i,w,d,y}:{i?:JoineryItem;w:number;d:number;y:number}){
+  if(i?.hobStyle==="gas"&&(i.hobZones??4)===4)return <group position={[0,y+.018,.015]}><KitchenAsset name="gas-hob" size={[Math.min(.6,w*.72),.055,Math.min(.52,d*.72)]} fallback={<group position={[0,-.018,-.015]}><ProceduralHob i={i} w={w} d={d} y={0}/></group>}/></group>;
+  return <ProceduralHob i={i} w={w} d={d} y={y}/>;
+}
+function ProceduralHob({i,w,d,y}:{i?:JoineryItem;w:number;d:number;y:number}){
+  const hw=Math.min(.6,w*.72),hd=Math.min(.52,d*.72),style=i?.hobStyle??"induction",zones=i?.hobZones??4;
+  const positions=zones===2?[[0,-.22],[0,.22]]:zones===5?[[-.3,-.25],[.3,-.25],[-.3,.25],[.3,.25],[0,0]]:[[-.25,-.25],[.25,-.25],[-.25,.25],[.25,.25]];
   return <group position={[0,y,.015]}>
-    <mesh castShadow><boxGeometry args={[hw,.018,hd]}/><meshStandardMaterial color="#121416" roughness={.12} metalness={.18}/></mesh>
-    {[-.22,.22].flatMap((x,xi)=>[-.17,.17].map((z,zi)=><mesh key={xi+"-"+zi} position={[x*hw,0.011,z*hd]} rotation={[-Math.PI/2,0,0]}><torusGeometry args={[Math.min(hw,hd)*.12,.006,10,28]}/><meshStandardMaterial color="#3b3f42" metalness={.45} roughness={.25}/></mesh>))}
+    <mesh castShadow><boxGeometry args={[hw,.018,hd]}/><meshPhysicalMaterial color={style==="gas"?"#868c90":"#121416"} roughness={style==="gas"?.35:.13} metalness={style==="gas"?.85:.18} clearcoat={.5}/></mesh>
+    {style==="grill"?Array.from({length:14},(_,n)=><Metal key={n} position={[-hw*.42+n*hw*.84/13,.02,0]} size={[.009,.015,hd*.85]}/>):positions.map(([x,z],n)=><group key={n} position={[x*hw,.012,z*hd]}><mesh rotation={[-Math.PI/2,0,0]}><torusGeometry args={[Math.min(hw,hd)*(zones===5?.095:.13),.0025,8,40]}/><meshStandardMaterial color={style==="ceramic"?"#78696a":"#656a6e"} roughness={.35}/></mesh>{style==="gas"&&<><mesh><cylinderGeometry args={[.027,.032,.015,24]}/><meshStandardMaterial color="#242628" roughness={.6}/></mesh><Metal position={[0,.018,0]} size={[.1,.008,.007]}/><Metal position={[0,.018,0]} size={[.007,.008,.1]}/></>}</group>)}
+    {[-.12,0,.12].map(x=><mesh key={x} position={[x*hw,.011,hd*.42]}><boxGeometry args={[.02,.002,.007]}/><meshStandardMaterial color="#babdc0" roughness={.3}/></mesh>)}
   </group>;
 }
 
@@ -760,11 +773,14 @@ function Bed({w,h,d,c}:{w:number;h:number;d:number;c:string}){
 }
 
 function KitchenIsland({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
-  const plinth=i.plinthStyle==="none"?0:Math.min(mm(i.plinthHeight??90),h*.2),bodyH=Math.max(.03,h-plinth-Math.min(.035,h*.1)),bodyY=-h/2+plinth+bodyH/2;
+  const plinth=i.plinthStyle==="none"?0:Math.min(mm(i.plinthHeight??90),h*.2),bodyH=Math.max(.03,h-plinth-mm(i.topThickness??32)),bodyY=-h/2+plinth+bodyH/2;
   return <group>
     <group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
-    <group position={[0,bodyY,0]}><Carcass i={i} w={w} h={bodyH} d={d-.04} colour={c}/><DrawerFronts i={{...i,doors:Math.max(3,i.doors)}} w={w} h={bodyH} d={d-.04} colour={c}/></group>
-    <Countertop w={w} d={d} y={h/2-.016} materialId={i.worktopMaterialId??"stone-light"} colour="#ddd7cc"/>
+    <group position={[0,bodyY,0]}><Carcass i={i} w={w} h={bodyH} d={d-.04} colour={c}/>{i.islandFront==="doors"?<DoorFronts i={i} w={w} h={bodyH} d={d-.04} colour={c}/>:<DrawerFronts i={{...i,doors:Math.max(2,i.doors)}} w={w} h={bodyH} d={d-.04} colour={c}/>}</group>
+    {islandAppliance(i)==="sink"&&<><Sink i={{...i,productStyle:i.islandSinkStyle??"Inset stainless",colourVariant:i.islandSinkFinish??"Stainless steel"}} w={w} d={d} y={h/2+.002}/><group position={[0,h/2+.18,-d*.28]}><TapObject i={{...i,productStyle:i.islandTapStyle??"Arc mixer",colourVariant:i.islandTapFinish??"Chrome"}} w={.16} h={.36} d={.22}/></group></>}
+    {["hob","grill"].includes(islandAppliance(i))&&<Hob i={{...i,hobStyle:islandAppliance(i)==="grill"?"grill":i.hobStyle}} w={w} d={d} y={h/2+.009}/>}
+    {i.islandStyle==="dining"&&<>{[-1,1].map(sign=><Metal key={sign} position={[w/2+mm(i.topOverhang??30)+mm(i.counterExtension??900)-.08,-h/2+(Math.min(.74,h-.1)-mm(i.topThickness??32))/2,sign*(d/2-.08)]} size={[.05,Math.min(.74,h-.1)-mm(i.topThickness??32),.05]}/>)}</>}
+    {i.islandStyle==="extended"&&<>{[-1,1].map(sign=><Metal key={sign} position={[w/2+mm(i.topOverhang??30)+mm(i.counterExtension??900)-.08,-mm(i.topThickness??32)/2,sign*(d/2-.08)]} size={[.05,h-mm(i.topThickness??32),.05]}/>)}</>}
   </group>;
 }
 
@@ -777,7 +793,7 @@ function SinkBase({i,project,w,h,d,c}:{i:JoineryItem;project:Project;w:number;h:
 function HobBase({i,project,w,h,d,c}:{i:JoineryItem;project:Project;w:number;h:number;d:number;c:string}){
   const surface=project.items.find(top=>top.visible!==false&&top.type==="Worktop"&&worktopCutouts(top,[i]).length);
   const rim=surface?mm(surface.y+surface.height-i.y)-h/2+.009:h/2+.009;
-  return <group><BaseCabinet i={i} w={w} h={h} d={d} c={c}/><Hob w={w} d={d} y={rim}/></group>;
+  return <group><BaseCabinet i={i} w={w} h={h} d={d} c={c}/><Hob i={i} w={w} d={d} y={rim}/></group>;
 }
 
 function OvenTower({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
@@ -863,6 +879,11 @@ function CeilingLight({w,h,d}:{w:number;h:number;d:number}){return <mesh rotatio
 function PendantLight({w,h}:{w:number;h:number}){return <group><Metal position={[0,h*.25,0]} size={[.012,h*.5,.012]}/><mesh position={[0,-h*.2,0]} castShadow><coneGeometry args={[Math.max(.08,w/2),Math.max(.12,h*.35),32,1,true]}/><meshStandardMaterial color="#3d3a36" metalness={.35} roughness={.35} side={THREE.DoubleSide}/></mesh><pointLight position={[0,-h*.35,0]} intensity={2.2} distance={2.2} color="#fff0d2"/></group>}
 function metalFinish(name="Chrome"){return name==="Matt black"?"#202224":name==="Brass"?"#b18a45":name==="Brushed steel"?"#8d9395":"#b9bec0"}
 function TapObject({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
+  const style=i.productStyle??"Arc mixer";
+  if(style==="Cross-handle mixer"||style==="Square neck")return <KitchenAsset name={style==="Cross-handle mixer"?"cross-handle-mixer":"square-mixer"} size={[w,h,d]} colour={metalFinish(i.colourVariant)} metalness={i.colourVariant==="Matt black"?.3:.88} roughness={i.colourVariant==="Brushed steel"?.35:.18} fallback={<ProceduralTap i={i} w={w} h={h} d={d}/>}/>;
+  return <ProceduralTap i={i} w={w} h={h} d={d}/>;
+}
+function ProceduralTap({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
   const style=i.productStyle??(i.type==="Bridge tap"?"Bridge":i.type==="Pull-out tap"?"Pull-out":"Arc mixer"),finish=metalFinish(i.colourVariant),r=Math.max(.009,w*.05);
   const mat=<meshStandardMaterial color={finish} metalness={.84} roughness={i.colourVariant==="Brushed steel"?.28:.16}/>;
   if(style==="Bridge")return <group>
@@ -966,6 +987,7 @@ function CabinetGeometry({i,project,construction=false}:{i:JoineryItem;project:P
   if(i.type==="Hob base")return <HobBase i={i} project={project} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Oven tower")return <OvenTower i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Fridge housing")return <FridgeHousing i={i} w={w} h={h} d={d} c={c}/>;
+  if(i.type==="Kitchen accessory")return <KitchenAsset name={i.productStyle==="Cooking pot"?"cooking-pot":"ceramic-mug"} size={[w,h,d]} fallback={<RoundedBox args={[w,h,d]} radius={.01} smoothness={2}><meshStandardMaterial color={i.productStyle==="Cooking pot"?"#999fa1":"#ece9e2"} metalness={i.productStyle==="Cooking pot"?.85:0} roughness={.3}/></RoundedBox>}/>;
   if(i.type==="Kitchen island")return <KitchenIsland i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Wall cabinet")return <WallCabinet i={i} w={w} h={h} d={d} c={c}/>;
   if(i.type==="Tall cabinet")return <TallCabinet i={i} w={w} h={h} d={d} c={c}/>;
@@ -1050,12 +1072,12 @@ function SceneCapture({project,requestedView,onReady,onCameraReady,onRenderReady
   },[requestedView,camera,controls]);
   useEffect(()=>{
     onCameraReady(()=>({position:camera.position.toArray(),target:((controls as any)?.target??new THREE.Vector3()).toArray(),up:camera.up.toArray(),fov:camera instanceof THREE.PerspectiveCamera?camera.fov:38}));
-    onReady(()=>{if([...sharedTextures.values()].some(t=>!t.ready))throw new Error("Materials are still loading. Try again in a moment.");const ratio=gl.getPixelRatio(),hidden:THREE.Object3D[]=[];
+    onReady(()=>{if([...sharedTextures.values()].some(t=>!t.ready)||!kitchenAssetsReady(project))throw new Error("Materials and component models are still loading. Try again in a moment.");const ratio=gl.getPixelRatio(),hidden:THREE.Object3D[]=[];
       scene.traverse(o=>{if(o.visible&&o.userData.editorOnly){o.visible=false;hidden.push(o)}});
       try{gl.setPixelRatio(4096/Math.max(size.width,size.height));gl.render(scene,camera);return gl.domElement.toDataURL("image/png")}finally{hidden.forEach(o=>o.visible=true);gl.setPixelRatio(ratio);gl.render(scene,camera)}
     });
     onRenderReady(async()=>{
-      if([...sharedTextures.values()].some(t=>!t.ready))throw new Error("Materials are still loading. Try again in a moment.");
+      if([...sharedTextures.values()].some(t=>!t.ready)||!kitchenAssetsReady(project))throw new Error("Materials and component models are still loading. Try again in a moment.");
       const {GLTFExporter}=await import("three/examples/jsm/exporters/GLTFExporter.js");
       const model=scene.getObjectByName("Joinery design");if(!model)throw new Error("3D geometry is still loading.");
       const root=new THREE.Scene(),geometry=model.clone(true),remove:THREE.Object3D[]=[];
@@ -1074,9 +1096,10 @@ function SceneCapture({project,requestedView,onReady,onCameraReady,onRenderReady
   return null;
 }
 export function JoineryModel({project,showWalls=true,realistic=true,construction=false,selected,selectedPart,transformMode="translate",moveAxis="xz",onSelect,onSelectPart,onMove,onRotate,onMoveStart}:{project:Project;showWalls?:boolean;realistic?:boolean;construction?:boolean;selected?:string|null;selectedPart?:JoineryPart|null;transformMode?:"translate"|"rotate";moveAxis?:"xz"|"x"|"y"|"z";onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onMove?:(id:string,x:number,y:number,z:number)=>boolean|void;onRotate?:(id:string,rotation:number)=>boolean|void;onMoveStart?:()=>void}){
+  project=kitchenProject(project);
   activeCustomMaterials=project.customMaterials??[];activeWarmLights=(project.lighting??DEFAULT_LIGHTING).warmLights;activeConstructionView=construction;
   return <group name="Joinery design"><RoomShell project={project} rw={mm(project.roomWidth)} rh={mm(project.roomHeight)} rd={mm(project.roomDepth)} showWalls={showWalls} realistic={realistic} floorMaterial={sceneMaterial(project.floorMaterialId??"floor-oak")} studioMode={construction}/>
-    {project.items.filter(i=>i.visible!==false).map(i=><ItemNode key={i.id} i={i} project={project} selected={selected===i.id} selectedPart={selected===i.id?selectedPart:null} mode={transformMode} moveAxis={moveAxis} construction={construction} onSelect={onSelect} onSelectPart={onSelectPart} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>)}
+    {project.items.filter(i=>i.visible!==false).map(i=><ItemNode key={i.id} i={i} project={project} selected={selected===i.id} selectedPart={selected===i.id?selectedPart:null} mode={transformMode} moveAxis={moveAxis} construction={construction} onSelect={id=>onSelect?.(i.id.includes(":top")||i.id.includes(":dining")?i.sourceUnitIds?.[0]??id:id)} onSelectPart={(id,part)=>onSelectPart?.(i.id.includes(":top")||i.id.includes(":dining")?i.sourceUnitIds?.[0]??id:id,part)} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>)}
   </group>;
 }
 function Exposure({value}:{value:number}){const {gl}=useThree();useEffect(()=>{gl.toneMappingExposure=value},[gl,value]);return null}

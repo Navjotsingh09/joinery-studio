@@ -7,14 +7,16 @@ import {Project,JoineryItem,ViewMode,ProjectSnapshot,Revision} from "@/types/mod
 import {newProject} from "./defaults";import {findFreePlacement,canPlace} from "./geometry";
 type Core={projects:Project[];activeId:string;selectedId:string|null;view:ViewMode};
 type State=Core&{editError:string;clearEditError:()=>void;past:Core[];future:Core[];setView:(v:ViewMode)=>void;setActive:(id:string)=>void;select:(id:string|null)=>void;addProject:()=>void;duplicateProject:()=>void;deleteProject:(id?:string)=>void;replaceAll:(p:Project[])=>void;configureActive:(patch:Partial<Project>&{items:JoineryItem[]})=>void;updateProject:(patch:Partial<Project>)=>void;addItem:(i:JoineryItem)=>void;updateItem:(id:string,patch:Partial<JoineryItem>)=>void;updateItems:(ids:string[],patch:Partial<JoineryItem>|((item:JoineryItem)=>Partial<JoineryItem>))=>void;moveItem:(id:string,patch:Partial<JoineryItem>)=>void;checkpoint:()=>void;deleteItem:(id:string)=>void;deleteItems:(ids:string[])=>void;duplicateItem:(id:string)=>void;copyItems:(ids:string[])=>void;pasteItems:()=>void;saveRevision:()=>void;restoreRevision:(id:string)=>void;undo:()=>void;redo:()=>void};
+import {syncIslandWorktops} from "./kitchenConfig";
 import {trackedStorage} from "./saveStatus";
 let itemClipboard:JoineryItem[]=[];
 const positionKeys=["x","y","z","width","height","depth","rotation"] as const;
 export function checkChanges(p:Project,items:JoineryItem[]):string|null{
   const proposed={...p,items};
   for(const i of items){const old=p.items.find(q=>q.id===i.id);if(!old)continue;
+    if(i.type==="Kitchen island"&&JSON.stringify(old)!==JSON.stringify(i)&&!canPlace(proposed,i,i.id))return i.name+": counter configuration leaves the room or clashes with another object.";
     if(!positionKeys.some(k=>old[k]!==i[k]))continue;
-    if(old.locked)return old.name+" is position locked. Unlock it before changing its position or size.";
+    if(old.locked&&!(i.type==="Worktop"&&i.sourceUnitIds?.some(id=>items.find(q=>q.id===id)?.type==="Kitchen island")))return old.name+" is position locked. Unlock it before changing its position or size.";
     if(!canPlace(proposed,i,i.id))return i.name+": change rejected because it clashes, leaves the room or violates a clearance.";
   }return null;
 }
@@ -33,20 +35,20 @@ addItem:i=>{const p=get().projects.find(p=>p.id===get().activeId);if(p&&!canPlac
 updateItem:(id,patch)=>{const p=get().projects.find(p=>p.id===get().activeId),source=p?.items.find(i=>i.id===id);if(!source)return;const dx=(patch.x??source.x)-source.x,dy=(patch.y??source.y)-source.y,dz=(patch.z??source.z)-source.z;const ids=source.groupId&&(dx||dy||dz)?p!.items.filter(i=>i.groupId===source.groupId).map(i=>i.id):[id];get().updateItems(ids,i=>i.id===id?patch:{x:i.x+dx,y:i.y+dy,z:i.z+dz})},
 updateItems:(ids,patch)=>mutate(set,s=>{
   const wanted=new Set(ids),p=s.projects.find(p=>p.id===s.activeId);if(!p)return{};
-  const changes=p.items.map(i=>wanted.has(i.id)?{...i,...(typeof patch==="function"?patch(i):patch)}:i);
+  const changes=syncIslandWorktops(p.items.map(i=>wanted.has(i.id)?{...i,...(typeof patch==="function"?patch(i):patch)}:i));
   const error=checkChanges(p,changes);if(error)return{editError:error};
   return{editError:"",projects:s.projects.map(q=>q.id===p.id?{...q,items:changes,updatedAt:new Date().toISOString()}:q)};
 }),
 moveItem:(id,patch)=>set((s:State)=>{
   const p=s.projects.find(p=>p.id===s.activeId),source=p?.items.find(i=>i.id===id);if(!p||!source)return{};
   const dx=typeof patch.x==="number"?patch.x-source.x:0,dy=typeof patch.y==="number"?patch.y-source.y:0,dz=typeof patch.z==="number"?patch.z-source.z:0;
-  const changes=p.items.map(i=>i.id===id?{...i,...patch}:source.groupId&&i.groupId===source.groupId&&(dx||dy||dz)?{...i,x:i.x+dx,y:i.y+dy,z:i.z+dz}:i);
+  const changes=syncIslandWorktops(p.items.map(i=>i.id===id?{...i,...patch}:source.groupId&&i.groupId===source.groupId&&(dx||dy||dz)?{...i,x:i.x+dx,y:i.y+dy,z:i.z+dz}:i));
   const error=checkChanges(p,changes);if(error)return{editError:error};
   return{editError:"",projects:s.projects.map(q=>q.id===p.id?{...q,items:changes,updatedAt:new Date().toISOString()}:q)};
 }),
 checkpoint:()=>set((s:State)=>({past:[...s.past.slice(-39),core(s)],future:[]})),
-deleteItem:id=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,items:p.items.filter(i=>i.id!==id),updatedAt:new Date().toISOString()}:p),selectedId:null})),
-deleteItems:ids=>mutate(set,s=>{const wanted=new Set(ids);return{projects:s.projects.map(p=>p.id===s.activeId?{...p,items:p.items.filter(i=>!wanted.has(i.id)),updatedAt:new Date().toISOString()}:p),selectedId:s.selectedId&&wanted.has(s.selectedId)?null:s.selectedId}}),
+deleteItem:id=>mutate(set,s=>({projects:s.projects.map(p=>p.id===s.activeId?{...p,items:p.items.filter(i=>i.id!==id&&!i.sourceUnitIds?.includes(id)),updatedAt:new Date().toISOString()}:p),selectedId:null})),
+deleteItems:ids=>mutate(set,s=>{const wanted=new Set(ids);return{projects:s.projects.map(p=>p.id===s.activeId?{...p,items:p.items.filter(i=>!wanted.has(i.id)&&!i.sourceUnitIds?.some(id=>wanted.has(id))),updatedAt:new Date().toISOString()}:p),selectedId:s.selectedId&&wanted.has(s.selectedId)?null:s.selectedId}}),
 duplicateItem:id=>{const p=get().projects.find(x=>x.id===get().activeId),i=p?.items.find(x=>x.id===id);if(i&&p){const q=findFreePlacement(p,{...i,id:newId(),name:i.name+" copy",unitNumber:undefined,x:i.x+Math.max(50,p.rules.snap),groupId:undefined});if(canPlace(p,q))get().addItem(q)}},
 copyItems:ids=>{const s=get() as State;itemClipboard=structuredClone(s.projects.find(p=>p.id===s.activeId)?.items.filter(i=>ids.includes(i.id))??[])},
 pasteItems:()=>{const s=get() as State,p=s.projects.find(x=>x.id===s.activeId);if(!p||!itemClipboard.length)return;const temp={...p,items:[...p.items]};for(const original of itemClipboard){const q=findFreePlacement(temp,{...structuredClone(original),id:newId(),name:original.name+" copy",unitNumber:undefined,locked:false,x:original.x+Math.max(50,p.rules.snap),z:original.z+Math.max(50,p.rules.snap),groupId:undefined});if(!canPlace(temp,q)){set({editError:"There is no valid space for this paste. Move objects or enlarge the room."});return}temp.items.push(q)}mutate(set,()=>({projects:s.projects.map(q=>q.id===p.id?{...temp,...numberItems(temp),updatedAt:new Date().toISOString()}:q),editError:""}))},

@@ -1,4 +1,6 @@
 "use client";
+import {kitchenProject} from "@/lib/kitchenConfig";
+import {worktopCutouts} from "@/lib/renderGeometry";
 import {referenceLabel} from "@/lib/drawingPack";
 import {formatMeasure} from "@/lib/units";
 import {referenceDepth} from "@/lib/drawingReference";
@@ -30,6 +32,7 @@ export function Drawing2D({
   onContext:(e:React.MouseEvent,id:string)=>void;
   onDropType:(type:string,x:number,y:number,z:number)=>void;
 }){
+  project=kitchenProject(project);
   const ref=useRef<SVGSVGElement>(null);
   const [drag,setDrag]=useState<DragState|null>(null);
   const [guides,setGuides]=useState<{x?:number;y?:number;label?:string}>({});
@@ -38,8 +41,8 @@ export function Drawing2D({
   const size=elevation?wallViewSize(project,wallSide!):viewSize(project,view),pad=76,W=1000,H=650;
   const rectFor=(i:JoineryItem)=>elevation?wallItemRect(i,project,wallSide!):itemRect(i,project,view);
   const visibleItems=project.items.filter(i=>i.visible!==false&&(!elevation||isItemOnWall(project,i,wallSide!))).sort((a,b)=>{
-    // Draw finish surfaces behind cabinetry and the selection above everything.
-    const order=(i:JoineryItem)=>i.id===selected?3:["Worktop","Backsplash"].includes(i.type)?0:view==="top"&&i.y>1000?1:2;
+    // Surface outlines and cutouts remain visible above base cabinetry.
+    const order=(i:JoineryItem)=>i.id===selected?3:["Worktop","Backsplash"].includes(i.type)?2.5:view==="top"&&i.y>1000?1:2;
     return order(a)-order(b);
   });
   const scale=Math.min((W-pad*2)/size.w,(H-pad*2)/size.h);
@@ -162,20 +165,22 @@ export function Drawing2D({
       {guides.y!==undefined&&<><line className="snapGuide" x1="0" x2={size.w*scale} y1={guides.y*scale} y2={guides.y*scale}/><text className="snapHint" x="8" y={guides.y*scale-8}>{guides.label}</text></>}
       {visibleItems.map(i=>{
         const planOverlay=view==="top"&&(i.y>1000||["Worktop","Backsplash"].includes(i.type));
-        const r=rectFor(i),sel=i.id===selected,invalid=issueNames.has(i.id),rotation=normalizeRotation(i.rotation??0),quarter=rotation===90||rotation===270,faceView=elevation?((wallSide==="left"||wallSide==="right")?quarter:!quarter):(view==="front"&&!quarter)||(view==="side"&&quarter),drawMaterialId=i.type==="Worktop"?(i.worktopMaterialId??i.materialId):(faceView&&i.doors>0?(i.doorMaterialId??i.materialId):i.materialId),fill=material(drawMaterialId,project.customMaterials??[]).colour,tc=contrastText(fill),rw=r.width*scale,rh=r.height*scale,isDrawer=i.type==="Drawer unit"||i.type==="Media unit",hasPlinth=["Wardrobe","Base cabinet","Tall cabinet","Drawer unit","Media unit","Sink base","Hob base","Kitchen island","Corner cabinet"].includes(i.type),plinthPx=hasPlinth&&i.plinthStyle!=="none"?Math.min(rh*.25,(i.plinthHeight??100)*scale):0,isStair=["Straight staircase","L staircase","U staircase"].includes(i.type),isBed=i.type==="Bed",isSink=i.type==="Sink base",isHob=i.type==="Hob base",isOven=i.type==="Oven tower",isDish=i.type==="Dishwasher",isWasher=i.type==="Washing machine",isMicrowave=i.type==="Microwave",isExtractor=i.type==="Extractor hood",isDoor=i.type==="Door opening",isWindow=i.type==="Window",isGlassBal=i.type==="Glass balustrade",isTimberBal=i.type==="Timber balustrade",clear=wallClearances(project,i);
+        const r=rectFor(i),sel=i.id===selected,invalid=issueNames.has(i.id),rotation=normalizeRotation(i.rotation??0),quarter=rotation===90||rotation===270,faceView=elevation?((wallSide==="left"||wallSide==="right")?quarter:!quarter):(view==="front"&&!quarter)||(view==="side"&&quarter),drawMaterialId=i.type==="Worktop"?(i.worktopMaterialId??i.materialId):(faceView&&i.doors>0?(i.doorMaterialId??i.materialId):i.materialId),fill=material(drawMaterialId,project.customMaterials??[]).colour,tc=contrastText(fill),rw=r.width*scale,rh=r.height*scale,isDrawer=i.type==="Drawer unit"||i.type==="Media unit"||(i.type==="Kitchen island"&&i.islandFront!=="doors"),hasPlinth=["Wardrobe","Base cabinet","Tall cabinet","Drawer unit","Media unit","Sink base","Hob base","Kitchen island","Corner cabinet"].includes(i.type),plinthPx=hasPlinth&&i.plinthStyle!=="none"?Math.min(rh*.25,(i.plinthHeight??100)*scale):0,isStair=["Straight staircase","L staircase","U staircase"].includes(i.type),isBed=i.type==="Bed",isSink=i.type==="Sink base",isHob=i.type==="Hob base",isOven=i.type==="Oven tower",isDish=i.type==="Dishwasher",isWasher=i.type==="Washing machine",isMicrowave=i.type==="Microwave",isExtractor=i.type==="Extractor hood",isDoor=i.type==="Door opening",isWindow=i.type==="Window",isGlassBal=i.type==="Glass balustrade",isTimberBal=i.type==="Timber balustrade",clear=wallClearances(project,i);
         return <g key={i.id} className={"drawingItem "+(sel?"selected ":"")+(invalid?"invalid ":"")} transform={"translate("+(r.left*scale)+","+(r.top*scale)+")"}
-          onPointerDown={e=>begin(e,i.id,"move")}
-          onContextMenu={e=>{e.preventDefault();e.stopPropagation();onContext(e,i.id)}}
+          onPointerDown={e=>i.id.includes(":top")||i.id.includes(":dining")?(e.stopPropagation(),onSelect(i.sourceUnitIds?.[0]??i.id)):begin(e,i.id,"move")}
+          onContextMenu={e=>{e.preventDefault();e.stopPropagation();onContext(e,i.id.includes(":top")||i.id.includes(":dining")?i.sourceUnitIds?.[0]??i.id:i.id)}}
           style={{cursor:i.locked?"not-allowed":drag?.id===i.id?"grabbing":"grab"}}>
           <title>{i.name+" · "+r.width+" × "+r.height+" mm"}</title>
           <rect className="itemBody" width={rw} height={rh} rx="2" fill={planOverlay?"none":fill} strokeDasharray={planOverlay?"5 4":undefined} pointerEvents={planOverlay?"stroke":undefined} stroke={invalid?"#e15544":sel?"#c8102e":i.edgeBanding==="None / raw"?"#777":"#292929"} strokeWidth={sel?4:invalid?3:i.edgeBanding.includes("2mm")?3:1.5} filter={sel?"url(#selectionShadow)":undefined}/>
+          {view==="top"&&i.type==="Worktop"&&worktopCutouts(i,project.items).map((hole,n)=>{const a=rotation*Math.PI/180,c=Math.cos(a),s=Math.sin(a),cx=hole.x*c+hole.z*s,cz=-hole.x*s+hole.z*c,cross=rotation%180!==0,hw=(cross?hole.depth:hole.width)*1000*scale,hd=(cross?hole.width:hole.depth)*1000*scale;return <rect key={"cutout"+n} x={rw/2+cx*1000*scale-hw/2} y={rh/2-cz*1000*scale-hd/2} width={hw} height={hd} fill="#fff" stroke="#555" strokeDasharray="3 2" pointerEvents="none"/>})}
           {faceView&&i.doors===0&&Array.from({length:Math.max(0,i.shelves)}).map((_,n)=><line key={"s"+n} x1="0" x2={rw} y1={rh*(n+1)/(i.shelves+1)} y2={rh*(n+1)/(i.shelves+1)} stroke={tc} opacity=".58"/>)}
-          {faceView&&i.frontStyle==="shaker"&&i.doors>0&&Array.from({length:Math.min(12,i.doors)},(_,n)=>{const count=Math.min(12,i.doors),fw=isDrawer?rw:rw/count,fh=isDrawer?(rh-plinthPx)/count:rh-plinthPx,inset=Math.min(6,fw*.15,fh*.15);return <rect key={"shaker"+n} x={(isDrawer?0:n*fw)+inset} y={(isDrawer?n*fh:0)+inset} width={fw-inset*2} height={fh-inset*2} fill="none" stroke={tc} opacity=".5"/>})}
+          {faceView&&["shaker","slim-shaker","raised-panel"].includes(i.frontStyle??"")&&i.doors>0&&Array.from({length:Math.min(12,i.doors)},(_,n)=>{const count=Math.min(12,i.doors),fw=isDrawer?rw:rw/count,fh=isDrawer?(rh-plinthPx)/count:rh-plinthPx,inset=Math.min(6,fw*.15,fh*.15);return <rect key={"shaker"+n} x={(isDrawer?0:n*fw)+inset} y={(isDrawer?n*fh:0)+inset} width={fw-inset*2} height={fh-inset*2} fill="none" stroke={tc} opacity=".5"/>})}
+          {faceView&&i.frontStyle==="fluted"&&Array.from({length:Math.min(48,Math.max(4,Math.round(i.width/25)))},(_,n)=><line key={"flute"+n} x1={(n+.5)*rw/Math.min(48,Math.max(4,Math.round(i.width/25)))} x2={(n+.5)*rw/Math.min(48,Math.max(4,Math.round(i.width/25)))} y1={2} y2={rh-plinthPx-2} stroke={tc} opacity=".3"/>)}
           {faceView&&!isDrawer&&i.doors>1&&Array.from({length:i.doors-1}).map((_,n)=><line key={"d"+n} y1="2" y2={rh-plinthPx-2} x1={rw*(n+1)/i.doors} x2={rw*(n+1)/i.doors} stroke={tc} opacity=".72"/>)}
           {faceView&&isDrawer&&i.doors>1&&Array.from({length:i.doors-1}).map((_,n)=><line key={"dr"+n} x1="2" x2={rw-2} y1={(rh-plinthPx)*(n+1)/i.doors} y2={(rh-plinthPx)*(n+1)/i.doors} stroke={tc} opacity=".72"/>)}
           {faceView&&hasPlinth&&<><line x1="0" x2={rw} y1={rh-plinthPx} y2={rh-plinthPx} stroke={tc} opacity=".5"/><rect x={rw*.06} y={rh-plinthPx} width={rw*.88} height={plinthPx} fill={fill} opacity=".78"/></>}
-          {faceView&&i.doors>0&&!isDrawer&&i.hardware!=="None"&&i.hardware!=="Push-to-open"&&Array.from({length:i.doors}).map((_,n)=>{const dw=rw/i.doors,x=dw*n+dw*(n<i.doors/2?.82:.18);return <line key={"h"+n} x1={x} x2={x} y1={(rh-plinthPx)*.42} y2={(rh-plinthPx)*.58} stroke={tc} strokeWidth="2.4" opacity=".85"/>})}
-          {faceView&&isDrawer&&i.hardware!=="None"&&i.hardware!=="Push-to-open"&&Array.from({length:Math.max(1,i.doors)}).map((_,n)=>{const fh=(rh-plinthPx)/Math.max(1,i.doors),y=fh*n+fh*.32;return <line key={"dh"+n} x1={rw*.42} x2={rw*.58} y1={y} y2={y} stroke={tc} strokeWidth="2.4" opacity=".85"/>})}
+          {faceView&&i.doors>0&&!isDrawer&&i.hardware!=="None"&&i.hardware!=="Push-to-open"&&i.hardware!=="Handleless"&&Array.from({length:i.doors}).map((_,n)=>{const dw=rw/i.doors,x=dw*n+dw*(n<i.doors/2?.82:.18);return <line key={"h"+n} x1={x} x2={x} y1={(rh-plinthPx)*.42} y2={(rh-plinthPx)*.58} stroke={tc} strokeWidth="2.4" opacity=".85"/>})}
+          {faceView&&isDrawer&&i.hardware!=="None"&&i.hardware!=="Push-to-open"&&i.hardware!=="Handleless"&&Array.from({length:Math.max(1,i.doors)}).map((_,n)=>{const fh=(rh-plinthPx)/Math.max(1,i.doors),y=fh*n+fh*.32;return <line key={"dh"+n} x1={rw*.42} x2={rw*.58} y1={y} y2={y} stroke={tc} strokeWidth="2.4" opacity=".85"/>})}
           {isStair&&view==="side"&&Array.from({length:stairPlan(i).count}).map((_,n)=>{const count=stairPlan(i).count,x=rw*n/count,y=rh-rh*(n+1)/count;return <path key={"st"+n} d={"M "+x+" "+rh+" V "+y+" H "+(rw*(n+1)/stairPlan(i).count)} fill="none" stroke={tc} strokeWidth="1.6" opacity=".9"/>})}
           {isStair&&view==="top"&&<g transform={`translate(${rw/2} ${rh/2}) rotate(${-rotation})`}>{stairPlan(i).flights.map((f,fi)=>Array.from({length:f.count},(_,n)=>{const along=(f.reverse?-1:1)*(-f.run/2+(n+1)*f.run/f.count),sx=f.position[0]*1000*scale,sz=f.position[2]*1000*scale;return <line key={`${fi}-${n}`} x1={sx+(f.axis==="z"?-f.width/2:along)*1000*scale} x2={sx+(f.axis==="z"?f.width/2:along)*1000*scale} y1={sz+(f.axis==="z"?along:-f.width/2)*1000*scale} y2={sz+(f.axis==="z"?along:f.width/2)*1000*scale} stroke={tc} strokeWidth="1.3"/>}))}{stairPlan(i).landings.map((l,n)=><rect key={n} x={(l.position[0]-l.size[0]/2)*1000*scale} y={(l.position[2]-l.size[2]/2)*1000*scale} width={l.size[0]*1000*scale} height={l.size[2]*1000*scale} fill="none" stroke={tc}/>)}</g>}
 
