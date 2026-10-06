@@ -1,10 +1,11 @@
 "use client";
 import {createContext,useContext,useEffect,useLayoutEffect,useRef,useState} from "react";
 import {Canvas,useThree} from "@react-three/fiber";
-import {OrbitControls,Grid,GizmoHelper,GizmoViewport,TransformControls,ContactShadows,Html,Line,RoundedBox,Environment,Lightformer} from "@react-three/drei";
+import {OrbitControls,Grid,GizmoHelper,GizmoViewport,TransformControls,ContactShadows,Html,Line,RoundedBox,Environment} from "@react-three/drei";
 import * as THREE from "three";
 import {Project,JoineryItem,Material,JoineryPart,SavedCamera} from "@/types/model";
 import {material} from "@/lib/materials";
+import {surfaceMaps,surfaceMapping} from "@/lib/pbrMaterials";
 import {formatMeasure} from "@/lib/units";
 import {worktopCutouts,SinkCutout,roomShellWalls,splashbackTextureUV} from "@/lib/renderGeometry";
 import {moveItemOnAxes,isWallMounted,footprint,normalizeRotation} from "@/lib/geometry";
@@ -26,15 +27,32 @@ let activeWarmLights=true;
 type PartSelectionState={selected:boolean;selectedPart?:JoineryPart|null;onSelectPart?:(part:JoineryPart)=>void};
 const PartSelectionContext=createContext<PartSelectionState>({selected:false});
 const sceneMaterial=(id:string)=>material(id,activeCustomMaterials);
-function useDataTexture(url?:string){
-  const [loaded,setLoaded]=useState<{url:string;texture:THREE.Texture}|null>(null);
+type SharedTexture={texture:THREE.Texture;promise:Promise<THREE.Texture>;users:number;ready:boolean};
+const sharedTextures=new Map<string,SharedTexture>();
+function useDataTexture(url?:string,data=false,scope="surface"){
+  const [loaded,setLoaded]=useState<{key:string;texture:THREE.Texture}|null>(null),key=url?`${scope}:${data}:${url}`:"";
   useEffect(()=>{
-    if(!url)return;
-    let alive=true,texture:THREE.Texture|undefined;
-    new THREE.TextureLoader().load(url,t=>{if(!alive){t.dispose();return}texture=t;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(2.4,2.4);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=8;setLoaded({url,texture:t})});
-    return()=>{alive=false;texture?.dispose()}
-  },[url]);
-  return loaded&&loaded.url===url?loaded.texture:null;
+    if(!url||typeof document==="undefined")return;
+    let alive=true,entry=sharedTextures.get(key);
+    if(!entry){
+      let resolve!:(t:THREE.Texture)=>void,reject!:(e:unknown)=>void;
+      const promise=new Promise<THREE.Texture>((ok,no)=>{resolve=ok;reject=no});
+      const texture=new THREE.TextureLoader().load(url,t=>{t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(1,1);t.colorSpace=data?THREE.NoColorSpace:THREE.SRGBColorSpace;t.anisotropy=8;resolve(t)},undefined,reject);
+      entry={texture,promise,users:0,ready:false};sharedTextures.set(key,entry);promise.then(()=>{const current=sharedTextures.get(key);if(current)current.ready=true}).catch(()=>{});
+    }
+    entry.users++;
+    entry.promise.then(t=>{if(alive)setLoaded({key,texture:t})}).catch(()=>{if(alive)setLoaded(null)});
+    return()=>{alive=false;const current=sharedTextures.get(key);if(current&&--current.users===0){current.texture.dispose();sharedTextures.delete(key)}};
+  },[key,url,data]);
+  return loaded?.key===key?loaded.texture:null;
+}
+
+function useSurfaceMaps(m?:Material,scope="surface"){
+  const p=surfaceMaps(m),colour=useDataTexture(m?.textureDataUrl??m?.textureImage??p?.colour,false,scope),normal=useDataTexture(p?.normal,true,scope),rough=useDataTexture(p?.roughness,true,scope);
+  const tint=new THREE.Color("#ffffff");
+  if(p?.tint&&m){const c=new THREE.Color(m.colour),base=new THREE.Color(m.category==="Floor"?"#ad8052":"#cdb58b");tint.setRGB(c.r/base.r,c.g/base.g,c.b/base.b)}
+  [colour,normal,rough].forEach(t=>{if(t)t.repeat.set(1,1)});
+  return {colour,normal,rough,tint,p};
 }
 
 function boardColour(hex:string,amount=0){
@@ -169,15 +187,15 @@ function builtInFloorTexture(id:string,colour:string){
 }
 
 function RoomShell({project,rw,rh,rd,showWalls,realistic,floorMaterial,studioMode=false}:{project:Project;rw:number;rh:number;rd:number;showWalls:boolean;realistic:boolean;floorMaterial:Material;studioMode?:boolean}){
-  const uploadedFloor=useDataTexture(floorMaterial.textureDataUrl);
+  const maps=useSurfaceMaps(floorMaterial,"floor"),uploadedFloor=maps.colour;
   const floor=studioMode?null:realistic?(uploadedFloor??builtInFloorTexture(floorMaterial.id,floorMaterial.colour)):null;
-  if(uploadedFloor){const tile=textureDimensions(floorMaterial);uploadedFloor.repeat.set(rw/tile.width,rd/tile.height);uploadedFloor.rotation=tile.rotation*Math.PI/180;uploadedFloor.center.set(.5,.5)}
+  if(uploadedFloor){const tile=textureDimensions(surfaceMapping(floorMaterial));[uploadedFloor,maps.normal,maps.rough].forEach(t=>{if(t){t.repeat.set(rw/tile.width,rd/tile.height);t.rotation=tile.rotation*Math.PI/180;t.center.set(.5,.5)}})}
   const skirting=.095,skirtingD=.018;
   const walls=roomShellWalls(rw,rh,rd);
   return <group>
     <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.014,0]} receiveShadow>
       <boxGeometry args={[rw,rd,.028]}/>
-      <meshStandardMaterial map={floor??undefined} color={studioMode?"#d8cdbc":floor?"#ffffff":floorMaterial.colour} roughness={studioMode?.9:realistic?.72:.9}/>
+      <meshPhysicalMaterial name={floorMaterial.id} map={floor??undefined} normalMap={realistic?maps.normal??undefined:undefined} normalScale={new THREE.Vector2(.45,.45)} roughnessMap={realistic?maps.rough??undefined:undefined} color={studioMode?"#d8cdbc":floor?maps.tint:floorMaterial.colour} roughness={studioMode?.9:realistic?.85:.9} clearcoat={realistic?.12:0} clearcoatRoughness={.4}/>
     </mesh>
     {showWalls&&<>
       {(["back","left"] as const).flatMap(wall=>wallCells(project,wall).map((cell,n)=>{
@@ -201,7 +219,7 @@ function Panel({position,size,colour,front=false,materialId,part}:{position:[num
   const baseColour=exact?.colour??colour;
   const custom=exact?.textureDataUrl?exact:activeCustomMaterials.find(m=>m.colour===baseColour&&m.textureDataUrl);
   const photo=custom?.textureDataUrl?undefined:exact?.textureImage;
-  const uploaded=useDataTexture(custom?.textureDataUrl??photo);
+  const maps=useSurfaceMaps(exact),uploaded=maps.colour;
   const tex=uploaded??builtInSurfaceTexture(materialId,baseColour);
   if(tex){tex.repeat.set(1,1);if(photo)tex.wrapS=tex.wrapT=THREE.ClampToEdgeWrapping;}
   const category=exact?.category??custom?.category??"";
@@ -211,7 +229,7 @@ function Panel({position,size,colour,front=false,materialId,part}:{position:[num
   const panelMesh=useRef<THREE.Mesh>(null);
   useLayoutEffect(()=>{
     const mesh=panelMesh.current;if(!mesh)return;
-    physicalPanelUV(mesh,size,exact);
+    physicalPanelUV(mesh,size,exact?surfaceMapping(exact):undefined);
     if(photo&&exact?.textureCrop){
       const g=mesh.geometry,p=g.getAttribute("position"),uv=g.getAttribute("uv");g.computeBoundingBox();const b=g.boundingBox;if(!b||!p||!uv)return;
       for(let i=0;i<p.count;i++){const [u,v]=splashbackTextureUV(p.getX(i),p.getY(i),b.min.x,b.min.y,b.max.x,b.max.y,exact.textureCrop);uv.setXY(i,u,v)}uv.needsUpdate=true;
@@ -219,7 +237,7 @@ function Panel({position,size,colour,front=false,materialId,part}:{position:[num
   },[photo,exact?.textureCrop,exact?.textureWidthMm,exact?.textureHeightMm,exact?.textureRotation,size[0],size[1],size[2]]);
   const picked=!!part&&picker.selected&&picker.selectedPart===part;
   return <RoundedBox args={size} radius={Math.min(.0012,Math.min(...size)*.12)} smoothness={2} position={position} castShadow receiveShadow ref={panelMesh} onClick={part?e=>{e.stopPropagation();picker.onSelectPart?.(part)}:undefined}>
-    <meshPhysicalMaterial map={tex??undefined} color={tex?"#ffffff":front?boardColour(baseColour,.025):baseColour} roughness={roughness} metalness={metalness} clearcoat={isSplashback&&!mirror?1:0} clearcoatRoughness={roughness} bumpMap={photo?undefined:tex??undefined} bumpScale={category==="Woodgrain"?.00035:.00012}/>
+    <meshPhysicalMaterial name={materialId??"painted-mdf"} map={tex??undefined} color={tex?maps.tint:front?boardColour(baseColour,.025):baseColour} normalMap={maps.normal??undefined} normalScale={new THREE.Vector2(.35,.35)} roughnessMap={maps.rough??undefined} roughness={roughness} metalness={metalness} clearcoat={isSplashback&&!mirror?1:front?.16:0} clearcoatRoughness={roughness} bumpMap={maps.normal||photo?undefined:tex??undefined} bumpScale={category==="Woodgrain"?.00035:.00012}/>
     {picked&&<lineSegments userData={{editorOnly:true}}><edgesGeometry args={[new THREE.BoxGeometry(...size)]}/><lineBasicMaterial color="#c8102e"/></lineSegments>}
   </RoundedBox>
 }
@@ -539,25 +557,25 @@ function OpenShelving({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:st
 
 
 function WorktopSurface({w,h,d,materialId,position=[0,0,0],edge="rounded",finish,cutouts=[]}:{w:number;h:number;d:number;materialId:string;position?:[number,number,number];edge?:"square"|"rounded";finish?:string;cutouts?:SinkCutout[]}){
-  const picker=useContext(PartSelectionContext),m=sceneMaterial(materialId),uploaded=useDataTexture(m.textureDataUrl);
+  const picker=useContext(PartSelectionContext),m=sceneMaterial(materialId),maps=useSurfaceMaps(m),uploaded=maps.colour;
   if(uploaded)uploaded.repeat.set(1,1);
   const tex=uploaded??builtInSurfaceTexture(materialId,m.colour);if(tex)tex.repeat.set(1,1);
   const picked=picker.selected&&picker.selectedPart==="worktop",surfaceRef=useRef<THREE.Mesh>(null);
   const roughness=(finish??m.surfaceFinish)==="Gloss"?.12:(finish??m.surfaceFinish)==="Semi-gloss"?.28:(finish??m.surfaceFinish)==="Textured matt"?.8:.55;
   useLayoutEffect(()=>{
     const mesh=surfaceRef.current;if(!mesh)return;
-    if(cutouts.length){const g=mesh.geometry,p=g.getAttribute("position"),uv=g.getAttribute("uv");for(let n=0;n<p.count;n++){const [u,v]=textureUV(p.getX(n)+w/2,d/2-p.getY(n),m);uv.setXY(n,u,v)}uv.needsUpdate=true}
-    else physicalPanelUV(mesh,[w,h,d],m);
+    if(cutouts.length){const g=mesh.geometry,p=g.getAttribute("position"),uv=g.getAttribute("uv");for(let n=0;n<p.count;n++){const [u,v]=textureUV(p.getX(n)+w/2,d/2-p.getY(n),surfaceMapping(m));uv.setXY(n,u,v)}uv.needsUpdate=true}
+    else physicalPanelUV(mesh,[w,h,d],surfaceMapping(m));
   },[w,h,d,m.textureWidthMm,m.textureHeightMm,m.textureRotation,cutouts]);
   if(cutouts.length){
     const shape=new THREE.Shape();shape.moveTo(-w/2,-d/2);shape.lineTo(w/2,-d/2);shape.lineTo(w/2,d/2);shape.lineTo(-w/2,d/2);shape.closePath();
     for(const hole of cutouts){const path=new THREE.Path(),x=hole.x,z=-hole.z,a=hole.width/2,b=hole.depth/2;path.moveTo(x-a,z-b);path.lineTo(x-a,z+b);path.lineTo(x+a,z+b);path.lineTo(x+a,z-b);path.closePath();shape.holes.push(path)}
     return <group position={position}><mesh ref={surfaceRef} rotation={[-Math.PI/2,0,0]} position={[0,-h/2,0]} castShadow receiveShadow onClick={e=>{e.stopPropagation();picker.onSelectPart?.("worktop")}}>
-      <extrudeGeometry args={[shape,{depth:h,bevelEnabled:false}]}/><meshStandardMaterial map={tex??undefined} color={tex?"#ffffff":m.colour} roughness={roughness}/>
+      <extrudeGeometry args={[shape,{depth:h,bevelEnabled:false}]}/><meshPhysicalMaterial name={materialId} map={tex??undefined} color={tex?maps.tint:m.colour} normalMap={maps.normal??undefined} normalScale={new THREE.Vector2(.15,.15)} roughnessMap={maps.rough??undefined} clearcoat={.3} clearcoatRoughness={.22} roughness={roughness}/>
     </mesh></group>;
   }
   return <RoundedBox args={[w,h,d]} radius={edge==="square"?.0001:Math.min(.007,h*.24)} smoothness={4} position={position} castShadow receiveShadow ref={surfaceRef} onClick={e=>{e.stopPropagation();picker.onSelectPart?.("worktop")}}>
-    <meshStandardMaterial map={tex??undefined} color={tex?"#ffffff":m.colour} roughness={roughness} metalness={0}/>
+    <meshPhysicalMaterial name={materialId} map={tex??undefined} color={tex?maps.tint:m.colour} normalMap={maps.normal??undefined} normalScale={new THREE.Vector2(.15,.15)} roughnessMap={maps.rough??undefined} clearcoat={.3} clearcoatRoughness={.22} roughness={roughness} metalness={0}/>
     {picked&&<lineSegments userData={{editorOnly:true}}><edgesGeometry args={[new THREE.BoxGeometry(w,h,d)]}/><lineBasicMaterial color="#c8102e"/></lineSegments>}
   </RoundedBox>
 }
@@ -1002,13 +1020,15 @@ function DropProjector({rw,rd,onReady}:{rw:number;rd:number;onReady:(fn:(clientX
   return null;
 }
 
-type CameraPreset="iso"|"front"|"side"|"top";
+type CameraPreset="iso"|"interior"|"front"|"side"|"top";
 function CameraRig({preset,command,rw,rh,rd}:{preset:CameraPreset;command:number;rw:number;rh:number;rd:number}){
   const {camera,controls}=useThree();
   useEffect(()=>{
     const m=Math.max(rw,rh,rd),target=new THREE.Vector3(0,Math.min(1.15,rh*.45),0);
     camera.up.set(0,1,0);
-    if(preset==="front")camera.position.set(0,Math.max(1.4,rh*.5),Math.max(4.2,m*1.7));
+    if(camera instanceof THREE.PerspectiveCamera)camera.fov=preset==="interior"?60:38;
+    if(preset==="interior"){camera.position.set(rw*.55,1.65,rd*.7);target.set(-rw*.12,1.2,-rd*.25)}
+    else if(preset==="front")camera.position.set(0,Math.max(1.4,rh*.5),Math.max(4.2,m*1.7));
     else if(preset==="side")camera.position.set(Math.max(4.2,m*1.7),Math.max(1.4,rh*.5),0);
     else if(preset==="top"){camera.up.set(0,0,-1);camera.position.set(0,Math.max(5,m*1.9),0);target.set(0,0,0)}
     else camera.position.set(Math.max(3.7,rw*.95),Math.max(3.8,rh*1.65),Math.max(4.3,rd*1.35));
@@ -1030,33 +1050,41 @@ function SceneCapture({project,requestedView,onReady,onCameraReady,onRenderReady
   },[requestedView,camera,controls]);
   useEffect(()=>{
     onCameraReady(()=>({position:camera.position.toArray(),target:((controls as any)?.target??new THREE.Vector3()).toArray(),up:camera.up.toArray(),fov:camera instanceof THREE.PerspectiveCamera?camera.fov:38}));
-    onReady(()=>{const ratio=gl.getPixelRatio(),hidden:THREE.Object3D[]=[];
+    onReady(()=>{if([...sharedTextures.values()].some(t=>!t.ready))throw new Error("Materials are still loading. Try again in a moment.");const ratio=gl.getPixelRatio(),hidden:THREE.Object3D[]=[];
       scene.traverse(o=>{if(o.visible&&o.userData.editorOnly){o.visible=false;hidden.push(o)}});
       try{gl.setPixelRatio(4096/Math.max(size.width,size.height));gl.render(scene,camera);return gl.domElement.toDataURL("image/png")}finally{hidden.forEach(o=>o.visible=true);gl.setPixelRatio(ratio);gl.render(scene,camera)}
     });
     onRenderReady(async()=>{
+      if([...sharedTextures.values()].some(t=>!t.ready))throw new Error("Materials are still loading. Try again in a moment.");
       const {GLTFExporter}=await import("three/examples/jsm/exporters/GLTFExporter.js");
       const model=scene.getObjectByName("Joinery design");if(!model)throw new Error("3D geometry is still loading.");
       const root=new THREE.Scene(),geometry=model.clone(true),remove:THREE.Object3D[]=[];
       geometry.traverse(o=>{if(o.userData.editorOnly)remove.push(o)});remove.forEach(o=>o.removeFromParent());root.add(geometry);root.add(camera.clone());root.updateMatrixWorld(true);
       const glb=await new GLTFExporter().parseAsync(root,{binary:true,onlyVisible:true}) as ArrayBuffer;
-      const response=await fetch("/render/render.py");if(!response.ok)throw new Error("Render script could not be loaded.");
+      const [response,hdr]=await Promise.all([fetch("/render/render.py"),fetch("/materials/pbr/studio_small_09.hdr")]);if(!response.ok||!hdr.ok)throw new Error("Render assets could not be loaded.");
       const enc=new TextEncoder();return renderZip([
         {name:"scene.glb",bytes:new Uint8Array(glb)},
         {name:"settings.json",bytes:enc.encode(JSON.stringify({reference:project.reference,revision:project.revision,aspect:size.width/size.height,lighting:project.lighting??DEFAULT_LIGHTING},null,2))},
         {name:"render.py",bytes:enc.encode(await response.text())},
+        {name:"environment.hdr",bytes:new Uint8Array(await hdr.arrayBuffer())},
         {name:"README.txt",bytes:enc.encode("JOINERY STUDIO / BLENDER CYCLES\nExtract all files into a folder. Install Blender 4.x, then run from that folder:\nblender --background --python render.py -- scene.glb settings.json final.png\n\nThis renders the exact exported scene and camera at 4096 pixels wide.\nMaterials, UVs, textures, aperture geometry and door positions are included.\nRendering runs on your workstation. The website does not run a remote render job.\nAdjust lighting or assets in the generated .blend file for art direction.\n")}
       ]);
     });
   },[gl,scene,camera,size.width,size.height,controls,project,onReady,onCameraReady,onRenderReady]);
   return null;
 }
+export function JoineryModel({project,showWalls=true,realistic=true,construction=false,selected,selectedPart,transformMode="translate",moveAxis="xz",onSelect,onSelectPart,onMove,onRotate,onMoveStart}:{project:Project;showWalls?:boolean;realistic?:boolean;construction?:boolean;selected?:string|null;selectedPart?:JoineryPart|null;transformMode?:"translate"|"rotate";moveAxis?:"xz"|"x"|"y"|"z";onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onMove?:(id:string,x:number,y:number,z:number)=>boolean|void;onRotate?:(id:string,rotation:number)=>boolean|void;onMoveStart?:()=>void}){
+  activeCustomMaterials=project.customMaterials??[];activeWarmLights=(project.lighting??DEFAULT_LIGHTING).warmLights;activeConstructionView=construction;
+  return <group name="Joinery design"><RoomShell project={project} rw={mm(project.roomWidth)} rh={mm(project.roomHeight)} rd={mm(project.roomDepth)} showWalls={showWalls} realistic={realistic} floorMaterial={sceneMaterial(project.floorMaterialId??"floor-oak")} studioMode={construction}/>
+    {project.items.filter(i=>i.visible!==false).map(i=><ItemNode key={i.id} i={i} project={project} selected={selected===i.id} selectedPart={selected===i.id?selectedPart:null} mode={transformMode} moveAxis={moveAxis} construction={construction} onSelect={onSelect} onSelectPart={onSelectPart} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>)}
+  </group>;
+}
 function Exposure({value}:{value:number}){const {gl}=useThree();useEffect(()=>{gl.toneMappingExposure=value},[gl,value]);return null}
 export function Scene3D({project,onProjectChange,presentationOnly=false,selected,selectedPart,transformMode="translate",moveAxis="xz",onSelect,onSelectPart,onDropType,onMove,onRotate,onMoveStart}:{project:Project;onProjectChange?:(patch:Partial<Project>)=>void;presentationOnly?:boolean;selected?:string|null;selectedPart?:JoineryPart|null;transformMode?:"translate"|"rotate";moveAxis?:"xz"|"x"|"y"|"z";onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onDropType?:(type:string,x:number,y:number,z:number)=>void;onMove?:(id:string,x:number,y:number,z:number)=>boolean|void;onRotate?:(id:string,rotation:number)=>boolean|void;onMoveStart?:()=>void}){
   activeCustomMaterials=project.customMaterials??[];
   const rw=mm(project.roomWidth),rh=mm(project.roomHeight),rd=mm(project.roomDepth),roomMax=Math.max(rw,rh,rd),floorMaterial=sceneMaterial(project.floorMaterialId??"floor-oak");
   const [preset,setPreset]=useState<CameraPreset>("iso"),[showGrid,setShowGrid]=useState(false),[showWalls,setShowWalls]=useState(true),[renderMode,setRenderMode]=useState<"design"|"presentation"|"technical"|"construction">("design"),[dropReady,setDropReady]=useState(false),[explodePanels,setExplodePanels]=useState(false);
-  useEffect(()=>{if(presentationOnly){setRenderMode("presentation");setExplodePanels(false)}},[presentationOnly]);
+  useEffect(()=>{if(presentationOnly){setRenderMode("presentation");setPreset("interior");setCameraCommand(n=>n+1);setExplodePanels(false)}},[presentationOnly]);
   const realistic=renderMode!=="technical",construction=renderMode==="construction";
   const [cameraCommand,setCameraCommand]=useState(0);
   const lighting=project.lighting??DEFAULT_LIGHTING;
@@ -1070,7 +1098,7 @@ export function Scene3D({project,onProjectChange,presentationOnly=false,selected
   activeExplodedPanels=construction&&explodePanels;
   const download=(data:Blob,name:string)=>{const url=URL.createObjectURL(data),a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
   const exportRender=async()=>{if(!renderExport.current||renderBusy)return;setRenderBusy(true);setImageNotice("Preparing the scene and textures…");try{const bytes=await renderExport.current();download(new Blob([bytes as BlobPart],{type:"application/zip"}),project.reference+"-cycles-render.zip");setImageNotice("Render kit exported. Extract it and follow README.txt in Blender.")}catch(error){setImageNotice(error instanceof Error?error.message:"Render export failed.")}finally{setRenderBusy(false)}};
-  return <div className={"three "+(construction?"constructionView ":"")+(dropReady?"dropReady":"")} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="copy";setDropReady(true)}} onDragLeave={e=>{if(e.currentTarget===e.target)setDropReady(false)}} onDrop={e=>{e.preventDefault();setDropReady(false);const type=e.dataTransfer.getData("application/x-joinery-component")||e.dataTransfer.getData("text/plain");if(!type)return;const point=dropProjector.current?.(e.clientX,e.clientY)??{x:project.roomWidth/2,y:0,z:project.roomDepth/2};onDropType?.(type,point.x,point.y,point.z)}}><div className="sceneToolbar"><button onClick={()=>{try{const data=imageExport.current?.();if(!data){setImageNotice("3D view is still loading.");return}const a=document.createElement("a");a.href=data;a.download=project.reference+"-3d.png";a.click();setImageNotice("Image exported.")}catch{setImageNotice("Image export failed. Please try again.")}}}>Export high-resolution image</button><div className="cameraPresets">{(["iso","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={!requestedView&&preset===v?"active":""} onClick={()=>{setRequestedView(null);setPreset(v);setCameraCommand(n=>n+1)}}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles renderModes"><button className={renderMode==="design"?"active":""} onClick={()=>setRenderMode("design")}>Design</button><button className={renderMode==="presentation"?"active":""} onClick={()=>setRenderMode("presentation")}>Presentation</button><button className={renderMode==="technical"?"active":""} onClick={()=>setRenderMode("technical")}>Technical</button><button className={renderMode==="construction"?"active":""} onClick={()=>{setRenderMode("construction");setRequestedView(null);setPreset("iso");setCameraCommand(n=>n+1);setShowGrid(false)}}>Construction</button>{construction&&<button className={explodePanels?"active":""} onClick={()=>setExplodePanels(v=>!v)}>Explode panels</button>}<span className="sceneToggleDivider"/><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button>{!construction&&<button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button>}</div><details className="sceneOptions"><summary>Views & lighting</summary><div className="sceneOptionsBody">
+  return <div className={"three "+(construction?"constructionView ":"")+(dropReady?"dropReady":"")} onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="copy";setDropReady(true)}} onDragLeave={e=>{if(e.currentTarget===e.target)setDropReady(false)}} onDrop={e=>{e.preventDefault();setDropReady(false);const type=e.dataTransfer.getData("application/x-joinery-component")||e.dataTransfer.getData("text/plain");if(!type)return;const point=dropProjector.current?.(e.clientX,e.clientY)??{x:project.roomWidth/2,y:0,z:project.roomDepth/2};onDropType?.(type,point.x,point.y,point.z)}}><div className="sceneToolbar"><button onClick={()=>{try{const data=imageExport.current?.();if(!data){setImageNotice("3D view is still loading.");return}const a=document.createElement("a");a.href=data;a.download=project.reference+"-3d.png";a.click();setImageNotice("Image exported.")}catch(error){setImageNotice(error instanceof Error?error.message:"Image export failed. Please try again.")}}}>Export high-resolution image</button><div className="cameraPresets">{(["iso","interior","front","side","top"] as CameraPreset[]).map(v=><button key={v} className={!requestedView&&preset===v?"active":""} onClick={()=>{setRequestedView(null);setPreset(v);setCameraCommand(n=>n+1)}}>{v==="iso"?"Iso":v[0].toUpperCase()+v.slice(1)}</button>)}</div><div className="sceneToggles renderModes"><button className={renderMode==="design"?"active":""} onClick={()=>setRenderMode("design")}>Design</button><button className={renderMode==="presentation"?"active":""} onClick={()=>{setRenderMode("presentation");setRequestedView(null);setPreset("interior");setCameraCommand(n=>n+1)}}>Presentation</button><button className={renderMode==="technical"?"active":""} onClick={()=>setRenderMode("technical")}>Technical</button><button className={renderMode==="construction"?"active":""} onClick={()=>{setRenderMode("construction");setRequestedView(null);setPreset("iso");setCameraCommand(n=>n+1);setShowGrid(false)}}>Construction</button>{construction&&<button className={explodePanels?"active":""} onClick={()=>setExplodePanels(v=>!v)}>Explode panels</button>}<span className="sceneToggleDivider"/><button className={showGrid?"active":""} onClick={()=>setShowGrid(v=>!v)}>Grid</button>{!construction&&<button className={showWalls?"active":""} onClick={()=>setShowWalls(v=>!v)}>Walls</button>}</div><details className="sceneOptions"><summary>Views & lighting</summary><div className="sceneOptionsBody">
       <b>Saved customer views</b><div className="savedViewEntry"><input aria-label="View name" placeholder="View name" maxLength={80} value={cameraName} onChange={e=>setCameraName(e.target.value)}/><button disabled={!cameraName.trim()||(project.savedCameras??[]).length>=20} onClick={()=>{const view=cameraCapture.current?.();if(!view)return;onProjectChange?.({savedCameras:[...(project.savedCameras??[]),{...view,id:newId(),name:cameraName.trim()}]});setCameraName("")}}>Save view</button></div>
       {(project.savedCameras??[]).map(view=><div key={view.id} className="savedViewRow"><button onClick={()=>setRequestedView({...view})}>{view.name}</button><button aria-label={"Delete view "+view.name} onClick={()=>onProjectChange?.({savedCameras:project.savedCameras?.filter(v=>v.id!==view.id)})}>×</button></div>)}
       <label>Exposure <input type="range" min=".2" max="2" step=".05" value={lighting.exposure} onChange={e=>onProjectChange?.({lighting:{...lighting,exposure:+e.target.value}})}/></label>
@@ -1082,23 +1110,16 @@ export function Scene3D({project,onProjectChange,presentationOnly=false,selected
     <SceneCapture project={project} requestedView={requestedView} onReady={fn=>{imageExport.current=fn}} onCameraReady={fn=>{cameraCapture.current=fn}} onRenderReady={fn=>{renderExport.current=fn}}/><Exposure value={lighting.exposure}/>
     <CameraRig preset={preset} command={cameraCommand} rw={rw} rh={rh} rd={rd}/>
     <DropProjector rw={rw} rd={rd} onReady={fn=>{dropProjector.current=fn}}/>
-    <color attach="background" args={[construction?"#e7ded1":realistic?"#e7e2da":"#f2f1ee"]}/>
-    {realistic&&<Environment resolution={renderMode==="design"?64:128} frames={1} environmentIntensity={.35}>
-      <Lightformer form="rect" intensity={2.5} color="#fff5e8" position={[-3,4,3]} rotation={[0,Math.PI/4,0]} scale={[4,5,1]}/>
-      <Lightformer form="rect" intensity={1.2} color="#e7eef8" position={[4,2,1]} rotation={[0,-Math.PI/2,0]} scale={[3,4,1]}/>
-      <Lightformer form="rect" intensity={1.5} color="#ffffff" position={[0,6,0]} rotation={[Math.PI/2,0,0]} scale={[5,5,1]}/>
-    </Environment>}
+    <color attach="background" args={[construction?"#e7ded1":realistic?"#f2efea":"#f2f1ee"]}/>
+    {realistic&&<Environment files="/materials/pbr/studio_small_09.hdr" environmentIntensity={.75} environmentRotation={[0,.5,0]}/>}
     <ambientLight intensity={realistic ? .22 : .72}/>
     <hemisphereLight args={["#fffaf0",realistic?"#8f826f":"#b6afa5",realistic ? .45 : 1.25]}/>
-    <directionalLight castShadow position={[3.5,6.5,4.5]} intensity={realistic?lighting.daylight:2.15} color={realistic?"#fff6e8":"#ffffff"} shadow-mapSize-width={renderMode==="design"?1024:2048} shadow-mapSize-height={renderMode==="design"?1024:2048} shadow-bias={-0.00018} shadow-camera-left={-roomMax} shadow-camera-right={roomMax} shadow-camera-top={roomMax} shadow-camera-bottom={-roomMax} shadow-camera-far={20}/>
+    <directionalLight castShadow position={[3.5,6.5,4.5]} intensity={realistic?lighting.daylight:2.15} color={realistic?"#fff6e8":"#ffffff"} shadow-mapSize-width={renderMode==="design"?1024:2048} shadow-mapSize-height={renderMode==="design"?1024:2048} shadow-bias={-0.00008} shadow-normalBias={.012} shadow-radius={4} shadow-camera-left={-roomMax} shadow-camera-right={roomMax} shadow-camera-top={roomMax} shadow-camera-bottom={-roomMax} shadow-camera-far={20}/>
     <directionalLight position={[-4,3,1]} intensity={realistic?.65:.3} color="#e9eef5"/>
     {showGrid&&<Grid userData={{editorOnly:true}} position={[0,.002,0]} args={[Math.max(rw,rd)*1.25,Math.max(rw,rd)*1.25]} cellSize={.1} sectionSize={.5} cellColor="#cbc6bf" sectionColor="#aaa49b" fadeDistance={15} fadeStrength={1.5}/>}
-<group name="Joinery design"><RoomShell project={project} rw={rw} rh={rh} rd={rd} showWalls={showWalls&&!construction} realistic={realistic} floorMaterial={floorMaterial} studioMode={construction}/>
-
-
+<JoineryModel project={project} showWalls={showWalls&&!construction} realistic={realistic} construction={construction} selected={presentationOnly?null:selected} selectedPart={selectedPart} transformMode={transformMode} moveAxis={moveAxis} onSelect={presentationOnly?undefined:onSelect} onSelectPart={presentationOnly?undefined:onSelectPart} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>
     {construction&&<group userData={{editorOnly:true}}><RoomDimensionOverlay rw={rw} rh={rh} rd={rd} project={project}/></group>}
-    {project.items.filter(i=>i.visible!==false).map(i=><ItemNode key={i.id} i={i} project={project} selected={!presentationOnly&&selected===i.id} selectedPart={!presentationOnly&&selected===i.id?selectedPart:null} mode={transformMode} moveAxis={moveAxis} construction={construction} onSelect={presentationOnly?undefined:onSelect} onSelectPart={presentationOnly?undefined:onSelectPart} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>)}
-    </group><ContactShadows key={project.updatedAt} frames={1} resolution={renderMode==="design"?256:512} position={[0,.003,0]} opacity={construction?.52:realistic?.42:.32} scale={Math.max(5,roomMax*1.8)} blur={construction?2.4:realistic?3.2:2.6} far={Math.max(5,roomMax*1.8)}/>
+    <ContactShadows key={project.updatedAt} frames={1} resolution={renderMode==="design"?256:512} position={[0,.003,0]} opacity={construction?.52:realistic?.42:.32} scale={Math.max(5,roomMax*1.8)} blur={construction?2.4:realistic?3.2:2.6} far={Math.max(5,roomMax*1.8)}/>
     <OrbitControls makeDefault target={[0,Math.min(1.15,rh*.48),0]} enableDamping dampingFactor={.08} enablePan enableZoom minDistance={1} maxDistance={Math.max(8,roomMax*4)}/>
     {!presentationOnly&&<GizmoHelper alignment="bottom-right" margin={[70,70]}><GizmoViewport axisColors={["#c8102e","#2f8f5b","#315fa8"]} labelColor="#222"/></GizmoHelper>}
   </Canvas>{construction&&explodePanels&&<div className="explodedNotice">Exploded inspection · panel sizes stay unchanged · dimensions show assembled size</div>}{imageNotice&&<div className="sceneExportNotice" role="status">{imageNotice}</div>}</div>;

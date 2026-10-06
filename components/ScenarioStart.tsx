@@ -71,6 +71,7 @@ function DesignPreview({kind}:{kind:DesignKind}){
 }
 
 function ScenarioDiagram({kind,scenario}:{kind:DesignKind;scenario:string}){
+  if(kind==="kitchen"&&scenario==="showroom")return <div className="layoutDiagram showroomPreview"><img src="/showroom/sage-oak-cycles.jpg" alt="Cycles reference render of the editable sage and oak showroom"/><span>Cycles reference render</span></div>;
   return <div className={"layoutDiagram "+kind+" "+scenario}>
     <div className="layoutRoom"/>
     <div className="layoutRun a"/><div className="layoutRun b"/><div className="layoutRun c"/>
@@ -167,9 +168,9 @@ export function ScenarioStart({onCreate,onContinue,continueName,initialKind,proj
           <p>These are realistic starting points, not locked templates. Every object remains editable.</p>
         </section>
         <section className="premiumScenarioGrid">
-          {choice?.scenarios.map((s,n)=><button key={s.id} className={"premiumScenarioCard "+(kind==="kitchen"&&s.id==="l-shape"?"recommendedScenario":"")} onClick={()=>setScenario(s.id)}>
+          {choice?.scenarios.map((s,n)=><button key={s.id} className={"premiumScenarioCard "+(kind==="kitchen"&&s.id==="showroom"?"recommendedScenario":"")} onClick={()=>setScenario(s.id)}>
             <ScenarioDiagram kind={kind} scenario={s.id}/>
-            {kind==="kitchen"&&s.id==="l-shape"&&<span className="recommendedBadge">Recommended · reference kitchen</span>}
+            {kind==="kitchen"&&s.id==="showroom"&&<span className="recommendedBadge">New · sage & oak showroom</span>}
             <div className="scenarioCopy"><span className="scenarioIndex">0{n+1}</span><div><b>{s.title}</b><p>{s.description}</p></div><Icon name="chevron-right" size={18}/></div>
           </button>)}
         </section>

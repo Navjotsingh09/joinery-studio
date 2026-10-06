@@ -97,6 +97,11 @@ export default function Studio(){
   const [rightOpen,setRightOpen]=useState(true);
   const [projectOpen,setProjectOpen]=useState(false);
   const [showLauncher,setShowLauncher]=useState(true);
+  useEffect(()=>{
+    // Keep the active design visible on refresh. Explicit new-design links still open the chooser.
+    const query=new URLSearchParams(window.location.search);
+    if(query.get("new")!=="1"&&p.items.length&&(!query.get("kind")||query.get("kind")===(p.designKind??inferDesignKind(p.items))))setShowLauncher(false);
+  },[]);
   const [presentationMode,setPresentationMode]=useState(false);
   const [moveAxis,setMoveAxis]=useState<"xz"|"x"|"y"|"z">("xz");
   const [materialScope,setMaterialScope]=useState("all");
@@ -397,7 +402,7 @@ export default function Studio(){
             items:plan.items
           });
         }
-        setShowLauncher(false);setLeftOpen(true);setRightOpen(false);setTab("components");if(plan.scenario==="blank")s.setView("top");
+        setShowLauncher(false);setLeftOpen(true);setRightOpen(false);setTab("components");if(plan.scenario==="blank")s.setView("top");if(plan.scenario==="showroom"){setPresentationMode(true);setLeftOpen(false);setRightOpen(false)}
       }}
     />;
   }
@@ -405,7 +410,7 @@ export default function Studio(){
   return <main className={"studio "+(presentationMode?"presentationMode ":"")+(!leftOpen?"libraryClosed ":"")+(!rightOpen||!item?"inspectorClosed ":"")} onClick={()=>setMenu(null)}>
     {notice&&<div className="studioNotice" role="status">{notice}<button aria-label="Dismiss notification" onClick={()=>setNotice("")}>×</button></div>}
     <header className="topbar">
-      <button className="studioBrand" onClick={()=>setShowLauncher(true)} title="Design home"><span className="studioBrandMark">JS</span><span><b>Joinery Studio</b><small>{designKind[0].toUpperCase()+designKind.slice(1)} design</small></span></button>
+      <button className="studioBrand" onClick={()=>setShowLauncher(true)} title="Design home"><span className="studioBrandMark">JS</span><span><b>Joinery Studio</b><small>{designKind[0].toUpperCase()+designKind.slice(1)} · 6 Oct update</small></span></button>
       <button className="projectButton projectPill" onClick={e=>{e.stopPropagation();setProjectOpen(v=>!v)}}>
         <span><b>{p.name}</b><small>{p.reference} · Rev {p.revision}</small></span><Icon name="settings" size={15}/>
       </button>

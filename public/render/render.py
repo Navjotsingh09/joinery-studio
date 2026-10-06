@@ -52,8 +52,20 @@ scene.view_settings.view_transform = 'AgX'
 scene.view_settings.exposure = math.log2(max(.2, settings['lighting']['exposure']))
 world = bpy.data.worlds.new('Studio ambient')
 world.use_nodes = True
-world.node_tree.nodes['Background'].inputs[0].default_value = (.78, .83, .9, 1)
-world.node_tree.nodes['Background'].inputs[1].default_value = .35
+environment_path = os.path.join(os.path.dirname(model_path), 'environment.hdr')
+if os.path.isfile(environment_path):
+    nodes, links = world.node_tree.nodes, world.node_tree.links
+    environment = nodes.new('ShaderNodeTexEnvironment')
+    environment.image = bpy.data.images.load(environment_path)
+    coords, mapping = nodes.new('ShaderNodeTexCoord'), nodes.new('ShaderNodeMapping')
+    mapping.inputs['Rotation'].default_value[2] = .5
+    links.new(coords.outputs['Generated'], mapping.inputs['Vector'])
+    links.new(mapping.outputs['Vector'], environment.inputs['Vector'])
+    links.new(environment.outputs['Color'], nodes['Background'].inputs[0])
+    nodes['Background'].inputs[1].default_value = .75
+else:
+    world.node_tree.nodes['Background'].inputs[0].default_value = (.78, .83, .9, 1)
+    world.node_tree.nodes['Background'].inputs[1].default_value = .35
 scene.world = world
 # glTF imports Y-up geometry as Z-up. Light placement below uses Blender Z-up.
 def area(name, position, target, power, colour, size):

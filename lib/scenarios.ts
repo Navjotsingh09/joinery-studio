@@ -6,7 +6,8 @@ export type ScenarioPlan={kind:DesignKind;scenario:string;name:string;roomWidth:
 
 export const DESIGN_KINDS=[
   {id:"kitchen" as const,title:"Kitchen",description:"Cabinet runs, appliances, worktops, islands and storage",scenarios:[
-    {id:"l-shape",title:"L-shaped kitchen",description:"Reference-quality fitted kitchen with two connected runs"},
+    {id:"showroom",title:"Sage & oak showroom",description:"Shaker kitchen, oak island, window daylight and pendant lighting"},
+    {id:"l-shape",title:"L-shaped kitchen",description:"Fitted kitchen with two connected cabinet runs"},
     {id:"straight",title:"Straight kitchen",description:"Single-wall fitted kitchen"},
     {id:"island",title:"Kitchen + island",description:"Wall run with central island"},
     {id:"galley",title:"Galley kitchen",description:"Two facing cabinet runs"},
@@ -28,6 +29,27 @@ export const DESIGN_KINDS=[
 const item=(type:string,name:string,patch:Partial<JoineryItem>)=>({...newItem(type),name,...patch});
 
 function kitchen(kind:string,w:number,h:number,d:number):JoineryItem[]{
+  if(kind==="showroom"){
+    const fitted=kitchen("l-shape",w,h,d).filter(i=>i.name!=="Wall unit 2").map(i=>{
+      if(i.type==="Worktop")return {...i,height:20,materialId:"stone-light",worktopMaterialId:"stone-light",finish:"Semi-gloss",worktopEdge:"square" as const};
+      if(i.type==="Backsplash")return {...i,y:890,height:130};
+      if(i.type.endsWith(" tap"))return {...i,y:888};
+      if(["Base cabinet","Drawer unit","Corner cabinet","Sink base","Hob base","Wall cabinet","Oven tower","Fridge housing"].includes(i.type))return {...i,materialId:"palette-17",doorMaterialId:"palette-17",carcassMaterialId:"w1000",leftSideMaterialId:"palette-17",rightSideMaterialId:"palette-17",plinthMaterialId:"palette-17",frontStyle:"shaker" as const,hardware:"Bar handle"};
+      return i;
+    });
+    const sink=fitted.find(i=>i.type==="Sink base")!;
+    fitted.push(item("Window","Sink window",{x:sink.x,y:1120,z:0,width:sink.width,height:980,depth:80,doors:0,shelves:0,hardware:"None",wallSide:"back"}));
+    if(w>=4000&&d>=3300){
+      const x=1600,z=1850,iw=Math.min(1800,w-x-100);
+      fitted.push(item("Kitchen island","Oak island",{x,y:0,z,width:iw,height:920,depth:800,doors:3,shelves:0,materialId:"h1180",doorMaterialId:"h1180",carcassMaterialId:"w1000",leftSideMaterialId:"h1180",rightSideMaterialId:"h1180",plinthMaterialId:"h1180",worktopMaterialId:"stone-light",hardware:"Handleless",plinthRecess:70}));
+      for(const n of [0,1]){
+        const cx=x+iw*(n?.7:.25);
+        fitted.push(item("Pendant light","Island pendant "+(n+1),{x:cx,y:h-620,z:z+250,width:240,height:600,depth:240,doors:0,shelves:0,hardware:"None"}));
+        fitted.push(item("Bar stool","Oak stool "+(n+1),{x:cx-70,y:0,z:z+880,width:420,height:750,depth:420,doors:0,shelves:0,materialId:"h1180",hardware:"None"}));
+      }
+    }
+    return fitted;
+  }
   const run=Math.max(3000,Math.min(w,4800));
   const m=Math.floor(Math.min(700,run/5)/50)*50;
   const start=Math.max(0,(w-m*5)/2);
