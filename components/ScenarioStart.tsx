@@ -71,7 +71,11 @@ function DesignPreview({kind}:{kind:DesignKind}){
 }
 
 function ScenarioDiagram({kind,scenario}:{kind:DesignKind;scenario:string}){
-  if(kind==="kitchen"&&scenario==="showroom")return <div className="layoutDiagram showroomPreview"><img src="/showroom/sage-oak-cycles.jpg" alt="Cycles reference render of the editable sage and oak showroom"/><span>Cycles reference render</span></div>;
+  if(kind==="kitchen"){
+    const title=DESIGN_KINDS[0].scenarios.find(s=>s.id===scenario)?.title??scenario;
+    const source=scenario==="showroom"?"/showroom/sage-oak-cycles.jpg":`/showroom/layouts/${scenario}.jpg`;
+    return <div className="layoutDiagram showroomPreview kitchenPreview"><img src={source} alt={scenario==="blank"?"Rendered empty kitchen room":`Rendered preview of ${title}`} loading="lazy"/><span>{scenario==="blank"?"Empty room preview":"Rendered starter layout"}</span></div>;
+  }
   return <div className={"layoutDiagram "+kind+" "+scenario}>
     <div className="layoutRoom"/>
     <div className="layoutRun a"/><div className="layoutRun b"/><div className="layoutRun c"/>
@@ -161,13 +165,13 @@ export function ScenarioStart({onCreate,onContinue,continueName,initialKind,proj
       {!kind&&<><section className="homeProcess"><div><p className="eyebrow">FROM IDEA TO DETAIL</p><h2>Your room. Your rhythm.</h2><p>A clear path from a measured space to a design you can share.</p></div><ol><li><span>01</span><b>Set the space</b><p>Choose a layout and enter your room dimensions.</p></li><li><span>02</span><b>Make it yours</b><p>Place your joinery, explore materials and refine each part.</p></li><li><span>03</span><b>See the whole picture</b><p>Explore in 3D, review elevations and export your drawings.</p></li></ol></section><footer className="homeFooter"><div><span className="brandMark">JS</span><b>Joinery Studio</b></div><p>Thoughtful spaces. Precise details.</p><span>Kitchen / Bedroom / Stairs</span></footer></>}
 
       {kind&&!scenario&&<>
-        <section className="subPageHead">
+        <section className={"subPageHead "+(kind==="kitchen"?"kitchenLayoutHead":"")}>
           <button className="backLink premiumBack" onClick={()=>setKind(null)}><Icon name="chevron-left" size={16}/> All spaces</button>
           <p className="eyebrow">{choice?.title.toUpperCase()} · LAYOUT</p>
           <h1>Choose a starting layout.</h1>
           <p>These are realistic starting points, not locked templates. Every object remains editable.</p>
         </section>
-        <section className="premiumScenarioGrid">
+        <section className={"premiumScenarioGrid "+(kind==="kitchen"?"kitchenScenarioGrid":"")}>
           {choice?.scenarios.map((s,n)=><button key={s.id} className={"premiumScenarioCard "+(kind==="kitchen"&&s.id==="showroom"?"recommendedScenario":"")} onClick={()=>setScenario(s.id)}>
             <ScenarioDiagram kind={kind} scenario={s.id}/>
             {kind==="kitchen"&&s.id==="showroom"&&<span className="recommendedBadge">New · sage & oak showroom</span>}

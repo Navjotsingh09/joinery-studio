@@ -65,3 +65,12 @@ npm run render:customer -- --design kitchen-backup.json --output customer.png --
 ```
 
 Use `--project-index 0` to select a project from a JSON backup, `--blender /path/to/blender` for a non-standard install and `--threads 2` to limit CPU usage. Omit `--design` to render the Sage & oak starter. Draft is 2048 pixels wide / 96 samples; customer is 4096 pixels wide / 256 samples. This command uses the same GLB exporter and render package as the browser and writes a PNG, a packed editable Blender scene and a reusable render ZIP. Textures and lighting are packed into the Blender file so it can be moved to another workstation. Uploaded embedded textures are supported; external texture URLs need to be downloaded and embedded first. The headless command is a workstation tool, not a remote rendering service.
+
+
+Kitchen layout cards show rendered previews of their actual starter geometry; the blank canvas shows an empty room. New kitchen starters share ceiling and lighting defaults for customer presentation. To regenerate the five layout images with Blender 4.x installed:
+
+```sh
+node scripts/render-layout-previews.mjs --blender /path/to/blender
+```
+
+Use `--layouts l-shape,straight` to update selected previews. Gallery images use 1280 × 720 and 40 Cycles samples; customer render-package quality remains unchanged.

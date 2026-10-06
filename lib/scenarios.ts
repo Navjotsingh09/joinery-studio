@@ -179,7 +179,7 @@ export function createScenarioPlan(kind:DesignKind,scenario:string,roomWidth:num
   const w=Math.max(2600,roomWidth),h=Math.max(2200,roomHeight),d=Math.max(2200,roomDepth);
   const items=scenario==="blank"?[]:kind==="kitchen"?kitchen(scenario,w,h,d):kind==="bedroom"?bedroom(scenario,w,h,d):stairs(scenario,w,h,d);
   const label=DESIGN_KINDS.find(x=>x.id===kind)?.scenarios.find(x=>x.id===scenario)?.title??scenario;
-  return {kind,scenario,...(scenario==="showroom"?{lighting:{exposure:.9,daylight:1.7,warmLights:true,ceiling:true}}:{}),name:label,roomWidth:w,roomHeight:h,roomDepth:d,rules:{wallClearance:0,componentGap:0,snap:50,serviceClearance:50},items};
+  return {kind,scenario,...(kind==="kitchen"?{lighting:{exposure:.9,daylight:scenario==="showroom"?1.7:1.3,warmLights:true,ceiling:true}}:{}),name:label,roomWidth:w,roomHeight:h,roomDepth:d,rules:{wallClearance:0,componentGap:0,snap:50,serviceClearance:50},items};
 }
 
 export function inferDesignKind(items:JoineryItem[]):DesignKind{
