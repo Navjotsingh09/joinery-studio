@@ -18,3 +18,17 @@ describe("scenario starter designs",()=>{
     }
   }
 });
+
+ describe("custom room measurements",()=>{
+  it("preserves exact measurements without rounding to preset steps",()=>{
+   const p=createScenarioPlan("kitchen","straight",4137,2432,3379);
+   expect([p.roomWidth,p.roomHeight,p.roomDepth]).toEqual([4137,2432,3379]);expect(p.items.length).toBeGreaterThan(0);
+  });
+  it("keeps a smaller custom room empty instead of enlarging it",()=>{
+   const p=createScenarioPlan("kitchen","showroom",2150,2100,1975);
+   expect([p.roomWidth,p.roomHeight,p.roomDepth]).toEqual([2150,2100,1975]);expect(p.items).toEqual([]);expect(p.scenario).toBe("blank");
+  });
+  it("rejects invalid room geometry",()=>{
+   for(const width of [0,-100,NaN,Infinity])expect(()=>createScenarioPlan("kitchen","blank",width,2400,3200)).toThrow();
+  });
+ });

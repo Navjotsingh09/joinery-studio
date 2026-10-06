@@ -176,10 +176,12 @@ function stairs(kind:string,w:number,h:number,d:number):JoineryItem[]{
 }
 
 export function createScenarioPlan(kind:DesignKind,scenario:string,roomWidth:number,roomHeight:number,roomDepth:number):ScenarioPlan{
-  const w=Math.max(2600,roomWidth),h=Math.max(2200,roomHeight),d=Math.max(2200,roomDepth);
-  const items=scenario==="blank"?[]:kind==="kitchen"?kitchen(scenario,w,h,d):kind==="bedroom"?bedroom(scenario,w,h,d):stairs(scenario,w,h,d);
+  if([roomWidth,roomHeight,roomDepth].some(v=>!Number.isFinite(v)||v<100))throw new Error("Room dimensions must be at least 100 mm.");
+  const w=roomWidth,h=roomHeight,d=roomDepth;
+  const customEmptyRoom=scenario!=="blank"&&(w<2600||h<2200||d<2200);
+  const items=scenario==="blank"||customEmptyRoom?[]:kind==="kitchen"?kitchen(scenario,w,h,d):kind==="bedroom"?bedroom(scenario,w,h,d):stairs(scenario,w,h,d);
   const label=DESIGN_KINDS.find(x=>x.id===kind)?.scenarios.find(x=>x.id===scenario)?.title??scenario;
-  return {kind,scenario,...(kind==="kitchen"?{lighting:{exposure:.9,daylight:scenario==="showroom"?1.7:1.3,warmLights:true,ceiling:true}}:{}),name:label,roomWidth:w,roomHeight:h,roomDepth:d,rules:{wallClearance:0,componentGap:0,snap:50,serviceClearance:50},items};
+  return {kind,scenario:customEmptyRoom?"blank":scenario,...(kind==="kitchen"?{lighting:{exposure:.9,daylight:scenario==="showroom"?1.7:1.3,warmLights:true,ceiling:true}}:{}),name:customEmptyRoom?"Custom room":label,roomWidth:w,roomHeight:h,roomDepth:d,rules:{wallClearance:0,componentGap:0,snap:50,serviceClearance:50},items};
 }
 
 export function inferDesignKind(items:JoineryItem[]):DesignKind{

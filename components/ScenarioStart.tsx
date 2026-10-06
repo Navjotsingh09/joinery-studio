@@ -4,6 +4,7 @@ import {createScenarioPlan,DESIGN_KINDS,DesignKind,ScenarioPlan,inferDesignKind}
 import {Project} from "@/types/model";
 import {ProjectPreview} from "./ProjectPreview";
 import {Icon} from "./Icon";
+import {MeasureInput} from "./MeasureInput";
 
 function DesignPreview({kind}:{kind:DesignKind}){
   if(kind==="kitchen")return <svg viewBox="0 0 640 360" role="img" aria-label="Kitchen design preview">
@@ -103,6 +104,7 @@ export function ScenarioStart({onCreate,onContinue,continueName,initialKind,proj
   const choice=useMemo(()=>DESIGN_KINDS.find(x=>x.id===kind),[kind]);
   useEffect(()=>{if(initialKind==="kitchen"||initialKind==="bedroom"||initialKind==="stairs")resetForKind(initialKind)},[initialKind]);
   const step=scenario?3:kind?2:1;
+  const customEmptyRoom=scenario!=="blank"&&(room.width<2600||room.height<2200||room.depth<2200);
   const visibleProjects=projects.filter(p=>(showArchived||!p.archived)&&(projectFilter==="all"||(p.designKind??inferDesignKind(p.items))===projectFilter)&&`${p.name} ${p.customer} ${p.reference}`.toLowerCase().includes(projectSearch.toLowerCase())).sort((a,b)=>projectSort==="name"?a.name.localeCompare(b.name):b.updatedAt.localeCompare(a.updatedAt));
   const activeProject=projects.find(p=>p.id===activeId);
 
@@ -185,7 +187,7 @@ export function ScenarioStart({onCreate,onContinue,continueName,initialKind,proj
           <button className="backLink premiumBack" onClick={()=>setScenario(null)}><Icon name="chevron-left" size={16}/> Layouts</button>
           <p className="eyebrow">{choice?.title.toUpperCase()} · ROOM</p>
           <h1>Enter the measured room.</h1>
-          <p>Use finished internal dimensions. Your canvas is generated to these dimensions in real millimetres.</p>
+          <p>Enter your own finished internal dimensions in millimetres. Select a value and type any exact size; you can edit it again later.</p>
         </section>
         <section className="premiumRoomSetup">
           <div className="roomBlueprint">
@@ -198,12 +200,13 @@ export function ScenarioStart({onCreate,onContinue,continueName,initialKind,proj
               <small>STARTER LAYOUT</small><b>{choice?.scenarios.find(x=>x.id===scenario)?.title}</b><span>{choice?.title}</span>
             </div>
             <div className="dimensionFields">
-              <label><span>Width <small>W</small></span><div><input type="number" min="2600" step="50" value={room.width} onChange={e=>setRoom({...room,width:Math.max(2600,+e.target.value)})}/><em>mm</em></div></label>
-              <label><span>Height <small>H</small></span><div><input type="number" min="2200" step="50" value={room.height} onChange={e=>setRoom({...room,height:Math.max(2200,+e.target.value)})}/><em>mm</em></div></label>
-              <label><span>Depth <small>D</small></span><div><input type="number" min="2200" step="50" value={room.depth} onChange={e=>setRoom({...room,depth:Math.max(2200,+e.target.value)})}/><em>mm</em></div></label>
+              <label><span>Width <small>W</small></span><div><MeasureInput value={room.width} min={100} onCommit={value=>setRoom(current=>({...current,width:value}))}/><em>mm</em></div></label>
+              <label><span>Height <small>H</small></span><div><MeasureInput value={room.height} min={100} onCommit={value=>setRoom(current=>({...current,height:value}))}/><em>mm</em></div></label>
+              <label><span>Depth <small>D</small></span><div><MeasureInput value={room.depth} min={100} onCommit={value=>setRoom(current=>({...current,depth:value}))}/><em>mm</em></div></label>
             </div>
-            <div className="roomAdvice"><Icon name="check" size={15}/><span>You can change the room size later without rebuilding the project.</span></div>
-            <button className="createDesignCTA" onClick={()=>onCreate(createScenarioPlan(kind,scenario,room.width,room.height,room.depth))}><span>{scenario==="blank"?"Open blank canvas":"Create starter design"}</span><Icon name="chevron-right" size={18}/></button>
+            <div className="roomAdvice"><Icon name="check" size={15}/><span>Custom sizes are supported from 100 mm. Press Enter or leave the field to apply your measurement.</span></div>
+            {customEmptyRoom&&<p className="roomSizeNotice" role="status">This room is smaller than the starter layout supports (2600 × 2200 × 2200 mm). We’ll keep your exact measurements and open an empty room so you can add units that fit.</p>}
+            <button className="createDesignCTA" onClick={()=>onCreate(createScenarioPlan(kind,scenario,room.width,room.height,room.depth))}><span>{scenario==="blank"||customEmptyRoom?"Open blank canvas":"Create starter design"}</span><Icon name="chevron-right" size={18}/></button>
           </div>
         </section>
       </>}
