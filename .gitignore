@@ -6,3 +6,5 @@ out/
 *.tsbuildinfo
 .sites-runtime/
 tmp/
+
+/public/pdf-assets/

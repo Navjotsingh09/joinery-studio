@@ -8,7 +8,7 @@ describe("scenario starter designs",()=>{
       it(kind.id+" / "+scenario.id+" generates a valid editable starter",()=>{
         const room=kind.id==="stairs"?{w:3200,h:2600,d:4200}:kind.id==="kitchen"?{w:4200,h:2400,d:3400}:{w:4200,h:2400,d:3600};
         const plan=createScenarioPlan(kind.id,scenario.id,room.w,room.h,room.d);
-        expect(plan.items.length).toBeGreaterThan(0);
+        if(scenario.id==="blank")expect(plan.items).toEqual([]);else expect(plan.items.length).toBeGreaterThan(0);
         expect(validate({
           id:"test",name:plan.name,customer:"",reference:"TEST",status:"Draft",revision:1,
           roomWidth:plan.roomWidth,roomHeight:plan.roomHeight,roomDepth:plan.roomDepth,

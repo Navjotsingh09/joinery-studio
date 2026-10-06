@@ -98,7 +98,7 @@ export function ScenarioStart({onCreate,onContinue,continueName,initialKind,proj
   const choice=useMemo(()=>DESIGN_KINDS.find(x=>x.id===kind),[kind]);
   useEffect(()=>{if(initialKind==="kitchen"||initialKind==="bedroom"||initialKind==="stairs")resetForKind(initialKind)},[initialKind]);
   const step=scenario?3:kind?2:1;
-  const visibleProjects=projects.filter(p=>(showArchived||!p.archived)&&(projectFilter==="all"||inferDesignKind(p.items)===projectFilter)&&`${p.name} ${p.customer} ${p.reference}`.toLowerCase().includes(projectSearch.toLowerCase())).sort((a,b)=>projectSort==="name"?a.name.localeCompare(b.name):b.updatedAt.localeCompare(a.updatedAt));
+  const visibleProjects=projects.filter(p=>(showArchived||!p.archived)&&(projectFilter==="all"||(p.designKind??inferDesignKind(p.items))===projectFilter)&&`${p.name} ${p.customer} ${p.reference}`.toLowerCase().includes(projectSearch.toLowerCase())).sort((a,b)=>projectSort==="name"?a.name.localeCompare(b.name):b.updatedAt.localeCompare(a.updatedAt));
   const activeProject=projects.find(p=>p.id===activeId);
 
 
@@ -143,7 +143,7 @@ export function ScenarioStart({onCreate,onContinue,continueName,initialKind,proj
           <div className="projectLibraryHead"><div><p className="eyebrow">YOUR PROJECTS</p><h2>Continue a design.</h2></div><button onClick={()=>setShowArchived(v=>!v)}>{showArchived?"Hide archived":"Show archived"}</button></div>
           <div className="homeProjectTools"><label><span>Find a project</span><input type="search" value={projectSearch} onChange={e=>setProjectSearch(e.target.value)} placeholder="Search name, customer or reference…"/></label><label><span>Space</span><select value={projectFilter} onChange={e=>setProjectFilter(e.target.value)}><option value="all">All spaces</option>{DESIGN_KINDS.map(k=><option key={k.id} value={k.id}>{k.title}</option>)}</select></label><label><span>Sort by</span><select value={projectSort} onChange={e=>setProjectSort(e.target.value)}><option value="recent">Recently updated</option><option value="name">Project name</option></select></label></div>
           {!visibleProjects.length&&<div className="homeEmptyState"><Icon name="box" size={26}/><b>No matching projects</b><p>Try another search or show archived projects.</p><button onClick={()=>{setProjectSearch("");setProjectFilter("all");setShowArchived(true)}}>Show all projects</button></div>}
-          <div className="projectGrid">{visibleProjects.map(pr=>{const pk=inferDesignKind(pr.items);return <article key={pr.id} className={"projectCard "+(pr.id===activeId?"activeProject ":"")+(pr.archived?"archivedProject":"")} >
+          <div className="projectGrid">{visibleProjects.map(pr=>{const pk=pr.designKind??inferDesignKind(pr.items);return <article key={pr.id} className={"projectCard "+(pr.id===activeId?"activeProject ":"")+(pr.archived?"archivedProject":"")} >
             <button className="projectOpen" disabled={deleting===pr.id} onClick={()=>onOpenProject?.(pr.id)} aria-label={"Open project "+pr.name}><div className="projectThumb"><ProjectPreview project={pr}/><span>{pk}</span></div>
             <div className="projectCardCopy"><small>{pr.reference} · Rev {pr.revision}</small><b>{pr.name}</b><p>{pr.customer||"No customer yet"}{pr.address?" · "+pr.address:""}</p><div><span className={"projectStatus "+pr.status.toLowerCase()}>{pr.status}</span><em>{pr.items.length} objects · {new Date(pr.updatedAt).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</em></div></div>
             </button>
@@ -180,7 +180,7 @@ export function ScenarioStart({onCreate,onContinue,continueName,initialKind,proj
           <button className="backLink premiumBack" onClick={()=>setScenario(null)}><Icon name="chevron-left" size={16}/> Layouts</button>
           <p className="eyebrow">{choice?.title.toUpperCase()} · ROOM</p>
           <h1>Enter the measured room.</h1>
-          <p>Use finished internal dimensions. The starter model is generated to these dimensions in real millimetres.</p>
+          <p>Use finished internal dimensions. Your canvas is generated to these dimensions in real millimetres.</p>
         </section>
         <section className="premiumRoomSetup">
           <div className="roomBlueprint">
@@ -198,7 +198,7 @@ export function ScenarioStart({onCreate,onContinue,continueName,initialKind,proj
               <label><span>Depth <small>D</small></span><div><input type="number" min="2200" step="50" value={room.depth} onChange={e=>setRoom({...room,depth:Math.max(2200,+e.target.value)})}/><em>mm</em></div></label>
             </div>
             <div className="roomAdvice"><Icon name="check" size={15}/><span>You can change the room size later without rebuilding the project.</span></div>
-            <button className="createDesignCTA" onClick={()=>onCreate(createScenarioPlan(kind,scenario,room.width,room.height,room.depth))}><span>Create starter design</span><Icon name="chevron-right" size={18}/></button>
+            <button className="createDesignCTA" onClick={()=>onCreate(createScenarioPlan(kind,scenario,room.width,room.height,room.depth))}><span>{scenario==="blank"?"Open blank canvas":"Create starter design"}</span><Icon name="chevron-right" size={18}/></button>
           </div>
         </section>
       </>}

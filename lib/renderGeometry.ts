@@ -3,15 +3,19 @@ import {footprint,normalizeRotation} from "./geometry";
 
 export type SinkCutout={x:number;z:number;width:number;depth:number};
 // Return holes in worktop-local metres; preserve the user's saved placement.
-export function sinkCutouts(top:JoineryItem,items:JoineryItem[]):SinkCutout[]{
+export function sinkCutouts(top:JoineryItem,items:JoineryItem[]):SinkCutout[]{return worktopCutouts(top,items.filter(i=>i.type==="Sink base"))}
+export function worktopCutouts(top:JoineryItem,items:JoineryItem[]):SinkCutout[]{
   const tf=footprint(top),angle=normalizeRotation(top.rotation??0)*Math.PI/180,c=Math.cos(angle),s=Math.sin(angle);
-  return items.filter(i=>i.type==="Sink base"&&i.visible!==false).flatMap(sink=>{
+  return items.filter(i=>["Sink base","Hob base"].includes(i.type)&&i.visible!==false).flatMap(sink=>{
     if(top.y>sink.y+sink.height+65||top.y+top.height<sink.y+sink.height)return [];
     const sf=footprint(sink),sa=normalizeRotation(sink.rotation??0)*Math.PI/180;
-    const dx=sink.x+sf.width/2+Math.sin(sa)*sink.depth*.03-(top.x+tf.width/2);
-    const dz=sink.z+sf.depth/2+Math.cos(sa)*sink.depth*.03-(top.z+tf.depth/2);
+    const offset=sink.type==="Sink base"?sink.depth*.03:15;
+    const dx=sink.x+sf.width/2+Math.sin(sa)*offset-(top.x+tf.width/2);
+    const dz=sink.z+sf.depth/2+Math.cos(sa)*offset-(top.z+tf.depth/2);
     const x=(dx*c-dz*s)/1000,z=(dx*s+dz*c)/1000;
-    const sw=Math.min(560,sink.width*.72)-52,sd=Math.min(430,sink.depth*.7)-52;
+    const hob=sink.type==="Hob base";
+    const sw=hob?Math.min(600,sink.width*.72)-20:Math.min(560,sink.width*.72)-52,sd=hob?Math.min(520,sink.depth*.72)-20:Math.min(430,sink.depth*.7)-52;
+    if(sw<=0||sd<=0)return [];
     const cross=normalizeRotation((sink.rotation??0)-(top.rotation??0))%180!==0;
     const width=(cross?sd:sw)/1000,depth=(cross?sw:sd)/1000;
     if(Math.abs(x)+width/2>top.width/2000-.005||Math.abs(z)+depth/2>top.depth/2000-.005)return [];

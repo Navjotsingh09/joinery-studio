@@ -15,15 +15,16 @@ export type JoineryItem={
   worktopEdge?:"square"|"rounded";productStyle?:string;colourVariant?:string;openAmount?:number;plinthHeight?:number;wardrobeLayout?:"shelves"|"hanging"|"mixed";stairRisers?:number;stairRailHeight?:number;stairRailing?:"both"|"left"|"right"|"none";treadMaterialId?:string;riserMaterialId?:string;railingMaterialId?:string
 };
 export type DesignRules={wallClearance:number;componentGap:number;snap:number;serviceClearance?:number};
+export type DrawingReference={name:string;dataUrl:string;pixelWidth:number;pixelHeight:number;widthMm:number;x:number;z:number;opacity:number;visible:boolean};
 export type ProjectSnapshot={
   name:string;customer:string;reference:string;status:ProjectStatus;roomWidth:number;roomHeight:number;roomDepth:number;
   rules:DesignRules;items:JoineryItem[];address?:string;notes?:string;archived?:boolean;
-  customMaterials?:Material[];floorMaterialId?:string
+  customMaterials?:Material[];floorMaterialId?:string;designKind?:"kitchen"|"bedroom"|"stairs";displayUnit?:"mm"|"cm"|"in";drawingReference?:DrawingReference
 };
 export type Revision={id:string;revision:number;createdAt:string;snapshot:ProjectSnapshot};
 export type Project={
   id:string;name:string;customer:string;reference:string;status:ProjectStatus;revision:number;
   roomWidth:number;roomHeight:number;roomDepth:number;rules:DesignRules;items:JoineryItem[];revisions:Revision[];
   createdAt:string;updatedAt:string;cloudVersion?:number;address?:string;notes?:string;archived?:boolean;
-  customMaterials?:Material[];floorMaterialId?:string
+  customMaterials?:Material[];floorMaterialId?:string;designKind?:"kitchen"|"bedroom"|"stairs";displayUnit?:"mm"|"cm"|"in";drawingReference?:DrawingReference
 };

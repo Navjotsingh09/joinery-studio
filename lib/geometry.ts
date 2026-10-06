@@ -23,9 +23,19 @@ export function labelFor(i:JoineryItem,v:Exclude<ViewMode,"3d">){
 }
 const floatingTypes=new Set(["Wall cabinet","Microwave","Extractor hood","Window","Worktop","Ceiling bulkhead","Radiator","Socket","Switch","Mirror","Ceiling light","Pendant light","Tap","Arc mixer tap","Pull-out tap","Bridge tap","Square neck tap","Backsplash","Single oven","Hanging rail","Internal drawers","Shoe rack","Loft box"]);
 export const isWallMounted=(i:JoineryItem)=>floatingTypes.has(i.type);
-export function clampItemToRoom(i:JoineryItem,p:Project):JoineryItem{
+export function clampItemToRoom(i:JoineryItem,p:Project,snapPosition=true):JoineryItem{
   const rotation=normalizeRotation(i.rotation??0),candidate={...i,rotation},fp=footprint(candidate),step=Math.max(1,p.rules.snap),c=Math.max(0,p.rules.wallClearance);
-  return{...candidate,x:clamp(snap(candidate.x,step),c,Math.max(c,p.roomWidth-c-fp.width)),y:clamp(snap(candidate.y,step),0,Math.max(0,p.roomHeight-candidate.height)),z:clamp(snap(candidate.z,step),0,Math.max(0,p.roomDepth-fp.depth))}
+  const place=(n:number)=>snapPosition?snap(n,step):n;
+  return{...candidate,x:clamp(place(candidate.x),c,Math.max(c,p.roomWidth-c-fp.width)),y:clamp(candidate.y,0,Math.max(0,p.roomHeight-candidate.height)),z:clamp(place(candidate.z),0,Math.max(0,p.roomDepth-fp.depth))}
+}
+// Snap only the axes being dragged, using the measured origin rather than the
+// rendered centre. Untouched coordinates retain their exact stored values.
+export function moveItemOnAxes(i:JoineryItem,p:Project,position:Pick<JoineryItem,"x"|"y"|"z">,axes:readonly ("x"|"y"|"z")[]):JoineryItem{
+  const candidate={...i},step=p.rules.snap;
+  for(const axis of axes)candidate[axis]=Math.round(snap(position[axis],step)*1000)/1000;
+  const bounded=clampItemToRoom(candidate,p,false);
+  for(const axis of axes)candidate[axis]=bounded[axis];
+  return candidate;
 }
 const wardrobeInternal=new Set(["Hanging rail","Internal drawers","Shoe rack","Internal divider","Loft box"]);
 const baseKitchen=new Set(["Base cabinet","Drawer unit","Sink base","Hob base","Corner cabinet","Filler panel","End panel","Dishwasher","Washing machine"]);
@@ -94,7 +104,7 @@ export function snapItemToWall(p:Project,i:JoineryItem,wall:WallSide){
   if(wall==="front")q={...q,z:Math.max(0,p.roomDepth-fp.depth)};
   if(wall==="left")q={...q,x:c};
   if(wall==="right")q={...q,x:Math.max(c,p.roomWidth-c-fp.width)};
-  return clampItemToRoom(q,p)
+  return clampItemToRoom(q,p,false)
 }
 const autoWallTypes=new Set(["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Sink base","Hob base","Oven tower","Fridge housing","Corner cabinet","Filler panel","End panel","Backsplash","Extractor hood","Microwave","Wardrobe","Sliding wardrobe","Media unit","Shelving"]);
 export function autoFaceNearestWall(p:Project,i:JoineryItem,threshold=160){

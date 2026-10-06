@@ -1,8 +1,10 @@
 "use client";
+import {formatMeasure} from "@/lib/units";
+import {referenceDepth} from "@/lib/drawingReference";
 import {stairPlan} from "@/lib/stairGeometry";
 import {useRef,useState} from "react";
 import {Project,ViewMode,JoineryItem,WallSide} from "@/types/model";
-import {itemRect,labelFor,viewSize,svgPoint,contrastText,clampItemToRoom,validate,normalizeRotation,wallClearances,wallViewSize,wallItemRect,isItemOnWall} from "@/lib/geometry";
+import {itemRect,labelFor,viewSize,svgPoint,contrastText,moveItemOnAxes,clampItemToRoom,validate,normalizeRotation,wallClearances,wallViewSize,wallItemRect,isItemOnWall} from "@/lib/geometry";
 import {material} from "@/lib/materials";
 
 type DragState={
@@ -31,6 +33,7 @@ export function Drawing2D({
   const [drag,setDrag]=useState<DragState|null>(null);
   const [guides,setGuides]=useState<{x?:number;y?:number;label?:string}>({});
   const elevation=!!wallSide&&view==="front";
+  const measure=(n:number)=>formatMeasure(n,project.displayUnit??"mm");
   const size=elevation?wallViewSize(project,wallSide!):viewSize(project,view),pad=76,W=1000,H=650;
   const rectFor=(i:JoineryItem)=>elevation?wallItemRect(i,project,wallSide!):itemRect(i,project,view);
   const visibleItems=project.items.filter(i=>i.visible!==false&&(!elevation||isItemOnWall(project,i,wallSide!))).sort((a,b)=>{
@@ -74,7 +77,7 @@ export function Drawing2D({
       }
       if(view==="top")candidate={...candidate,x:i.x+dx,z:i.z-dy};
       if(view==="side")candidate={...candidate,y:i.y-dy,z:i.z+dx};
-      candidate=clampItemToRoom(candidate,project);
+      candidate=moveItemOnAxes(i,project,candidate,view==="top"?["x","z"]:view==="side"||elevation&&(wallSide==="left"||wallSide==="right")?["y","z"]:["x","y"]);
       let r=rectFor(candidate);
       const others=project.items.filter(o=>o.id!==i.id&&o.visible!==false);
       let gx:number|undefined,gy:number|undefined,label:string|undefined;
@@ -97,7 +100,7 @@ export function Drawing2D({
         if(view==="front"||view==="side")candidate.y-=deltaY;
         else candidate.z-=deltaY;
       }
-      candidate=clampItemToRoom(candidate,project);
+      candidate=clampItemToRoom(candidate,project,false);
       r=rectFor(candidate);
       setGuides({x:gx,y:gy,label});
       onMove(i.id,candidate.x,candidate.y,candidate.z);
@@ -114,7 +117,7 @@ export function Drawing2D({
     if(view==="side"){
       candidate=quarter?{...candidate,width:Math.max(min,i.width+dx),height:Math.max(min,i.height+dy)}:{...candidate,depth:Math.max(min,i.depth+dx),height:Math.max(min,i.height+dy)};
     }
-    candidate=clampItemToRoom(candidate,project);
+    candidate=clampItemToRoom(candidate,project,false);
     onResize(i.id,{width:candidate.width,height:candidate.height,depth:candidate.depth,x:candidate.x,y:candidate.y,z:candidate.z});
   };
 
@@ -137,20 +140,23 @@ export function Drawing2D({
     onPointerDown={e=>{if(e.target===e.currentTarget)onSelect(null)}}
     onDragOver={e=>{e.preventDefault();e.dataTransfer.dropEffect="copy"}} onDrop={drop}>
     <defs>
-      <pattern id="minorGrid" width={50*scale} height={50*scale} patternUnits="userSpaceOnUse"><path d={"M "+(50*scale)+" 0L0 0 0 "+(50*scale)} fill="none" stroke="#efede9" strokeWidth=".7"/></pattern>
-      <pattern id="grid" width={500*scale} height={500*scale} patternUnits="userSpaceOnUse"><rect width={500*scale} height={500*scale} fill="url(#minorGrid)"/><path d={"M "+(500*scale)+" 0L0 0 0 "+(500*scale)} fill="none" stroke="#ddd9d2" strokeWidth="1.2"/></pattern>
+      <pattern id="minorGrid" width={50*scale} height={50*scale} patternUnits="userSpaceOnUse" x="0" y={size.h*scale}><path d={"M "+(50*scale)+" 0L0 0 0 "+(50*scale)} fill="none" stroke="#efede9" strokeWidth=".7"/></pattern>
+      <pattern id="grid" width={500*scale} height={500*scale} patternUnits="userSpaceOnUse" x="0" y={size.h*scale}><rect width={500*scale} height={500*scale} fill="url(#minorGrid)"/><path d={"M "+(500*scale)+" 0L0 0 0 "+(500*scale)} fill="none" stroke="#ddd9d2" strokeWidth="1.2"/></pattern>
+      <clipPath id="roomReferenceClip"><rect width={size.w*scale} height={size.h*scale}/></clipPath>
       <filter id="selectionShadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity=".2"/></filter>
     </defs>
     <text x={tx} y={34} className="viewTitle">{elevation?(wallSide!.toUpperCase()+" WALL ELEVATION"):view==="front"?"FRONT ELEVATION":view==="top"?"PLAN VIEW":"SIDE ELEVATION"}</text>
     <text x={tx} y={52} className="viewHint">Click to select · drag to move · drag corner handle to resize</text>
     <g transform={"translate("+tx+","+ty+")"}>
       <rect className="roomCanvas" width={size.w*scale} height={size.h*scale} fill="url(#grid)" stroke="#383838" strokeWidth="2" onPointerDown={e=>{e.stopPropagation();onSelect(null)}}/>
+      {view==="top"&&project.drawingReference?.visible&&<g clipPath="url(#roomReferenceClip)" pointerEvents="none"><image href={project.drawingReference.dataUrl} x={project.drawingReference.x*scale} y={(project.roomDepth-project.drawingReference.z-referenceDepth(project.drawingReference))*scale} width={project.drawingReference.widthMm*scale} height={referenceDepth(project.drawingReference)*scale} opacity={project.drawingReference.opacity}/></g>}
       <line x1="0" y1={size.h*scale+25} x2={size.w*scale} y2={size.h*scale+25} stroke="#777"/>
       <line x1="0" y1={size.h*scale+19} x2="0" y2={size.h*scale+31} stroke="#777"/><line x1={size.w*scale} y1={size.h*scale+19} x2={size.w*scale} y2={size.h*scale+31} stroke="#777"/>
-      <text x={size.w*scale/2} y={size.h*scale+47} textAnchor="middle" className="dim">{size.w} mm</text>
+      <text x="0" y={size.h*scale+47} className="dim originDim">0</text><text x="-30" y={size.h*scale+4} textAnchor="end" className="dim originDim">0</text>
+      <text x={size.w*scale/2} y={size.h*scale+47} textAnchor="middle" className="dim">{measure(size.w)}</text>
       <line x1="-25" y1="0" x2="-25" y2={size.h*scale} stroke="#777"/>
       <line x1="-31" y1="0" x2="-19" y2="0" stroke="#777"/><line x1="-31" y1={size.h*scale} x2="-19" y2={size.h*scale} stroke="#777"/>
-      <text x="-43" y={size.h*scale/2} transform={"rotate(-90 -43 "+(size.h*scale/2)+")"} textAnchor="middle" className="dim">{size.h} mm</text>
+      <text x="-43" y={size.h*scale/2} transform={"rotate(-90 -43 "+(size.h*scale/2)+")"} textAnchor="middle" className="dim">{measure(size.h)}</text>
       {guides.x!==undefined&&<><line className="snapGuide" x1={guides.x*scale} x2={guides.x*scale} y1="0" y2={size.h*scale}/><text className="snapHint" x={guides.x*scale+8} y="18">{guides.label}</text></>}
       {guides.y!==undefined&&<><line className="snapGuide" x1="0" x2={size.w*scale} y1={guides.y*scale} y2={guides.y*scale}/><text className="snapHint" x="8" y={guides.y*scale-8}>{guides.label}</text></>}
       {visibleItems.map(i=>{
@@ -185,11 +191,11 @@ export function Drawing2D({
           {(isGlassBal||isTimberBal)&&faceView&&<>{Array.from({length:7}).map((_,n)=><line key={"bal"+n} x1={rw*n/6} x2={rw*n/6} y1={rh*.12} y2={rh*.92} stroke={isGlassBal?"#7795a1":tc} strokeWidth={isGlassBal?2:3} opacity={isGlassBal?.65:.9}/>)}<line x1="0" x2={rw} y1={rh*.1} y2={rh*.1} stroke={isGlassBal?"#555":tc} strokeWidth="4"/></>}
           {(sel||(!planOverlay&&rw>=65&&rh>=45))&&<g pointerEvents="none">
             <text x={rw/2} y={Math.max(15,rh/2-2)} textAnchor="middle" className="itemLabel" fill={planOverlay?"#292929":tc} textLength={i.name.length*6>rw-12?Math.max(40,rw-12):undefined} lengthAdjust="spacingAndGlyphs">{i.name}</text>
-            {rh>=55&&<text x={rw/2} y={Math.max(30,rh/2+15)} textAnchor="middle" className="itemSub" fill={planOverlay?"#292929":tc}>{r.width} × {r.height} mm</text>}
+            {rh>=55&&<text x={rw/2} y={Math.max(30,rh/2+15)} textAnchor="middle" className="itemSub" fill={planOverlay?"#292929":tc}>{r.width} × {measure(r.height)}</text>}
           </g>}
           {sel&&<>
-            <line x1="0" y1={rh+11} x2={rw} y2={rh+11} stroke="#c8102e"/><text x={rw/2} y={rh+27} textAnchor="middle" className="dim selectionDim">{r.width} mm</text>
-            <line x1={rw+11} y1="0" x2={rw+11} y2={rh} stroke="#c8102e"/><text x={rw+27} y={rh/2} textAnchor="middle" className="dim selectionDim" transform={"rotate(-90 "+(rw+27)+" "+(rh/2)+")"}>{r.height} mm</text>
+            <line x1="0" y1={rh+11} x2={rw} y2={rh+11} stroke="#c8102e"/><text x={rw/2} y={rh+27} textAnchor="middle" className="dim selectionDim">{measure(r.width)}</text>
+            <line x1={rw+11} y1="0" x2={rw+11} y2={rh} stroke="#c8102e"/><text x={rw+27} y={rh/2} textAnchor="middle" className="dim selectionDim" transform={"rotate(-90 "+(rw+27)+" "+(rh/2)+")"}>{measure(r.height)}</text>
             <text x="4" y="-10" className="dim selectionDim">{view==="front"?"X "+i.x+" · Y "+i.y:view==="top"?"X "+i.x+" · Z "+i.z:"Z "+i.z+" · Y "+i.y}</text>
             {view==="top"&&<text x="4" y="-24" className="dim clearanceDim">L {clear.left} · R {clear.right} · Back {clear.back} · Front {clear.front} mm</text>}
             <g className="rotationBadge" transform={"translate("+(rw-6)+",-18)"}><rect x="-42" y="-13" width="42" height="18" rx="5" fill="#fff" stroke="#c8102e"/><text x="-21" y="0" textAnchor="middle" className="rotationText">{rotation}°</text></g>

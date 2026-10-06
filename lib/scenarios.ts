@@ -9,7 +9,8 @@ export const DESIGN_KINDS=[
     {id:"l-shape",title:"L-shaped kitchen",description:"Reference-quality fitted kitchen with two connected runs"},
     {id:"straight",title:"Straight kitchen",description:"Single-wall fitted kitchen"},
     {id:"island",title:"Kitchen + island",description:"Wall run with central island"},
-    {id:"galley",title:"Galley kitchen",description:"Two facing cabinet runs"}
+    {id:"galley",title:"Galley kitchen",description:"Two facing cabinet runs"},
+    {id:"blank",title:"Start kitchen on your own",description:"An empty measured room. Add and configure each unit yourself."}
   ]},
   {id:"bedroom" as const,title:"Bedroom",description:"Wardrobes, bed walls, dressing areas and storage",scenarios:[
     {id:"hinged",title:"Hinged wardrobe wall",description:"Full-height fitted wardrobes"},
@@ -153,7 +154,7 @@ function stairs(kind:string,w:number,h:number,d:number):JoineryItem[]{
 
 export function createScenarioPlan(kind:DesignKind,scenario:string,roomWidth:number,roomHeight:number,roomDepth:number):ScenarioPlan{
   const w=Math.max(2600,roomWidth),h=Math.max(2200,roomHeight),d=Math.max(2200,roomDepth);
-  const items=kind==="kitchen"?kitchen(scenario,w,h,d):kind==="bedroom"?bedroom(scenario,w,h,d):stairs(scenario,w,h,d);
+  const items=scenario==="blank"?[]:kind==="kitchen"?kitchen(scenario,w,h,d):kind==="bedroom"?bedroom(scenario,w,h,d):stairs(scenario,w,h,d);
   const label=DESIGN_KINDS.find(x=>x.id===kind)?.scenarios.find(x=>x.id===scenario)?.title??scenario;
   return {kind,scenario,name:label,roomWidth:w,roomHeight:h,roomDepth:d,rules:{wallClearance:0,componentGap:0,snap:50,serviceClearance:50},items};
 }

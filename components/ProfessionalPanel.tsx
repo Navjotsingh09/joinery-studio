@@ -1,4 +1,5 @@
 "use client";
+import {DrawingReferencePanel} from "./DrawingReferencePanel";
 import {newId} from "@/lib/id";
 import {useEffect,useMemo,useState} from "react";
 import {Project,JoineryItem} from "@/types/model";
@@ -120,7 +121,7 @@ export function ProfessionalPanel({project}:{project:Project}){
     [rail,drawers,loft].forEach(i=>s.addItem(clampItemToRoom(i,project)));
     setMessage("Added hanging rail, internal drawers and loft storage.");
   };
-  return <section className="proPanel">
+  return <section className="proPanel"><DrawingReferencePanel project={project} onChange={drawingReference=>s.updateProject({drawingReference})} onPlan={()=>s.setView("top")}/>
     <div className="proIntro"><b>Professional edit</b><p>Select one or more objects, then use real-world placement and batch tools.</p></div>
     <details open><summary>Selection <span>{picked.length}</span></summary>
       <div className="proObjectList">{project.items.map(i=><label key={i.id} className={(ids.includes(i.id)?"picked ":"")+(i.visible===false?"hiddenItem":"")}><input type="checkbox" checked={ids.includes(i.id)} onChange={()=>toggle(i.id)}/><span><b>{i.name}</b><small>{i.layer??"Joinery"} · {i.visible===false?"Hidden":"Visible"}{i.locked?" · Locked":""}</small></span></label>)}</div>

@@ -1,3 +1,4 @@
+import './prepare-pdf.mjs';
 import {spawn} from 'node:child_process';
 // The managed preview forwards Vite-style flags. Keep Next's normal dev server.
 const args=process.argv.slice(2).filter(arg=>arg!=='--strictPort').map(arg=>arg==='--host'?'--hostname':arg);
