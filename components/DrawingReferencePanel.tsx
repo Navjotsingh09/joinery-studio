@@ -24,7 +24,7 @@ export function DrawingReferencePanel({project,onChange,onPlan}:{project:Project
       await source.render({canvasContext:ctx,viewport,background:"white"}).promise;
       const dataUrl=canvas.toDataURL("image/webp",.9);if(dataUrl.length>=2500000)throw new Error("This page is too detailed. Export a smaller drawing page.");
       if(run!==ticket.current||projectId.current!==id)return;
-      onChange({name:`${f.name} · page ${n}`,dataUrl,pixelWidth:canvas.width,pixelHeight:canvas.height,widthMm:project.roomWidth,x:0,z:0,opacity:.45,visible:true});setPoints([]);setNotice("Drawing added. Pick two points on a known dimension to calibrate the scale, then position it in the room.");onPlan();
+      onChange({name:`${f.name} · page ${n}`,dataUrl,pixelWidth:canvas.width,pixelHeight:canvas.height,aspectRatio:base.width/base.height,widthMm:project.roomWidth,x:0,z:0,opacity:.45,visible:true});setPoints([]);setNotice("Drawing added. Pick two points on a known dimension to calibrate the scale, then position it in the room.");onPlan();
     }catch(e){if(run===ticket.current)setNotice(e instanceof Error?e.message:"Could not read this PDF. Export an unprotected PDF and try again.")}
     finally{await task?.destroy();if(run===ticket.current)setBusy(false)}
   };
