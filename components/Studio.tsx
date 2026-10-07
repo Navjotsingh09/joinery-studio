@@ -1,4 +1,5 @@
 "use client";
+import {ProjectDialogs,useProjectDialogs} from "./ProjectDialogs";
 import {projectLimitReached,projectLimitExceeded} from "@/lib/projectAllowance";
 import {MeasureInput} from "./MeasureInput";
 import {DisplayUnit} from "@/lib/units";
@@ -79,7 +80,9 @@ function componentDescription(type:string){
   return descriptions[type]??"Editable joinery component";
 }
 
-export default function Studio(){
+export default function Studio(){return <ProjectDialogs><StudioContent/></ProjectDialogs>}
+function StudioContent(){
+  const {confirm,alert,prompt}=useProjectDialogs();
   const s=useStudio();
   const p=s.projects.find(x=>x.id===s.activeId)??s.projects[0];
   useEffect(()=>{if(p?.items.some(i=>!i.unitNumber))s.updateProject(numberItems(p))},[p?.id,p?.items,s.updateProject]);
@@ -190,7 +193,8 @@ export default function Studio(){
   },[user,cloudReady,p.id,p.updatedAt]);
 
   useEffect(()=>{
-    const key=(e:KeyboardEvent)=>{
+    const key=async(e:KeyboardEvent)=>{
+      if(document.querySelector(".projectDialog[open]"))return;
       if(presentationMode){if(e.key==="Escape"){setPresentationMode(false);setLeftOpen(true)}return}
       const tag=(e.target as HTMLElement)?.tagName;
       if(["INPUT","TEXTAREA","SELECT"].includes(tag))return;
@@ -199,7 +203,7 @@ export default function Studio(){
       else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="y"){e.preventDefault();s.redo()}
       else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="d"&&item){e.preventDefault();s.duplicateItem(item.id)}
       else if(e.key.toLowerCase()==="r"&&item){e.preventDefault();rotateSelected(e.shiftKey?-90:90)}
-      else if((e.key==="Delete"||e.key==="Backspace")&&item){e.preventDefault();if(confirm("Delete "+item.name+"?"))s.deleteItem(item.id)}
+      else if((e.key==="Delete"||e.key==="Backspace")&&item){e.preventDefault();if(await confirm("Delete "+item.name+"?"))s.deleteItem(item.id)}
       else if(item&&e.key.startsWith("Arrow")){
         e.preventDefault();
         const st=e.shiftKey?100:p.rules.snap,dx=e.key==="ArrowLeft"?-st:e.key==="ArrowRight"?st:0,d=e.key==="ArrowDown"?-st:e.key==="ArrowUp"?st:0;
@@ -316,8 +320,8 @@ export default function Studio(){
 
   const importJson=async(e:React.ChangeEvent<HTMLInputElement>)=>{
     const f=e.target.files?.[0];if(!f)return;
-    try{const d=JSON.parse(await f.text());if(!isProjectBackup(d))throw new Error();if(projectLimitExceeded(d.length)){alert("Basic allows two projects. Please import a backup containing at most two projects.");return}if(confirm("Replace local projects with this backup?"))s.replaceAll(d)}
-    catch{alert("Invalid Joinery Studio JSON file.")}
+    try{const d=JSON.parse(await f.text());if(!isProjectBackup(d))throw new Error();if(projectLimitExceeded(d.length)){await alert("Basic allows two projects. Please import a backup containing at most two projects.");return}if(await confirm("Replace local projects with this backup?"))s.replaceAll(d)}
+    catch{await alert("Invalid Joinery Studio JSON file.")}
     e.target.value=""
   };
 
@@ -336,12 +340,12 @@ export default function Studio(){
     throw new Error("The material image is still too large after optimisation. Crop it closer to the material sample.");
   };
 
-  const removeCustomMaterial=(id:string)=>{
+  const removeCustomMaterial=async(id:string)=>{
     const fields=(i:typeof p.items[number])=>[i.materialId,i.carcassMaterialId,i.doorMaterialId,i.sideMaterialId,i.leftSideMaterialId,i.rightSideMaterialId,i.plinthMaterialId,i.worktopMaterialId];
     const usedBy=p.items.find(i=>fields(i).includes(id));
     if(p.floorMaterialId===id||usedBy){setNotice("That material is still in use"+(usedBy?" on "+usedBy.name:" as the floor")+". Change those finishes before removing it.");return}
     const target=(p.customMaterials??[]).find(m=>m.id===id);if(!target)return;
-    if(!confirm('Remove custom material "'+target.name+'"?'))return;
+    if(!await confirm('Remove custom material "'+target.name+'"?'))return;
     s.updateProject({customMaterials:(p.customMaterials??[]).filter(m=>m.id!==id)});
     setNotice(target.name+" removed.");
   };
@@ -354,7 +358,8 @@ export default function Studio(){
     try{
       setNotice("Optimising material image…");
       const dataUrl=await optimiseMaterialImage(f);
-      const name=(window.prompt("Material name",f.name.replace(/\.[^.]+$/,""))||"Custom material").trim();
+      const name=(await prompt("Choose a name for this uploaded texture.",f.name.replace(/\.[^.]+$/,"")))?.trim();
+      if(!name)return;
       const custom:Material={id:"custom-"+newId(),code:"CUSTOM",name,colour:"#b8b2a8",thickness:18,category:"Custom",textureDataUrl:dataUrl};
       s.updateProject({customMaterials:[...(p.customMaterials??[]),custom]});
       setNotice(name+" added. Select a cabinet surface, worktop, backsplash or floor to apply it.");
@@ -389,9 +394,9 @@ export default function Studio(){
         useStudio.getState().deleteProject(id);
       }}
       onContinue={()=>setShowLauncher(false)}
-      onCreate={(plan:ScenarioPlan)=>{
+      onCreate={async(plan:ScenarioPlan)=>{
         if(p.items.length){
-          if(projectLimitReached(s.projects.length)){alert("Basic allows two projects. Export or delete one before starting another.");return}
+          if(projectLimitReached(s.projects.length)){await alert("Basic allows two projects. Export or delete one before starting another.");return}
           s.addProject();
           useStudio.getState().configureActive({
             name:plan.name,
@@ -473,7 +478,7 @@ export default function Studio(){
         </>}
         {tab==="items"&&<section className="itemManager">{p.items.map(i=><button key={i.id} className={s.selectedId===i.id?"activeItem":""} onClick={()=>s.select(i.id)}><ComponentIcon type={i.type}/><span><b>{i.name}</b><small>{i.width} × {i.height} × {i.depth} mm</small></span><span className="itemState">{i.locked?"●":""}</span></button>)}{!p.items.length&&<small className="muted">No joinery yet.</small>}</section>}
         {tab==="materials"&&<section className="materials"><div className="materialTools"><fieldset className="finishCollections"><legend>Coordinated finishes</legend>{FINISH_COLLECTIONS.filter(c=>c.kind===designKind).map(c=><button key={c.id} onClick={()=>{s.updateProject(applyFinishCollection(p,c.id));setNotice(c.name+" applied. Use Undo to restore the previous finishes.")}} aria-label={"Apply "+c.name}><span aria-hidden="true">{[c.wood,c.front,c.surface].map(id=><i key={id} style={{background:material(id).colour}}/>)}</span>{c.name}</button>)}</fieldset><button onClick={()=>materialFile.current?.click()}>Upload material image</button>{designKind==="kitchen"&&<button onClick={()=>s.updateProject({items:p.items.map(i=>kitchenSurfaceTypes.has(i.type)?{...i,carcassMaterialId:"h1180",doorMaterialId:["Wall cabinet","Tall cabinet","Oven tower","Fridge housing"].includes(i.type)?"palette-15":"h1180",leftSideMaterialId:"h1180",rightSideMaterialId:"h1180",plinthMaterialId:"palette-16",worktopMaterialId:"wt-15"}:i.type==="Worktop"?{...i,materialId:"wt-15",worktopMaterialId:"wt-15",height:20,finish:"Matt",worktopEdge:"square"}:i.type==="Backsplash"?{...i,materialId:"wt-15"}:i)})}>Apply reference kitchen finishes</button>}<input ref={materialFile} hidden type="file" accept="image/*" onChange={uploadMaterial}/><label>Floor material<select value={p.floorMaterialId??"floor-oak"} onChange={e=>s.updateProject({floorMaterialId:e.target.value})}>{availableFloors.map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label>{item&&<small className="materialTarget">Applying to: {selectedPart?selectedPart.replace("-"," "):"whole object"}</small>}</div><div className="materialScopes" aria-label="Material collections">{[["all","All"],["units","Units"],["worktop","Worktops"],["backsplash","Backsplashes"],["uploads","Uploaded textures"]].map(([id,label])=><button key={id} className={materialScope===id?"active":""} onClick={()=>{setMaterialScope(id);setMaterialCategory("")}}>{label}</button>)}</div><label>Search materials<input type="search" placeholder="Oak, charcoal, marble…" value={materialSearch} onChange={e=>setMaterialSearch(e.target.value)}/></label><label>Material category<select value={materialCategory} onChange={e=>setMaterialCategory(e.target.value)}><option value="">All materials</option>{Array.from(new Set(availableMaterials.map(m=>m.category))).sort().map(c=><option key={c}>{c}</option>)}</select></label><p className="surfaceHelp">{availableMaterials.length} finishes · select a surface to apply a finish to that part.</p>{availableMaterials.filter(m=>(materialScope==="all"||materialScope==="uploads"&&m.category==="Custom"||materialScope==="worktop"&&(m.category==="Worktop"||m.category==="Custom")||materialScope==="backsplash"&&(m.category==="Splashback"||m.category==="Custom")||materialScope==="units"&&!["Worktop","Splashback","Floor"].includes(m.category))&&(!materialCategory||m.category===materialCategory)&&`${m.name} ${m.code} ${m.worktopMaterial??""} ${m.worktopStyle??""}`.toLowerCase().includes(materialSearch.toLowerCase())).map(m=><button key={m.id} className={(item&&(selectedPart?materialIdForPart(selectedPart):item.materialId)===m.id)?"selectedMaterial":""} disabled={!item} onClick={()=>applyMaterial(m.id)}><i style={{background:m.colour,backgroundImage:m.textureDataUrl?`url(${m.textureDataUrl})`:undefined,backgroundSize:"cover"}}/><span><b>{m.code}</b>{m.name}<small>{m.category} · {m.thickness} mm</small></span></button>)}{materialScope==="uploads"&&!!(p.customMaterials??[]).length&&<div className="customMaterialManager"><b>Custom materials</b>{(p.customMaterials??[]).map(m=><div key={m.id}><span>{m.name}</span><div className="textureSettings"><label>Tile width (mm)<input type="number" min="50" max="10000" step="50" value={m.textureWidthMm??650} onChange={e=>s.updateProject({customMaterials:(p.customMaterials??[]).map(x=>x.id===m.id?{...x,textureWidthMm:Math.max(50,Math.min(10000,+e.target.value))}:x)})}/></label><label>Tile height (mm)<input type="number" min="50" max="10000" step="50" value={m.textureHeightMm??1200} onChange={e=>s.updateProject({customMaterials:(p.customMaterials??[]).map(x=>x.id===m.id?{...x,textureHeightMm:Math.max(50,Math.min(10000,+e.target.value))}:x)})}/></label><label>Grain direction<select value={m.textureRotation??0} onChange={e=>s.updateProject({customMaterials:(p.customMaterials??[]).map(x=>x.id===m.id?{...x,textureRotation:+e.target.value}:x)})}><option value="0">Original</option><option value="90">Rotate 90°</option></select></label></div><button onClick={()=>removeCustomMaterial(m.id)}>Remove</button></div>)}</div>}</section>}
-        {tab==="revisions"&&<section className="revisionList">{[...p.revisions].reverse().map(r=><div key={r.id}><span><b>Revision {r.revision}</b><small>{new Date(r.createdAt).toLocaleString()}</small></span><button onClick={()=>confirm("Restore revision "+r.revision+"?")&&s.restoreRevision(r.id)}>Restore</button></div>)}{!p.revisions.length&&<small className="muted">No saved revisions yet.</small>}</section>}
+        {tab==="revisions"&&<section className="revisionList">{[...p.revisions].reverse().map(r=><div key={r.id}><span><b>Revision {r.revision}</b><small>{new Date(r.createdAt).toLocaleString()}</small></span><button onClick={async()=>{if(await confirm("Restore revision "+r.revision+"? Your current design will be replaced by this saved revision."))s.restoreRevision(r.id)}}>Restore</button></div>)}{!p.revisions.length&&<small className="muted">No saved revisions yet.</small>}</section>}
         {tab==="professional"&&<ProfessionalPanel project={p}/>}
       </div>
     </aside>
@@ -486,7 +491,7 @@ export default function Studio(){
         <button className={transformMode==="translate"?"activeTool":""} onClick={()=>setTransformMode("translate")}><Icon name="move" size={15}/> Move</button><label className="axisControl">Axis<select aria-label="Movement axis" value={moveAxis} onChange={e=>setMoveAxis(e.target.value as typeof moveAxis)}><option value="xz">Floor X / Z</option><option value="x">X · left / right</option><option value="y">Y · height</option><option value="z">Z · forward / back</option></select></label><button className={transformMode==="rotate"?"activeTool":""} onClick={()=>setTransformMode("rotate")}><Icon name="rotate" size={15}/> Rotate</button><button title="Rotate 90° left" onClick={()=>rotateSelected(-90)}>−90°</button><button title="Rotate 90° right" onClick={()=>rotateSelected(90)}>+90°</button>
         <button onClick={()=>s.duplicateItem(item.id)}><Icon name="copy" size={15}/> Copy</button>
         <button onClick={()=>s.updateItem(item.id,{locked:!item.locked})}>{item.locked?<Icon name="unlock" size={15}/>:<Icon name="lock" size={15}/>} {item.locked?"Unlock":"Lock"}</button>
-        <button className="dangerTool" onClick={()=>confirm("Delete "+item.name+"?")&&s.deleteItem(item.id)}><Icon name="trash" size={15}/> Delete</button>
+        <button className="dangerTool" onClick={async()=>{if(await confirm("Delete "+item.name+"?"))s.deleteItem(item.id)}}><Icon name="trash" size={15}/> Delete</button>
       </div>}
 
       {showDesignIssues&&issues.length>0&&<div className="designIssuePopover" role="region" aria-label="Design checks"><b>Design checks</b><button aria-label="Close design checks" onClick={()=>setShowDesignIssues(false)}>×</button>{issues.map((issue,n)=><p key={n}>{issue}</p>)}<small>Select the named unit to correct its position or size. A blocked drag keeps its last valid position.</small></div>}
@@ -517,7 +522,7 @@ export default function Studio(){
       <div className="popoverHead"><div><b>Project settings</b><small>Room, reference and cloud</small></div><button className="iconBtn" onClick={()=>setProjectOpen(false)}>×</button></div>
       <div className="popoverBody">
         <label>Project<select value={p.id} onChange={async e=>{if(hasSupabase()&&user){try{await cloud.saveCloud(p)}catch{}}s.setActive(e.target.value)}}>{s.projects.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
-        <div className="row projectActions"><button onClick={async()=>{if(hasSupabase()&&user){try{await cloud.saveCloud(p)}catch{}}s.addProject()}}>New</button><button onClick={()=>s.duplicateProject()}>Duplicate</button><button className="dangerText" onClick={async()=>{if(!confirm('Delete project "'+p.name+'"?'))return;if(hasSupabase()&&user){try{await cloud.deleteCloud(p.id)}catch(e:any){return alert(e.message)}}s.deleteProject()}}>Delete</button></div>
+        <div className="row projectActions"><button onClick={async()=>{if(hasSupabase()&&user){try{await cloud.saveCloud(p)}catch{}}s.addProject()}}>New</button><button onClick={()=>s.duplicateProject()}>Duplicate</button><button className="dangerText" onClick={async()=>{if(!await confirm('Delete project "'+p.name+'"?'))return;if(hasSupabase()&&user){try{await cloud.deleteCloud(p.id)}catch(e:any){return await alert(e.message)}}s.deleteProject()}}>Delete</button></div>
         <label>Name<input value={p.name} onChange={e=>s.updateProject({name:e.target.value})}/></label>
         <div className="fieldGrid2"><label>Reference<input value={p.reference} onChange={e=>s.updateProject({reference:e.target.value})}/></label><label>Status<select value={p.status} onChange={e=>s.updateProject({status:e.target.value as ProjectStatus})}>{(["Draft","Presented","Accepted","Rejected"] as ProjectStatus[]).map(x=><option key={x}>{x}</option>)}</select></label></div>
         <label>Customer<input value={p.customer} onChange={e=>s.updateProject({customer:e.target.value})}/></label>
@@ -535,6 +540,6 @@ export default function Studio(){
       </div>
     </div>}
 
-    {menu&&<div className="contextMenu" style={{left:menu.x,top:menu.y}} onClick={e=>e.stopPropagation()}><button onClick={()=>{s.duplicateItem(menu.id);setMenu(null)}}>Duplicate</button><button onClick={()=>{if(confirm("Delete component?"))s.deleteItem(menu.id);setMenu(null)}}>Delete</button></div>}
+    {menu&&<div className="contextMenu" style={{left:menu.x,top:menu.y}} onClick={e=>e.stopPropagation()}><button onClick={()=>{s.duplicateItem(menu.id);setMenu(null)}}>Duplicate</button><button onClick={async()=>{if(await confirm("Delete component?"))s.deleteItem(menu.id);setMenu(null)}}>Delete</button></div>}
   </main>
 }

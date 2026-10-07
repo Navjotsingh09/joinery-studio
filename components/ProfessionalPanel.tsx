@@ -1,4 +1,5 @@
 "use client";
+import {useProjectDialogs} from "./ProjectDialogs";
 import {generateWorktops} from "@/lib/worktops";
 import {CadPlanPanel} from "./CadPlanPanel";
 import {DrawingReferencePanel} from "./DrawingReferencePanel";
@@ -14,6 +15,7 @@ const wardrobeTypes=new Set(["Wardrobe","Sliding wardrobe"]);
 const baseTypes=new Set(["Base cabinet","Drawer unit","Sink base","Hob base","Corner cabinet","Dishwasher","Washing machine","Filler panel","End panel"]);
 
 export function ProfessionalPanel({project}:{project:Project}){
+  const {confirm}=useProjectDialogs();
   const s=useStudio();
   const [ids,setIds]=useState<string[]>([]);
   const [overhang,setOverhang]=useState(30),[thickness,setThickness]=useState(38);
@@ -97,7 +99,7 @@ export function ProfessionalPanel({project}:{project:Project}){
     </details>
     <details><summary>Batch edit</summary>
       <div className="proButtonGrid"><button onClick={()=>apply(i=>({x:picked[0]?.x??i.x}))}>Align X</button><button onClick={()=>apply(i=>({z:picked[0]?.z??i.z}))}>Align Z</button><button onClick={distribute}>Distribute X</button><button onClick={group}>Group</button><button onClick={()=>apply(()=>({groupId:undefined}))}>Ungroup</button><button onClick={()=>apply(()=>({locked:true}))}>Lock</button><button onClick={()=>apply(()=>({locked:false}))}>Unlock</button><button onClick={()=>apply(()=>({visible:false}))}>Hide</button><button onClick={()=>apply(()=>({visible:true}))}>Show</button><button onClick={()=>{s.copyItems(picked.map(i=>i.id));setMessage("Copied "+picked.length+" item"+(picked.length===1?"":"s")+" to the project clipboard.")}}>Copy</button><button onClick={()=>{s.pasteItems();setMessage("Pasted clipboard items into this project.")}}>Paste</button></div>
-      <button className="proDanger" onClick={()=>{if(picked.length&&confirm("Delete "+picked.length+" selected item"+(picked.length===1?"":"s")+"?")){s.deleteItems(picked.map(i=>i.id));setIds([])}}}>Delete selected</button>
+      <button className="proDanger" onClick={async()=>{if(picked.length&&await confirm("Delete "+picked.length+" selected item"+(picked.length===1?"":"s")+"?")){s.deleteItems(picked.map(i=>i.id));setIds([])}}}>Delete selected</button>
     </details>
     <details open><summary>Joinery intelligence</summary>
       <label className="autoWorktopToggle"><input type="checkbox" checked={project.autoWorktops??false} onChange={e=>{if(e.target.checked)makeWorktop();else s.updateProject({autoWorktops:false})}}/> Keep worktops connected as units change</label><p className="surfaceHelp">Rebuild all worktop sections from the current units. Existing tops are replaced; Undo restores them.</p><div className="fieldGrid2"><label>Front overhang (mm)<input type="number" min="0" max="300" value={overhang} onChange={e=>setOverhang(Math.max(0,Math.min(300,+e.target.value)))}/></label><label>Thickness (mm)<input type="number" min="6" max="100" value={thickness} onChange={e=>setThickness(Math.max(6,Math.min(100,+e.target.value)))}/></label></div><button className="proWide" onClick={makeWorktop}>Regenerate kitchen worktops</button>

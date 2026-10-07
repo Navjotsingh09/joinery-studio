@@ -1,4 +1,5 @@
 "use client";
+import {useProjectDialogs} from "./ProjectDialogs";
 import {useEffect,useMemo,useState} from "react";
 import {createScenarioPlan,DESIGN_KINDS,DesignKind,ScenarioPlan,inferDesignKind} from "@/lib/scenarios";
 import {Project} from "@/types/model";
@@ -87,6 +88,7 @@ function ScenarioDiagram({kind,scenario}:{kind:DesignKind;scenario:string}){
 
 export function ScenarioStart({onCreate,onContinue,continueName,initialKind,projects=[],activeId,onOpenProject,onDeleteProject}:{initialKind?:string|null;onCreate:(plan:ScenarioPlan)=>void;onContinue?:()=>void;continueName?:string;projects?:Project[];activeId?:string;onOpenProject?:(id:string)=>void;onDeleteProject?:(id:string)=>Promise<void>}){
   const [projectSearch,setProjectSearch]=useState(""),[projectFilter,setProjectFilter]=useState("all"),[projectSort,setProjectSort]=useState("recent");
+  const {confirm}=useProjectDialogs();
   const [kind,setKind]=useState<DesignKind|null>(null);
   const [scenario,setScenario]=useState<string|null>(null);
   const [room,setRoom]=useState({width:4200,height:2400,depth:3200});
@@ -95,7 +97,7 @@ export function ScenarioStart({onCreate,onContinue,continueName,initialKind,proj
   const [projectNotice,setProjectNotice]=useState("");
   const deleteProject=async(pr:Project)=>{
     if(!onDeleteProject||deleting)return;
-    if(!window.confirm('Delete project "'+pr.name+'" and its saved revisions? If signed in, it will also be removed from your cloud projects. Export a JSON backup first if you want to keep a copy.'))return;
+    if(!await confirm('Delete project "'+pr.name+'" and its saved revisions? If signed in, it will also be removed from your cloud projects. Export a JSON backup first if you want to keep a copy.'))return;
     setDeleting(pr.id);setProjectNotice("");
     try{await onDeleteProject(pr.id);setProjectNotice('Project "'+pr.name+'" deleted.');}
     catch(e){setProjectNotice('Could not delete the project. '+(e instanceof Error?e.message:"Please try again."));}
