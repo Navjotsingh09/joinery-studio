@@ -359,7 +359,7 @@ function StudioContent(){
       setNotice("Optimising material image…");
       const dataUrl=await optimiseMaterialImage(f);
       const name=(await prompt("Choose a name for this uploaded texture.",f.name.replace(/\.[^.]+$/,"")))?.trim();
-      if(!name)return;
+      if(!name){setNotice("Material upload cancelled.");return;}
       const custom:Material={id:"custom-"+newId(),code:"CUSTOM",name,colour:"#b8b2a8",thickness:18,category:"Custom",textureDataUrl:dataUrl};
       s.updateProject({customMaterials:[...(p.customMaterials??[]),custom]});
       setNotice(name+" added. Select a cabinet surface, worktop, backsplash or floor to apply it.");
