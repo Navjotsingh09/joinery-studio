@@ -3,7 +3,7 @@ import {jsPDF} from 'jspdf';
 import {Project,JoineryItem,WallSide} from '@/types/model';
 import {material} from './materials';
 import {itemRect,normalizeRotation,wallItemRect,wallViewSize,isItemOnWall,footprint} from './geometry';
-import {dimensionStops,itemColour,numberItems,onPlan,PlanKind,referenceLabel} from './drawingPack';
+import {dimensionStops,itemColour,numberItems,onPlan,PlanKind,referenceLabel,elevationDimensions,serviceEntries} from './drawingPack';
 import {worktopCutouts} from './renderGeometry';
 
 const WALLS:WallSide[]=['back','right','front','left'];
@@ -24,7 +24,7 @@ function hdim(doc:jsPDF,stops:number[],x:number,edge:number,y:number,sc:number,o
   const list=overall?[stops[0],stops.at(-1)!]:stops;
   list.forEach(v=>{const px=x+v*sc;doc.line(px,edge,px,y+2);doc.line(px-1,y+1,px+1,y-1)});
   doc.line(x+list[0]*sc,y,x+list.at(-1)!*sc,y);
-  for(let k=1;k<list.length;k++){const a=list[k-1],b=list[k];if((b-a)*sc<7&&!overall)continue;text(doc,fmt(b-a),x+(a+b)*sc/2,y-1,6.5,'center')}
+  for(let k=1;k<list.length;k++){const a=list[k-1],b=list[k];const narrow=(b-a)*sc<7&&!overall;const ly=y-1-(narrow?(k%2?4:8):0);if(narrow)doc.line(x+(a+b)*sc/2,y,x+(a+b)*sc/2,ly+1);text(doc,fmt(b-a),x+(a+b)*sc/2,ly,narrow?5.5:6.5,'center')}
 }
 function vdim(doc:jsPDF,stops:number[],y:number,edge:number,x:number,sc:number,overall=false){
   const list=overall?[stops[0],stops.at(-1)!]:stops;doc.setDrawColor(106,118,112);doc.setLineWidth(.15);
@@ -50,8 +50,8 @@ function legend(doc:jsPDF,p:Project,items:JoineryItem[],x=329,y=47){
   text(doc,'DRAWING KEY',x,y,10);y+=7;
   for(const [name,rgb] of [['Base units',[247,242,220]],['Wall units',[222,235,249]],['Tall units',[247,222,229]],['Worktops',[224,238,226]],['Services',[241,230,216]],['Architecture',[237,235,231]]] as [string,number[]][]){doc.setFillColor(rgb[0],rgb[1],rgb[2]);doc.rect(x,y-3,5,4,'F');text(doc,name,x+8,y,7);y+=6}
   y+=5;text(doc,'UNIT REFERENCES',x,y,9);y+=6;
-  const max=23;
-  items.slice(0,max).forEach(i=>{const label=referenceLabel(i),lines=doc.splitTextToSize(i.name,64).slice(0,2) as string[];text(doc,label,x,y,6.5);doc.setFontSize(6.5);doc.text(lines,x+13,y);y+=Math.max(5,lines.length*3.3)});
+  const max=14;
+  items.slice(0,max).forEach(i=>{const label=referenceLabel(i),lines=doc.splitTextToSize(i.name,64).slice(0,2) as string[];text(doc,label,x,y,6.5);doc.setFontSize(6.5);doc.text(lines,x+13,y);y+=Math.max(4,lines.length*3.3);text(doc,`${fmt(i.width)} W / ${fmt(i.height)} H / ${fmt(i.depth)} D`,x+13,y,6);y+=5});
   if(items.length>max)text(doc,`+ ${items.length-max} in item schedule`,x,y,7);
   text(doc,'All dimensions in mm.',x,251,7);text(doc,'References stay the same across sheets.',x,257,6.5);text(doc,`Exported ${new Date().toISOString().slice(0,10)}`,x,263,7);
 }
@@ -95,22 +95,22 @@ function elevation(doc:jsPDF,p:Project,wall:WallSide,index:number){
   const items=visible(p).filter(i=>isItemOnWall(p,i,wall));text(doc,`Scale 1:${fmt(1/sc)} at A3 · heights from finished floor level 0`,15,38,8);
   items.forEach(i=>object(doc,p,i,wallItemRect(i,p,wall),x,y,sc,false,true));
   doc.setDrawColor(35,53,47);doc.setLineWidth(.4);doc.rect(x,y,sz.w*sc,sz.h*sc);
-  const rects=items.filter(i=>i.layer!=='Services'||i.width>=300).map(i=>wallItemRect(i,p,wall));hdim(doc,dimensionStops(rects.flatMap(r=>[r.left,r.left+r.width]),sz.w),x,y+sz.h*sc,y+sz.h*sc+12,sc);
+  const dimensions=elevationDimensions(p,wall,items);
+  hdim(doc,dimensions.widths,x,y+sz.h*sc,y+sz.h*sc+12,sc);
   hdim(doc,[0,sz.w],x,y+sz.h*sc,y+sz.h*sc+22,sc,true);
-  // Inverted drawing axis displays actual segment heights; the floor datum is 0.
-  vdim(doc,dimensionStops(rects.flatMap(r=>[r.top,r.top+r.height]),sz.h),y,x,x-10,sc);vdim(doc,[0,sz.h],y,x,x-20,sc,true);
+  vdim(doc,dimensions.heights,y,x,x-10,sc);vdim(doc,[0,sz.h],y,x,x-20,sc,true);
   text(doc,'FFL 0',x-3,y+sz.h*sc+2,7,'right');legend(doc,p,items);
   text(doc,'Service positions and heights are listed in the service schedule.',15,271,7);
 }
 function schedule(doc:jsPDF,p:Project,services=false){
   const cols=[15,33,104,144,194,241,281,402],heads=['Ref','Item','Type','W / H / D','X / Y / Z','Rotation','Specification'];let y=0;
   const page=()=>{doc.addPage();header(doc,p,services?'SERVICE / APPLIANCE SCHEDULE':'UNIT / MATERIAL SCHEDULE');doc.setFillColor(236,240,231);doc.rect(15,34,387,10,'F');heads.forEach((h,n)=>text(doc,h,cols[n]+2,40,7));y=44};page();
-  const items=visible(p).filter(i=>services?i.layer==='Services':i.layer!=='Services');
-  for(const i of items){const mat=(id?:string)=>material(id??i.materialId,p.customMaterials??[]).code;
-    const spec=i.type==='Worktop'?`Surface ${mat(i.worktopMaterialId)}; ${i.height} mm; ${i.worktopEdge??'square'}; finished edges: ${(i.worktopFinishedEdges??['front','left','right']).join(', ')}; cutouts ${worktopCutouts(i,p.items).map(h=>`${fmt(h.width*1000)} x ${fmt(h.depth*1000)}`).join('; ')||'none'}`:services?`${i.productStyle??'Generic'}; ${i.colourVariant??i.finish}; ${i.notes||'Confirm connection positions on site.'}`:`Carcass ${mat(i.carcassMaterialId)}; fronts ${mat(i.doorMaterialId)} / ${i.frontStyle??'slab'}; sides ${mat(i.leftSideMaterialId??i.sideMaterialId)} / ${mat(i.rightSideMaterialId??i.sideMaterialId)}; plinth ${mat(i.plinthMaterialId)}; ${kitchenSpecification(i)}; ${i.notes}`;
-    const values=[referenceLabel(i),i.name,i.type,`${fmt(i.width)} / ${fmt(i.height)} / ${fmt(i.depth)}`,`${fmt(i.x)} / ${fmt(i.y)} / ${fmt(i.z)}`,`${normalizeRotation(i.rotation)} deg`,spec];doc.setFontSize(7);const lines=values.map((v,k)=>doc.splitTextToSize(v,cols[k+1]-cols[k]-4) as string[]),height=Math.max(12,...lines.map(a=>a.length*3.5+5));if(y+height>272)page();doc.setTextColor(40,53,48);lines.forEach((v,k)=>doc.text(v,cols[k]+2,y+5));doc.setDrawColor(213,220,215);doc.line(15,y+height,402,y+height);y+=height;
+  const entries=services?serviceEntries(p):visible(p).filter(i=>i.layer!=='Services').map(item=>({item,kind:item.type,integrated:false}));
+  for(const entry of entries){const i=entry.item;const mat=(id?:string)=>material(id??i.materialId,p.customMaterials??[]).code;
+    const spec=i.type==='Worktop'?`Surface ${mat(i.worktopMaterialId)}; ${i.height} mm; ${i.worktopEdge??'square'}; finished edges: ${(i.worktopFinishedEdges??['front','left','right']).join(', ')}; cutouts ${worktopCutouts(i,p.items).map(h=>`${fmt(h.width*1000)} x ${fmt(h.depth*1000)}`).join('; ')||'none'}`:services?`${entry.integrated?`Integrated in ${referenceLabel(i)}; W/H/D and X/Y/Z describe the host cabinet. `:''}${entry.kind.includes('hob')||entry.kind.includes('grill')?`${i.hobStyle??'induction'} / ${i.hobZones??4} zones`:i.productStyle??entry.kind}; ${i.colourVariant??i.finish}; ${i.notes||'Confirm connection positions and heights on site.'}`:`Carcass ${mat(i.carcassMaterialId)}; fronts ${mat(i.doorMaterialId)} / ${i.frontStyle??'slab'}; sides ${mat(i.leftSideMaterialId??i.sideMaterialId)} / ${mat(i.rightSideMaterialId??i.sideMaterialId)}; plinth ${mat(i.plinthMaterialId)}; ${kitchenSpecification(i)}; ${i.notes}`;
+    const values=[referenceLabel(i),entry.integrated?i.name+" · "+entry.kind:i.name,entry.kind,`${fmt(i.width)} / ${fmt(i.height)} / ${fmt(i.depth)}`,`${fmt(i.x)} / ${fmt(i.y)} / ${fmt(i.z)}`,`${normalizeRotation(i.rotation)} deg`,spec];doc.setFontSize(7);const lines=values.map((v,k)=>doc.splitTextToSize(v,cols[k+1]-cols[k]-4) as string[]),height=Math.max(12,...lines.map(a=>a.length*3.5+5));if(y+height>272)page();doc.setTextColor(40,53,48);lines.forEach((v,k)=>doc.text(v,cols[k]+2,y+5));doc.setDrawColor(213,220,215);doc.line(15,y+height,402,y+height);y+=height;
   }
-  if(!items.length)text(doc,'No items in this schedule.',17,53,9);
+  if(!entries.length)text(doc,'No items in this schedule.',17,53,9);
 }
 export function exportPdf(input:Project,download=true){
   const resolved=kitchenProject(input),p={...resolved,...numberItems(resolved)},doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a3'});

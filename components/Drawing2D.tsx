@@ -20,18 +20,20 @@ type DragState={
 };
 
 export function Drawing2D({
-  project,view,selected,wallSide,onSelect,onDuplicate,onMove,onResize,onRotate,onMoveStart,onContext,onDropType
+  project,view,selected,wallSide,moveAxis="xz",onSelect,onDuplicate,onMove,onResize,onRotate,onMoveStart,onMoveEnd,onContext,onDropType
 }:{
   project:Project;
   view:Exclude<ViewMode,"3d">;
   selected:string|null;
   wallSide?:WallSide;
+  moveAxis?:"xz"|"x"|"y"|"z";
   onSelect:(id:string|null)=>void;
   onDuplicate?:(id:string)=>JoineryItem|null;
   onMove:(id:string,x:number,y:number,z:number)=>void;
   onResize:(id:string,patch:Partial<JoineryItem>)=>void;
   onRotate:(id:string,rotation:number)=>void;
   onMoveStart:()=>void;
+  onMoveEnd?:()=>void;
   onContext:(e:React.MouseEvent,id:string)=>void;
   onDropType:(type:string,x:number,y:number,z:number)=>void;
 }){
@@ -39,9 +41,9 @@ export function Drawing2D({
   const ref=useRef<SVGSVGElement>(null);
   const [drag,setDrag]=useState<DragState|null>(null);
   const dragRef=useRef<DragState|null>(null);
-  const finishDrag=()=>{dragRef.current=null;setDrag(null);setGuides({})};
+  const finishDrag=()=>{onMoveEnd?.();dragRef.current=null;setDrag(null);setGuides({})};
   const [guides,setGuides]=useState<{x?:number;y?:number;label?:string}>({});
-  const elevation=!!wallSide&&view==="front";
+  const elevation=!!wallSide&&(view==="front"||view==="side");
   const measure=(n:number)=>formatMeasure(n,project.displayUnit??"mm");
   const size=elevation?wallViewSize(project,wallSide!):viewSize(project,view),pad=100,W=1000,H=650;
   const rectFor=(i:JoineryItem)=>elevation?wallItemRect(i,project,wallSide!):itemRect(i,project,view);
@@ -95,7 +97,7 @@ export function Drawing2D({
         else candidate={...candidate,x:i.x+(elevation&&wallSide==="front"?-dx:dx),y:i.y-dy};
       }
       if(view==="top")candidate={...candidate,x:i.x+dx,z:i.z-dy};
-      if(view==="side")candidate={...candidate,y:i.y-dy,z:i.z+dx};
+      if(view==="side")candidate={...candidate,y:i.y-dy,z:i.z+(elevation&&wallSide==="left"?-dx:dx)};
       candidate=moveItemOnAxes(i,project,candidate,view==="top"?["x","z"]:view==="side"||elevation&&(wallSide==="left"||wallSide==="right")?["y","z"]:["x","y"]);
       let r=rectFor(candidate);
       const others=project.items.filter(o=>o.id!==i.id&&o.visible!==false&&o.type!=="Worktop"&&Math.abs(o.y-i.y)<5);
@@ -119,6 +121,7 @@ export function Drawing2D({
         if(view==="front"||view==="side")candidate.y-=deltaY;
         else candidate.z-=deltaY;
       }
+      if(moveAxis!=="xz"){for(const axis of ["x","y","z"] as const)if(axis!==moveAxis)candidate[axis]=i[axis];}
       candidate=clampItemToRoom(candidate,project,false);
       r=rectFor(candidate);
       setGuides({x:gx,y:gy,label});

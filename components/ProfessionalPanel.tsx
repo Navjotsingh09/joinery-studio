@@ -1,4 +1,5 @@
 "use client";
+import {MeasureInput} from "./MeasureInput";
 import {useProjectDialogs} from "./ProjectDialogs";
 import {generateWorktops} from "@/lib/worktops";
 import {CadPlanPanel} from "./CadPlanPanel";
@@ -102,7 +103,7 @@ export function ProfessionalPanel({project}:{project:Project}){
       <button className="proDanger" onClick={async()=>{if(picked.length&&await confirm("Delete "+picked.length+" selected item"+(picked.length===1?"":"s")+"?")){s.deleteItems(picked.map(i=>i.id));setIds([])}}}>Delete selected</button>
     </details>
     <details open><summary>Joinery intelligence</summary>
-      <label className="autoWorktopToggle"><input type="checkbox" checked={project.autoWorktops??false} onChange={e=>{if(e.target.checked)makeWorktop();else s.updateProject({autoWorktops:false})}}/> Keep worktops connected as units change</label><p className="surfaceHelp">Rebuild all worktop sections from the current units. Existing tops are replaced; Undo restores them.</p><div className="fieldGrid2"><label>Front overhang (mm)<input type="number" min="0" max="300" value={overhang} onChange={e=>setOverhang(Math.max(0,Math.min(300,+e.target.value)))}/></label><label>Thickness (mm)<input type="number" min="6" max="100" value={thickness} onChange={e=>setThickness(Math.max(6,Math.min(100,+e.target.value)))}/></label></div><button className="proWide" onClick={makeWorktop}>Regenerate kitchen worktops</button>
+      <label className="autoWorktopToggle"><input type="checkbox" checked={project.autoWorktops??false} onChange={e=>{if(e.target.checked)makeWorktop();else s.updateProject({autoWorktops:false})}}/> Keep worktops connected as units change</label><p className="surfaceHelp">Rebuild all worktop sections from the current units. Existing tops are replaced; Undo restores them.</p><div className="fieldGrid2"><label>Front overhang (mm)<MeasureInput min={0} max={300} value={overhang} onCommit={setOverhang}/></label><label>Thickness (mm)<MeasureInput min={6} max={100} value={thickness} onCommit={setThickness}/></label></div><button className="proWide" onClick={makeWorktop}>Regenerate kitchen worktops</button>
       <button className="proWide" onClick={addWardrobeInternals}>Auto-fit selected wardrobe internals</button>
       {stairs&&<div className={"stairMetrics "+(stairs.review?"needsReview":"")}><b>Stair geometry</b><div><span>Risers<strong>{stairs.risers}</strong></span><span>Rise<strong>{stairs.rise} mm</strong></span><span>Going<strong>{stairs.going} mm</strong></span><span>Pitch<strong>{stairs.pitch}°</strong></span></div><small>{stairs.review?"Review these proportions before manufacture.":"Proportions look workable."} Planning aid only — verify site dimensions and applicable regulations.</small></div>}
     </details>

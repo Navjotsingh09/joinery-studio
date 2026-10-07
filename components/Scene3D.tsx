@@ -1,6 +1,6 @@
 "use client";
 import {KitchenAsset} from "./KitchenAsset";
-import {createContext,useContext,useMemo,useEffect,useLayoutEffect,useRef,useState,useSyncExternalStore,Suspense} from "react";
+import {memo,createContext,useContext,useMemo,useEffect,useLayoutEffect,useRef,useState,useSyncExternalStore,Suspense} from "react";
 import {Canvas,useThree} from "@react-three/fiber";
 import {OrbitControls,Grid,GizmoHelper,GizmoViewport,TransformControls,ContactShadows,Html,Line,RoundedBox,Environment,useEnvironment,useGLTF} from "@react-three/drei";
 import * as THREE from "three";
@@ -574,10 +574,10 @@ function WorktopSurface({w,h,d,materialId,position=[0,0,0],edge="rounded",finish
   if(uploaded)uploaded.repeat.set(1,1);
   const tex=uploaded??builtInSurfaceTexture(materialId,m.colour);if(tex)tex.repeat.set(1,1);
   const picked=picker.selected&&picker.selectedPart==="worktop",surfaceRef=useRef<THREE.Mesh>(null);
-  const roughness=(finish??m.surfaceFinish)==="Gloss"?.12:(finish??m.surfaceFinish)==="Semi-gloss"?.28:(finish??m.surfaceFinish)==="Textured matt"?.8:.55;
+  const surfaceFinish=(finish??m.surfaceFinish??"Matt").toLowerCase(),roughness=surfaceFinish.includes("semi")?.28:surfaceFinish.includes("gloss")?.12:surfaceFinish.includes("matt")?.85:.55;
   useLayoutEffect(()=>{
     const mesh=surfaceRef.current;if(!mesh)return;
-    if(cutouts.length){const g=mesh.geometry,p=g.getAttribute("position"),uv=g.getAttribute("uv");for(let n=0;n<p.count;n++){const [u,v]=textureUV(p.getX(n)+w/2,d/2-p.getY(n),surfaceMapping(m));uv.setXY(n,u,v)}uv.needsUpdate=true}
+    if(cutouts.length){const g=mesh.geometry,p=g.getAttribute("position"),normal=g.getAttribute("normal"),uv=g.getAttribute("uv");for(let n=0;n<p.count;n++){const nx=Math.abs(normal.getX(n)),ny=Math.abs(normal.getY(n)),nz=Math.abs(normal.getZ(n)),x=p.getX(n)+w/2,depth=d/2-p.getY(n),height=p.getZ(n);const [u,v]=textureUV(nz>=nx&&nz>=ny?x:nx>=ny?depth:x,nz>=nx&&nz>=ny?depth:height,surfaceMapping(m));uv.setXY(n,u,v)}uv.needsUpdate=true}
     else physicalPanelUV(mesh,[w,h,d],surfaceMapping(m));
   },[w,h,d,m.textureWidthMm,m.textureHeightMm,m.textureRotation,cutouts]);
   if(cutouts.length){
@@ -888,7 +888,7 @@ function UnderStairStorage({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number
 }
 
 
-function SimpleBlock({w,h,d,c,materialId,part}:{w:number;h:number;d:number;c:string;materialId?:string;part?:JoineryPart;finish?:string}){return <Panel position={[0,0,0]} size={[w,h,d]} colour={c} materialId={materialId} part={part} front/>}
+function SimpleBlock({w,h,d,c,materialId,part,finish}:{w:number;h:number;d:number;c:string;materialId?:string;part?:JoineryPart;finish?:string}){return <Panel position={[0,0,0]} size={[w,h,d]} colour={c} materialId={materialId} part={part} finish={finish} front/>}
 function HangingRail({w}:{w:number}){return <mesh rotation={[0,0,Math.PI/2]} castShadow><cylinderGeometry args={[.012,.012,Math.max(.04,w-.06),18]}/><meshStandardMaterial color="#9b9b98" metalness={.78} roughness={.22}/></mesh>}
 function Radiator({w,h,d}:{w:number;h:number;d:number}){const count=Math.max(5,Math.round(w/.09));return <group>{Array.from({length:count},(_,n)=><mesh key={n} position={[-w/2+w*(n+.5)/count,0,0]} castShadow><boxGeometry args={[Math.max(.025,w/count-.014),h,d]}/><meshStandardMaterial color="#f0efeb" roughness={.55}/></mesh>)}<Metal position={[0,-h/2+.06,d/2+.018]} size={[w*.88,.018,.018]}/></group>}
 function ServicePlate({w,h,d,c="#f5f3ee"}:{w:number;h:number;d:number;c?:string}){return <group><mesh castShadow><boxGeometry args={[w,h,Math.max(.012,d)]}/><meshStandardMaterial color={c} roughness={.58}/></mesh><mesh position={[0,0,d/2+.008]}><boxGeometry args={[w*.22,h*.34,.012]}/><meshStandardMaterial color="#555" roughness={.5}/></mesh></group>}
@@ -960,7 +960,7 @@ function RangeCooker({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){
     {(style==="Classic"||professional)&&[-.3,-.1,.1,.3].map((x,n)=><mesh key={"knob"+n} position={[x*w,h*.36,d/2+.04]} rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[.022,.022,.016,18]}/><meshStandardMaterial color="#777" metalness={.65}/></mesh>)}
   </group>
 }
-function Backsplash({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){const m=sceneMaterial(i.materialId);return <group><Panel position={[0,0,0]} size={[w,h,Math.max(.004,d)]} colour={m.colour} materialId={i.materialId} part="backsplash" front/><lineSegments position={[0,0,d/2+.004]}><edgesGeometry args={[new THREE.BoxGeometry(w,h,.008)]}/><lineBasicMaterial color="#918a82"/></lineSegments></group>}
+function Backsplash({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number}){const m=sceneMaterial(i.materialId);return <group><Panel position={[0,0,0]} size={[w,h,Math.max(.004,d)]} colour={m.colour} materialId={i.materialId} part="backsplash" finish={i.finish} front/><lineSegments position={[0,0,d/2+.004]}><edgesGeometry args={[new THREE.BoxGeometry(w,h,.008)]}/><lineBasicMaterial color="#918a82"/></lineSegments></group>}
 
 function Cornice({w,h,d,c}:{w:number;h:number;d:number;c:string}){
   return <group><Panel position={[0,-h*.32,-d*.15]} size={[w,h*.36,d*.7]} colour={c}/><Panel position={[0,h*.14,0]} size={[w,h*.56,d]} colour={c}/><Panel position={[0,h*.44,d*.12]} size={[w,h*.12,d*.76]} colour={c}/></group>;
@@ -978,7 +978,7 @@ function BarStool({w,h,d,c,materialId}:{w:number;h:number;d:number;c:string;mate
     {[-1,1].map(sign=><mesh key={sign} position={[0,-h*.22,sign*d*spread]} castShadow><boxGeometry args={[w*spread*2,legW*.6,legW*.6]}/><meshStandardMaterial color="#353b39" roughness={.3} metalness={.6}/></mesh>)}
   </group>;
 }
-function CabinetGeometry({i,project,construction=false}:{i:JoineryItem;project:Project;construction?:boolean}){
+function CabinetGeometry({i,project,construction=false}:{i:JoineryItem;project:Project;construction?:boolean;exploded?:boolean;warmLights?:boolean}){
   const renderItem=construction?{...i,openAmount:Math.max(72,i.openAmount??0)}:i;
   const c=sceneMaterial(renderItem.carcassMaterialId??renderItem.materialId).colour,w=mm(renderItem.width),h=mm(renderItem.height),d=mm(renderItem.depth);
   i=renderItem;
@@ -1033,19 +1033,23 @@ function CabinetGeometry({i,project,construction=false}:{i:JoineryItem;project:P
   return <OpenShelving i={i} w={w} h={h} d={d} c={c}/>;
 }
 
-function ItemNode({i,project,selected,selectedPart,mode,moveAxis,construction,onSelect,onSelectPart,onDuplicate,onMove,onRotate,onMoveStart}:{i:JoineryItem;project:Project;selected:boolean;selectedPart?:JoineryPart|null;mode:"translate"|"rotate";moveAxis:"xz"|"x"|"y"|"z";construction:boolean;onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onDuplicate?:(id:string)=>void;onMove?:(id:string,x:number,y:number,z:number)=>boolean|void;onRotate?:(id:string,rotation:number)=>boolean|void;onMoveStart?:()=>void}){
+const CachedCabinetGeometry=memo(CabinetGeometry,(a,b)=>a.i===b.i&&a.construction===b.construction&&a.exploded===b.exploded&&a.warmLights===b.warmLights&&a.project.customMaterials===b.project.customMaterials&&(!['Worktop','Sink base','Hob base'].includes(a.i.type)||a.project.items===b.project.items));
+
+function ItemNode({i,project,selected,selectedPart,mode,moveAxis,construction,onSelect,onSelectPart,onDuplicate,onMove,onRotate,onMoveStart,onMoveEnd}:{i:JoineryItem;project:Project;selected:boolean;selectedPart?:JoineryPart|null;mode:"translate"|"rotate";moveAxis:"xz"|"x"|"y"|"z";construction:boolean;onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onDuplicate?:(id:string)=>void;onMove?:(id:string,x:number,y:number,z:number)=>boolean|void;onRotate?:(id:string,rotation:number)=>boolean|void;onMoveStart?:()=>void;onMoveEnd?:()=>void}){
   const group=useRef<THREE.Group>(null!);
+  const latest=useRef({onSelect,onSelectPart,onDuplicate});latest.current={onSelect,onSelectPart,onDuplicate};
+  const partSelection=useMemo(()=>({selected,selectedPart,onSelectPart:(part:JoineryPart,event?:{altKey:boolean;shiftKey:boolean})=>{const handlers=latest.current;if(event?.altKey)handlers.onDuplicate?.(i.id);else if(event?.shiftKey)handlers.onSelectPart?.(i.id,part);else handlers.onSelect?.(i.id)}}),[selected,selectedPart,i.id]);
   const fp=footprint(i),rotation=normalizeRotation(i.rotation??0);
   const position:[number,number,number]=[mm(i.x+fp.width/2-project.roomWidth/2),mm(i.y+i.height/2),mm(i.z+fp.depth/2-project.roomDepth/2)];
   const sync=()=>{const g=group.current;if(!g)return;if(mode==="rotate"){const accepted=onRotate?.(i.id,normalizeRotation(THREE.MathUtils.radToDeg(g.rotation.y)));if(accepted===false)g.rotation.y=THREE.MathUtils.degToRad(rotation);return}const current={...i,rotation},box=footprint(current);const raw={...current,x:(g.position.x+mm(project.roomWidth)/2)*1000-box.width/2,y:g.position.y*1000-i.height/2,z:(g.position.z+mm(project.roomDepth)/2)*1000-box.depth/2};const q=moveItemOnAxes(i,project,raw,moveAxis==="xz"?["x","z"]:[moveAxis]);const accepted=onMove?.(i.id,q.x,q.y,q.z);if(accepted===false){g.position.set(...position);g.rotation.y=THREE.MathUtils.degToRad(rotation)}};
   const node=<group ref={group} position={position} rotation={[0,THREE.MathUtils.degToRad(rotation),0]} onClick={e=>{e.stopPropagation();e.altKey?onDuplicate?.(i.id):onSelect?.(i.id)}}>
     {i.type==="Wall cabinet"&&activeWarmLights&&<group position={[0,-mm(i.height)/2-.012,mm(i.depth)*.35]}><mesh rotation={[-Math.PI/2,0,0]}><planeGeometry args={[Math.max(.1,mm(i.width)-.06),.012]}/><meshStandardMaterial color="#ffe5b2" emissive="#ffe1a2" emissiveIntensity={2} toneMapped={false}/></mesh><pointLight color="#ffdf9f" intensity={.12} distance={1.5} decay={2}/></group>}
-    <PartSelectionContext.Provider value={{selected,selectedPart,onSelectPart:(part,event)=>{if(event?.altKey)onDuplicate?.(i.id);else if(event?.shiftKey)onSelectPart?.(i.id,part);else onSelect?.(i.id)}}}><CabinetGeometry i={i} project={project} construction={construction}/></PartSelectionContext.Provider>
+    <PartSelectionContext.Provider value={partSelection}><CachedCabinetGeometry i={i} project={project} construction={construction} exploded={activeExplodedPanels} warmLights={activeWarmLights}/></PartSelectionContext.Provider>
     {selected&&construction&&<><DimensionOverlay i={i} project={project}/><ConstructionLabels i={i}/></>}
     {selected&&!selectedPart&&<mesh userData={{editorOnly:true}}><boxGeometry args={[mm(i.width)+.035,mm(i.height)+.035,mm(i.depth)+.035]}/><meshBasicMaterial color="#c8102e" wireframe transparent opacity={.4}/></mesh>}
   </group>;
   if(!selected||i.locked||activeExplodedPanels)return node;
-  return <>{node}<TransformControls userData={{editorOnly:true}} object={group} mode={mode} rotationSnap={Math.PI/2} size={.8} space="world" showX={mode==="translate"&&(moveAxis==="x"||moveAxis==="xz")} showY={mode==="rotate"||moveAxis==="y"} showZ={mode==="translate"&&(moveAxis==="z"||moveAxis==="xz")} onMouseDown={()=>onMoveStart?.()} onObjectChange={sync}/></>;
+  return <>{node}<TransformControls userData={{editorOnly:true}} object={group} mode={mode} rotationSnap={Math.PI/2} size={.8} space="world" showX={mode==="translate"&&(moveAxis==="x"||moveAxis==="xz")} showY={mode==="rotate"||moveAxis==="y"} showZ={mode==="translate"&&(moveAxis==="z"||moveAxis==="xz")} onMouseDown={()=>onMoveStart?.()} onMouseUp={()=>onMoveEnd?.()} onObjectChange={sync}/></>;
 }
 
 function DropProjector({rw,rd,onReady}:{rw:number;rd:number;onReady:(fn:(clientX:number,clientY:number)=>{x:number;y:number;z:number})=>void}){
@@ -1107,11 +1111,11 @@ function SceneCapture({project,requestedView,onReady,onCameraReady,onRenderReady
   },[gl,scene,camera,size.width,size.height,controls,project,renderQuality,onReady,onCameraReady,onRenderReady]);
   return null;
 }
-export function JoineryModel({project,showWalls=true,showCeiling=true,realistic=true,construction=false,selected,selectedPart,transformMode="translate",moveAxis="xz",onSelect,onSelectPart,onDuplicate,onMove,onRotate,onMoveStart}:{project:Project;showCeiling?:boolean;showWalls?:boolean;realistic?:boolean;construction?:boolean;selected?:string|null;selectedPart?:JoineryPart|null;transformMode?:"translate"|"rotate";moveAxis?:"xz"|"x"|"y"|"z";onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onDuplicate?:(id:string)=>void;onMove?:(id:string,x:number,y:number,z:number)=>boolean|void;onRotate?:(id:string,rotation:number)=>boolean|void;onMoveStart?:()=>void}){
+export function JoineryModel({project,showWalls=true,showCeiling=true,realistic=true,construction=false,selected,selectedPart,transformMode="translate",moveAxis="xz",onSelect,onSelectPart,onDuplicate,onMove,onRotate,onMoveStart,onMoveEnd}:{project:Project;showCeiling?:boolean;showWalls?:boolean;realistic?:boolean;construction?:boolean;selected?:string|null;selectedPart?:JoineryPart|null;transformMode?:"translate"|"rotate";moveAxis?:"xz"|"x"|"y"|"z";onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onDuplicate?:(id:string)=>void;onMove?:(id:string,x:number,y:number,z:number)=>boolean|void;onRotate?:(id:string,rotation:number)=>boolean|void;onMoveStart?:()=>void;onMoveEnd?:()=>void}){
   project=kitchenProject(project);
   activeCustomMaterials=project.customMaterials??[];activeWarmLights=(project.lighting??DEFAULT_LIGHTING).warmLights;activeConstructionView=construction;
   return <group name="Joinery design"><RoomShell project={project} rw={mm(project.roomWidth)} rh={mm(project.roomHeight)} rd={mm(project.roomDepth)} showWalls={showWalls} realistic={realistic} floorMaterial={sceneMaterial(project.floorMaterialId??"floor-oak")} studioMode={construction} showCeiling={showCeiling}/>
-    {project.items.filter(i=>i.visible!==false).map(i=><ItemNode key={i.id} i={i} project={project} selected={selected===i.id} selectedPart={selected===i.id?selectedPart:null} mode={transformMode} moveAxis={moveAxis} construction={construction} onSelect={id=>onSelect?.(i.id.includes(":top")||i.id.includes(":dining")?i.sourceUnitIds?.[0]??id:id)} onSelectPart={(id,part)=>onSelectPart?.(i.id.includes(":top")||i.id.includes(":dining")?i.sourceUnitIds?.[0]??id:id,part)} onDuplicate={onDuplicate} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>)}
+    {project.items.filter(i=>i.visible!==false).map(i=><ItemNode key={i.id} i={i} project={project} selected={selected===i.id} selectedPart={selected===i.id?selectedPart:null} mode={transformMode} moveAxis={moveAxis} construction={construction} onSelect={id=>onSelect?.(i.id.includes(":top")||i.id.includes(":dining")?i.sourceUnitIds?.[0]??id:id)} onSelectPart={(id,part)=>onSelectPart?.(i.id.includes(":top")||i.id.includes(":dining")?i.sourceUnitIds?.[0]??id:id,part)} onDuplicate={onDuplicate} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart} onMoveEnd={onMoveEnd}/>)}
   </group>;
 }
 function Exposure({value}:{value:number}){const {gl}=useThree();useEffect(()=>{gl.toneMappingExposure=value},[gl,value]);return null}
@@ -1119,7 +1123,7 @@ const environmentResource={id:'environment:studio',url:RENDER_ENVIRONMENT,label:
 function EnvironmentMap(){const map=useEnvironment({files:RENDER_ENVIRONMENT});useEffect(()=>{setSceneResourceStatus(environmentResource,'ready')},[map]);return <Environment map={map} environmentIntensity={.75} environmentRotation={[0,.5,0]}/>}
 function SceneEnvironment(){useEffect(()=>retainSceneResource(environmentResource),[]);return <ResourceBoundary resource={environmentResource}><Suspense fallback={null}><EnvironmentMap/></Suspense></ResourceBoundary>}
 const emptyResources:ReturnType<typeof getSceneResources>=[];
-export function Scene3D({active=true,project,onProjectChange,presentationOnly=false,selected,selectedPart,transformMode="translate",moveAxis="xz",onSelect,onSelectPart,onDuplicate,onDropType,onMove,onRotate,onMoveStart}:{active?:boolean;project:Project;onProjectChange?:(patch:Partial<Project>)=>void;presentationOnly?:boolean;selected?:string|null;selectedPart?:JoineryPart|null;transformMode?:"translate"|"rotate";moveAxis?:"xz"|"x"|"y"|"z";onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onDuplicate?:(id:string)=>void;onDropType?:(type:string,x:number,y:number,z:number)=>void;onMove?:(id:string,x:number,y:number,z:number)=>boolean|void;onRotate?:(id:string,rotation:number)=>boolean|void;onMoveStart?:()=>void}){
+export function Scene3D({active=true,project,onProjectChange,presentationOnly=false,selected,selectedPart,transformMode="translate",moveAxis="xz",onSelect,onSelectPart,onDuplicate,onDropType,onMove,onRotate,onMoveStart,onMoveEnd}:{active?:boolean;project:Project;onProjectChange?:(patch:Partial<Project>)=>void;presentationOnly?:boolean;selected?:string|null;selectedPart?:JoineryPart|null;transformMode?:"translate"|"rotate";moveAxis?:"xz"|"x"|"y"|"z";onSelect?:(id:string|null)=>void;onSelectPart?:(id:string,part:JoineryPart)=>void;onDuplicate?:(id:string)=>void;onDropType?:(type:string,x:number,y:number,z:number)=>void;onMove?:(id:string,x:number,y:number,z:number)=>boolean|void;onRotate?:(id:string,rotation:number)=>boolean|void;onMoveStart?:()=>void;onMoveEnd?:()=>void}){
   activeCustomMaterials=project.customMaterials??[];
   const rw=mm(project.roomWidth),rh=mm(project.roomHeight),rd=mm(project.roomDepth),roomMax=Math.max(rw,rh,rd),floorMaterial=sceneMaterial(project.floorMaterialId??"floor-oak");
   const initialCamera=useMemo(()=>({position:[Math.max(3.7,rw*.95),Math.max(3.8,rh*1.65),Math.max(4.3,rd*1.35)] as [number,number,number],fov:38}),[rw,rh,rd]);
@@ -1166,7 +1170,7 @@ export function Scene3D({active=true,project,onProjectChange,presentationOnly=fa
     <directionalLight castShadow position={[3.5,6.5,4.5]} intensity={realistic?lighting.daylight:2.15} color={realistic?"#fff6e8":"#ffffff"} shadow-mapSize-width={renderMode==="design"?1024:2048} shadow-mapSize-height={renderMode==="design"?1024:2048} shadow-bias={-0.00008} shadow-normalBias={.012} shadow-radius={4} shadow-camera-left={-roomMax} shadow-camera-right={roomMax} shadow-camera-top={roomMax} shadow-camera-bottom={-roomMax} shadow-camera-far={20}/>
     <directionalLight position={[-4,3,1]} intensity={realistic?.65:.3} color="#e9eef5"/>
     {showGrid&&<Grid userData={{editorOnly:true}} position={[0,.002,0]} args={[Math.max(rw,rd)*1.25,Math.max(rw,rd)*1.25]} cellSize={.1} sectionSize={.5} cellColor="#cbc6bf" sectionColor="#aaa49b" fadeDistance={15} fadeStrength={1.5}/>}
-<JoineryModel project={project} showWalls={showWalls&&!construction} showCeiling={renderMode==="presentation"||preset==="interior"} realistic={realistic} construction={construction} selected={presentationOnly?null:selected} selectedPart={selectedPart} transformMode={transformMode} moveAxis={moveAxis} onSelect={presentationOnly?undefined:onSelect} onSelectPart={presentationOnly?undefined:onSelectPart} onDuplicate={onDuplicate} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart}/>
+<JoineryModel project={project} showWalls={showWalls&&!construction} showCeiling={renderMode==="presentation"||preset==="interior"} realistic={realistic} construction={construction} selected={presentationOnly?null:selected} selectedPart={selectedPart} transformMode={transformMode} moveAxis={moveAxis} onSelect={presentationOnly?undefined:onSelect} onSelectPart={presentationOnly?undefined:onSelectPart} onDuplicate={onDuplicate} onMove={onMove} onRotate={onRotate} onMoveStart={onMoveStart} onMoveEnd={onMoveEnd}/>
     {construction&&<group userData={{editorOnly:true}}><RoomDimensionOverlay rw={rw} rh={rh} rd={rd} project={project}/></group>}
     <ContactShadows key={project.updatedAt} frames={1} resolution={renderMode==="design"?256:512} position={[0,.003,0]} opacity={construction?.52:realistic?.42:.32} scale={Math.max(5,roomMax*1.8)} blur={construction?2.4:realistic?3.2:2.6} far={Math.max(5,roomMax*1.8)}/>
     <OrbitControls makeDefault target={orbitTarget} enableDamping dampingFactor={.08} enablePan enableZoom minDistance={1} maxDistance={Math.max(8,roomMax*4)}/>

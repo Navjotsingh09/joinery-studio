@@ -12,7 +12,7 @@ export type JoineryItem={
   hobStyle?:"induction"|"gas"|"ceramic"|"grill";hobZones?:2|4|5;
   islandStyle?:"storage"|"breakfast"|"dining"|"extended"|"hob"|"grill";
   islandAppliance?:"none"|"sink"|"hob"|"grill";islandFront?:"drawers"|"doors";
-  topThickness?:number;topOverhang?:number;seatingOverhang?:number;counterExtension?:number;
+  topThickness?:number;topOverhang?:number;seatingOverhang?:number;seatingSide?:"back"|"front";counterExtension?:number;
   islandSinkStyle?:string;islandSinkFinish?:string;islandTapStyle?:string;islandTapFinish?:string;
   shelves:number;doors:number;materialId:string;finish:string;notes:string;locked:boolean;hardware:string;
   edgeBanding:string;rotation:number;visible?:boolean;layer?:ItemLayer;groupId?:string;

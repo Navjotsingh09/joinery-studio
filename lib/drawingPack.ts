@@ -1,5 +1,7 @@
 import {JoineryItem,Project} from '@/types/model';
-import {isWallMounted} from './geometry';
+import {isWallMounted,wallItemRect} from './geometry';
+import {islandAppliance} from './kitchenConfig';
+import type {WallSide} from '@/types/model';
 
 export type PlanKind='base'|'wall'|'worktop';
 export const referenceLabel=(i:JoineryItem,n=0)=>`${i.type==='Worktop'?'WT':i.layer==='Services'?'S':i.layer==='Architecture'?'A':'U'}${String(i.unitNumber??n+1).padStart(2,'0')}`;
@@ -20,6 +22,20 @@ export function onPlan(i:JoineryItem,kind:PlanKind){
 }
 export function dimensionStops(values:number[],length:number){
   return [...new Set([0,length,...values.filter(v=>v>=0&&v<=length)].map(v=>Math.round(v*10)/10))].sort((a,b)=>a-b);
+}
+export function elevationDimensionItems(items:JoineryItem[]){
+  // Worktop overhangs and appliance clearances must not split cabinet dimensions.
+  return items.filter(i=>i.visible!==false&&i.layer!=='Services'&&i.layer!=='Architecture'&&i.type!=='Worktop'&&i.type!=='Backsplash');
+}
+export function elevationDimensions(p:Project,wall:WallSide,items:JoineryItem[]){
+  const rects=elevationDimensionItems(items).map(i=>wallItemRect(i,p,wall));
+  return {widths:dimensionStops(rects.flatMap(r=>[r.left,r.left+r.width]),wall==='back'||wall==='front'?p.roomWidth:p.roomDepth),heights:dimensionStops(rects.flatMap(r=>[r.top,r.top+r.height]),p.roomHeight)};
+}
+export function serviceEntries(p:Project){
+  return p.items.filter(i=>i.visible!==false).flatMap(i=>{
+    const kinds=i.type==='Sink base'?['Integrated sink']:i.type==='Hob base'?['Integrated hob']:i.type==='Oven tower'?['Integrated oven']:i.type==='Fridge housing'?['Integrated fridge']:i.type==='Kitchen island'&&islandAppliance(i)!=='none'?(islandAppliance(i)==='sink'?['Island sink','Island tap']:[`Island ${islandAppliance(i)}`]):i.layer==='Services'&&i.type!=='Backsplash'?[i.type]:[];
+    return kinds.map(kind=>({item:i,kind,integrated:kind!==i.type}));
+  });
 }
 export function itemColour(i:JoineryItem):[number,number,number]{
   if(i.layer==='Architecture')return [237,235,231];

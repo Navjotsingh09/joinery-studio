@@ -203,9 +203,9 @@ export function ScenarioStart({onCreate,onContinue,continueName,initialKind,proj
               <small>STARTER LAYOUT</small><b>{choice?.scenarios.find(x=>x.id===scenario)?.title}</b><span>{choice?.title}</span>
             </div>
             <div className="dimensionFields">
-              <label><span>Width <small>W</small></span><div><MeasureInput value={room.width} min={100} onCommit={value=>setRoom(current=>({...current,width:value}))}/><em>mm</em></div></label>
-              <label><span>Height <small>H</small></span><div><MeasureInput value={room.height} min={100} onCommit={value=>setRoom(current=>({...current,height:value}))}/><em>mm</em></div></label>
-              <label><span>Depth <small>D</small></span><div><MeasureInput value={room.depth} min={100} onCommit={value=>setRoom(current=>({...current,depth:value}))}/><em>mm</em></div></label>
+              <label><span>Width <small>W</small></span><div><MeasureInput value={room.width} min={100} max={50000} onCommit={value=>setRoom(current=>({...current,width:value}))}/><em>mm</em></div></label>
+              <label><span>Height <small>H</small></span><div><MeasureInput value={room.height} min={100} max={10000} onCommit={value=>setRoom(current=>({...current,height:value}))}/><em>mm</em></div></label>
+              <label><span>Depth <small>D</small></span><div><MeasureInput value={room.depth} min={100} max={50000} onCommit={value=>setRoom(current=>({...current,depth:value}))}/><em>mm</em></div></label>
             </div>
             <div className="roomAdvice"><Icon name="check" size={15}/><span>Custom sizes are supported from 100 mm. Press Enter or leave the field to apply your measurement.</span></div>
             {customEmptyRoom&&<p className="roomSizeNotice" role="status">This room is smaller than the starter layout supports (2600 × 2200 × 2200 mm). We’ll keep your exact measurements and open an empty room so you can add units that fit.</p>}

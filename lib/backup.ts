@@ -24,6 +24,7 @@ export function isProjectBackup(value:unknown):value is Project[]{
       (i.hobZones===undefined||[2,4,5].includes(i.hobZones))&&
       (i.islandStyle===undefined||["storage","breakfast","dining","extended","hob","grill"].includes(i.islandStyle))&&
       (i.islandAppliance===undefined||["none","sink","hob","grill"].includes(i.islandAppliance))&&
+      (i.seatingSide===undefined||["back","front"].includes(i.seatingSide))&&
       (i.islandFront===undefined||["doors","drawers"].includes(i.islandFront))&&
       [i.handleLength,i.topThickness,i.topOverhang,i.seatingOverhang,i.counterExtension].every(v=>v===undefined||(num(v)&&v>=0&&v<=2000))&&
       [i.islandSinkStyle,i.islandSinkFinish,i.islandTapStyle,i.islandTapFinish].every(v=>v===undefined||str(v)));

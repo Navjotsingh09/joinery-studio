@@ -17,7 +17,7 @@ export function islandWorktops(i:JoineryItem):JoineryItem[]{
     return {...i,id:i.id+suffix,name:i.name+(suffix===":top"?" · worktop":" · dining counter"),type:"Worktop",sourceUnitIds:[i.id],unitNumber:undefined,x:cx-(quarter?d:w)/2,z:cz-(quarter?w:d)/2,y,width:w,depth:d,height:t,doors:0,shelves:0,hardware:"None",materialId:i.worktopMaterialId??"stone-light",worktopMaterialId:i.worktopMaterialId??"stone-light",finish:i.finish,locked:true,worktopFinishedEdges:["front","back","left","right"]};
   }
   const width=i.width+pad*2+(style==="extended"?ext:0),depth=i.depth+pad+seating;
-  const main=top(":top",style==="extended"?ext/2:0,(pad-seating)/2,width,depth,i.y+i.height-t);
+  const main=top(":top",style==="extended"?ext/2:0,(i.seatingSide==="front"?seating-pad:pad-seating)/2,width,depth,i.y+i.height-t);
   return style==="dining"?[main,top(":dining",i.width/2+pad+ext/2,0,ext,depth,i.y+Math.min(740,i.height-100)-t)]:[main];
 }
 export function syncIslandWorktops(items:JoineryItem[]):JoineryItem[]{
@@ -42,6 +42,6 @@ export function kitchenSpecification(i:JoineryItem){
   if(i.type==="Tall cabinet")details.push(`larder ${i.larderLayout??"shelves"}`);
   if(i.type==="Hob base")details.push(`${i.hobStyle??"induction"} / ${i.hobZones??4} zones`);
   if(i.type==="Sink base")details.push(`${i.productStyle??"Inset stainless"} / ${i.colourVariant??"Stainless steel"}`);
-  if(i.type==="Kitchen island")details.push(`${i.islandStyle??"storage"} island / ${i.islandFront??"drawers"}; ${islandAppliance(i)}; top ${i.topThickness??32} mm; overhang ${i.topOverhang??30} mm; seating ${i.seatingOverhang??300} mm; extension ${i.counterExtension??900} mm`);
+  if(i.type==="Kitchen island")details.push(`${i.islandStyle??"storage"} island / ${i.islandFront??"drawers"}; ${islandAppliance(i)}; top ${i.topThickness??32} mm; overhang ${i.topOverhang??30} mm; seating ${i.seatingOverhang??300} mm / ${i.seatingSide??"back"}; extension ${i.counterExtension??900} mm`);
   return details.join("; ");
 }

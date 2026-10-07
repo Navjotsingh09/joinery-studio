@@ -49,7 +49,7 @@ export function allowedOverlap(a:JoineryItem,b:JoineryItem){
   if(pair.includes("Worktop")&&pair.some(t=>baseKitchen.has(t)))return true;
   const tapType=(t:string)=>t==="Tap"||t.endsWith(" tap");
   if(pair.some(t=>tapType(t))&&pair.some(t=>t==="Sink base"||t==="Worktop"))return true;
-  if(pair.includes("Backsplash")&&pair.some(t=>baseKitchen.has(t)||["Wall cabinet","Tall cabinet","Oven tower","Fridge housing"].includes(t)))return true;
+  if(pair.includes("Backsplash")&&pair.some(t=>baseKitchen.has(t)||t==="Wall cabinet"))return true;
   if(pair.some(t=>t==="Door opening"||t==="Window")&&pair.includes("Wall segment"))return true;
   return false;
 }
@@ -73,29 +73,60 @@ export function canPlace(p:Project,candidate:JoineryItem,ignoreId?:string){
   if(!serviceGapSatisfied(p,candidate))return false;
   if(candidate.width<=0||candidate.height<=0||candidate.depth<=0)return false;
   if(candidate.x<c||candidate.x+fp.width>p.roomWidth-c||candidate.y<0||candidate.y+candidate.height>p.roomHeight||candidate.z<0||candidate.z+fp.depth>p.roomDepth)return false;
-  return !p.items.some(i=>i.id!==ignoreId&&itemsCollide(candidate,i,p.rules.componentGap))
+  return !p.items.some(i=>i.visible!==false&&i.id!==ignoreId&&itemsCollide(candidate,i,p.rules.componentGap))
+}
+export function islandAisleSatisfied(p:Project,i:JoineryItem){
+  const box=islandWorktops(i)[0]??i,F=footprint(box);
+  return !p.items.some(j=>j.visible!==false&&j.id!==i.id&&!j.sourceUnitIds?.includes(i.id)&&(baseKitchen.has(j.type)||['Tall cabinet','Oven tower','Fridge housing'].includes(j.type))&&(()=>{const G=footprint(j),dx=Math.max(j.x-box.x-F.width,box.x-j.x-G.width,0),dz=Math.max(j.z-box.z-F.depth,box.z-j.z-G.depth,0);return (dx===0&&dz<900)||(dz===0&&dx<900)})());
 }
 export function findFreePlacement(p:Project,item:JoineryItem){
+  const live=p.items.filter(i=>i.visible!==false);
+  const tap=item.type==="Tap"||item.type.endsWith(" tap");
+  if(tap){
+    for(const sink of live.filter(i=>i.type==="Sink base")){
+      const f=footprint(sink),rot=normalizeRotation(sink.rotation),a=rot*Math.PI/180;
+      const q={...item,rotation:rot,x:sink.x+f.width/2-Math.sin(a)*sink.depth*.32-footprint({...item,rotation:rot}).width/2,z:sink.z+f.depth/2-Math.cos(a)*sink.depth*.32-footprint({...item,rotation:rot}).depth/2,y:Math.max(sink.y+sink.height,...live.filter(i=>i.type==="Worktop"&&i.x<=sink.x+f.width/2&&i.x+footprint(i).width>=sink.x+f.width/2&&i.z<=sink.z+f.depth/2&&i.z+footprint(i).depth>=sink.z+f.depth/2).map(i=>i.y+i.height))};
+      if(canPlace(p,q,item.id))return q;
+    }
+    // A tap needs a sink; return an explicitly invalid placement when none fits.
+    return {...item,x:-item.width};
+  }
   if(item.type==="Backsplash"){
     // Wall finishes must never fall back to the freestanding floor search.
     const step=Math.max(25,p.rules.snap),walls:WallSide[]=item.wallSide?[item.wallSide,...(["back","left","front","right"] as WallSide[]).filter(w=>w!==item.wallSide)]:["back","left","front","right"];
-    let fallback=snapItemToWall(p,item,walls[0]);
+    let fallback={...snapItemToWall(p,item,walls[0]),x:-item.width};
     for(const wall of walls){
       const mounted=snapItemToWall(p,item,wall),fp=footprint(mounted),horizontal=wall==="back"||wall==="front";
       const max=(horizontal?p.roomWidth-fp.width:p.roomDepth-fp.depth)-Math.max(0,p.rules.wallClearance);
       for(let offset=Math.max(0,p.rules.wallClearance);offset<=max;offset+=step){
         let q={...mounted,wallSide:wall,...(horizontal?{x:offset}:{z:offset})};
         const supporting=p.items.filter(top=>top.type==="Worktop"&&isItemOnWall(p,top,wall,50)&&(()=>{const t=footprint(top);return horizontal?q.x<top.x+t.width&&q.x+fp.width>top.x:q.z<top.z+t.depth&&q.z+fp.depth>top.z})());
+        const fitted=live.some(i=>baseKitchen.has(i.type)||i.type==='Worktop');
+        if(fitted&&!supporting.some(top=>{const t=footprint(top);return horizontal?q.x>=top.x&&q.x+fp.width<=top.x+t.width:q.z>=top.z&&q.z+fp.depth<=top.z+t.depth}))continue;
         q={...q,y:Math.max(item.y,...supporting.map(top=>top.y+top.height+Math.max(0,p.rules.componentGap)))};
         if(canPlace(p,q,item.id))return q;
-        fallback=q;
+        fallback={...q,x:-item.width};
       }
     }
     return fallback;
   }
+  const wallTypes=new Set(["Wall cabinet","Door opening","Window","Wall segment","Extractor hood"]);
+  if(wallTypes.has(item.type)){
+    const walls:WallSide[]=item.wallSide?[item.wallSide]:["back","left","front","right"];
+    for(const wall of walls){const mounted={...snapItemToWall(p,item,wall),wallSide:wall},f=footprint(mounted),horizontal=wall==='back'||wall==='front',extent=horizontal?p.roomWidth-f.width:p.roomDepth-f.depth;
+      const original=horizontal?item.x:item.z,step=Math.max(25,p.rules.snap),offsets=[original,...live.flatMap(i=>{const g=footprint(i);return horizontal?[i.x+g.width+p.rules.componentGap,i.x-f.width-p.rules.componentGap]:[i.z+g.depth+p.rules.componentGap,i.z-f.depth-p.rules.componentGap]}),0];
+      for(let n=0;n<=extent&&offsets.length<2000;n+=step)offsets.push(n);
+      offsets.sort((a,b)=>Math.abs(a-original)-Math.abs(b-original));
+      for(const offset of offsets){const q={...mounted,...(horizontal?{x:offset}:{z:offset})};if(canPlace(p,q,item.id))return q}
+    }
+    return {...item,x:-item.width};
+  }
   const step=Math.max(25,p.rules.snap),c=Math.max(0,p.rules.wallClearance),base=clampItemToRoom(item,p),fp=footprint(base),maxX=Math.max(c,p.roomWidth-c-fp.width),maxZ=Math.max(0,p.roomDepth-fp.depth);
-  for(let z=0;z<=maxZ;z+=step)for(let x=c;x<=maxX;x+=step){const candidate=clampItemToRoom({...base,x,z},p);if(canPlace(p,candidate,item.id))return candidate}
-  return base
+  const acceptable=(q:JoineryItem)=>canPlace(p,q,item.id)&&(q.type!=="Kitchen island"||islandAisleSatisfied(p,q));
+  if(acceptable(base))return base;
+  let attempts=0;
+  for(let z=0;z<=maxZ;z+=step)for(let x=c;x<=maxX;x+=step){if(++attempts>20000)return {...base,x:-base.width};const candidate=clampItemToRoom({...base,x,z},p);if(acceptable(candidate))return candidate}
+  return {...base,x:-base.width}
 }
 export type WallSide="back"|"front"|"left"|"right";
 export function wallViewSize(p:Project,wall:WallSide){return {w:(wall==="back"||wall==="front")?p.roomWidth:p.roomDepth,h:p.roomHeight}}
@@ -107,7 +138,7 @@ export function wallItemRect(i:JoineryItem,p:Project,wall:WallSide):Rect{
   return {left:i.z,top,width:fp.depth,height:i.height}
 }
 export function isItemOnWall(p:Project,i:JoineryItem,wall:WallSide,tolerance=260){
-  if(i.wallSide===wall)return true;
+  if(i.wallSide&&i.wallSide!==wall)return false;
   const c=wallClearances(p,i);
   return wall==="back"?c.back<=tolerance:wall==="front"?c.front<=tolerance:wall==="left"?c.left<=tolerance:c.right<=tolerance
 }
@@ -154,7 +185,10 @@ const stairTypesForValidation=new Set(["Straight staircase","L staircase","U sta
 const standardCabinetTypes=new Set(["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Sink base","Hob base","Oven tower","Fridge housing"]);
 export function validate(p:Project){
   p=kitchenProject(p);
-  const issues:string[]=[],c=p.rules.wallClearance,g=p.rules.componentGap;
+  const issues:string[]=[];
+  if(![p.roomWidth,p.roomHeight,p.roomDepth].every(Number.isFinite)||p.roomWidth<100||p.roomDepth<100||p.roomHeight<100||p.roomWidth>50000||p.roomDepth>50000||p.roomHeight>10000)issues.push("Room dimensions are outside the supported range: width/depth 100–50000 mm; height 100–10000 mm.");
+  p={...p,items:p.items.filter(i=>i.visible!==false)};
+  const c=p.rules.wallClearance,g=p.rules.componentGap;
   p.items.forEach(i=>{
     const fp=footprint(i);
     if(!serviceGapSatisfied(p,i))issues.push(i.name+": insufficient rear service clearance.");
@@ -163,6 +197,9 @@ export function validate(p:Project){
     if(i.y<0||i.y+i.height>p.roomHeight)issues.push(i.name+": outside room height.");
     if(i.z<0||i.z+fp.depth>p.roomDepth)issues.push(i.name+": outside room depth.");
 
+    if(i.type==='Kitchen island'){
+      if(!islandAisleSatisfied(p,i))issues.push(i.name+": less than 900 mm circulation space beside the island counter.");
+    }
     if(standardCabinetTypes.has(i.type)&&(i.width<250||i.width>1400))issues.push(i.name+": cabinet width is outside the normal configurable range.");
     if(stairTypesForValidation.has(i.type)&&stairMetrics(i).review)issues.push(i.name+": stair rise/going/pitch needs design review before manufacture.")
   });

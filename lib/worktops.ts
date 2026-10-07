@@ -5,7 +5,9 @@ import {newItem} from './defaults';
 import {footprint,normalizeRotation} from './geometry';
 const BASES=new Set(['Base cabinet','Drawer unit','Sink base','Hob base','Corner cabinet','Dishwasher','Washing machine','Kitchen island','Wine rack','Filler panel','End panel']);
 export function generateWorktops(p:Project,overhang=30,thickness=38):JoineryItem[]{
-  const bases=p.items.filter(i=>BASES.has(i.type)&&i.type!=='Kitchen island'&&i.visible!==false),remaining=new Set(bases.map(i=>i.id)),tops:JoineryItem[]=[],usedPrevious=new Set<string>();
+  const rawBases=p.items.filter(i=>BASES.has(i.type)&&i.type!=='Kitchen island'&&i.visible!==false);
+  const bases=rawBases.map(i=>{if(!['Dishwasher','Washing machine'].includes(i.type))return i;const f=footprint(i),horizontal=normalizeRotation(i.rotation)%180===0;const adjacent=rawBases.filter(j=>!['Dishwasher','Washing machine'].includes(j.type)&&normalizeRotation(j.rotation)===normalizeRotation(i.rotation)&&(()=>{const g=footprint(j);const gap=horizontal?Math.max(i.x,j.x)-Math.min(i.x+f.width,j.x+g.width):Math.max(i.z,j.z)-Math.min(i.z+f.depth,j.z+g.depth);return gap<=60&&(horizontal?Math.abs(i.z-j.z):Math.abs(i.x-j.x))<=40})());return adjacent.length?{...i,height:Math.max(i.y+i.height,...adjacent.map(j=>j.y+j.height))-i.y}:i});
+  const remaining=new Set(bases.map(i=>i.id)),tops:JoineryItem[]=[],usedPrevious=new Set<string>();
   for(const start of bases){if(!remaining.has(start.id))continue;const rot=normalizeRotation(start.rotation),horizontal=rot%180===0,run:JoineryItem[]=[start];remaining.delete(start.id);
     // Connected runs only: never span a doorway or a disconnected cabinet group.
     let changed=true;while(changed){changed=false;for(const i of bases){if(!remaining.has(i.id)||normalizeRotation(i.rotation)!==rot||Math.abs(i.y+i.height-start.y-start.height)>5)continue;const f=footprint(i);const near=run.some(j=>{const g=footprint(j),along=horizontal?Math.max(i.x,j.x)-Math.min(i.x+f.width,j.x+g.width):Math.max(i.z,j.z)-Math.min(i.z+f.depth,j.z+g.depth),cross=horizontal?Math.abs(i.z-j.z):Math.abs(i.x-j.x);return along<=Math.max(60,p.rules.componentGap+1)&&cross<=40});if(near){run.push(i);remaining.delete(i.id);changed=true}}}
@@ -31,6 +33,7 @@ export function generateWorktops(p:Project,overhang=30,thickness=38):JoineryItem
 export function connectedWorktopItems(p:Project,items:JoineryItem[]):JoineryItem[]{
  if(!p.autoWorktops)return items;
  const previous=p.items.filter(i=>i.type==="Worktop"&&i.sourceUnitIds?.length);
- const generated=generateWorktops({...p,items},p.autoWorktopOverhang??30,previous[0]?.height??38);
+ const resized=items.find(i=>i.type==='Worktop'&&i.sourceUnitIds?.length&&!i.id.endsWith(':top')&&!i.id.endsWith(':dining')&&p.items.some(old=>old.id===i.id&&old.height!==i.height));
+ const generated=generateWorktops({...p,items},p.autoWorktopOverhang??30,resized?.height??previous[0]?.height??38);
  return [...items.filter(i=>i.type!=="Worktop"),...generated];
 }
