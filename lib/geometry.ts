@@ -124,6 +124,10 @@ export function findFreePlacement(p:Project,item:JoineryItem){
   const step=Math.max(25,p.rules.snap),c=Math.max(0,p.rules.wallClearance),base=clampItemToRoom(item,p),fp=footprint(base),maxX=Math.max(c,p.roomWidth-c-fp.width),maxZ=Math.max(0,p.roomDepth-fp.depth);
   const acceptable=(q:JoineryItem)=>canPlace(p,q,item.id)&&(q.type!=="Kitchen island"||islandAisleSatisfied(p,q));
   if(acceptable(base))return base;
+  const gap=base.type==='Kitchen island'?900:p.rules.componentGap;
+  const adjacent=live.filter(i=>i.type!=='Worktop'&&i.type!=='Backsplash'&&Math.abs(i.y-base.y)<5).flatMap(i=>{const f=footprint(i);return [{...base,x:i.x+f.width+gap,z:i.z},{...base,x:i.x-fp.width-gap,z:i.z},{...base,x:i.x,z:i.z+f.depth+gap},{...base,x:i.x,z:i.z-fp.depth-gap}]});
+  adjacent.sort((a,b)=>Math.hypot(a.x-base.x,a.z-base.z)-Math.hypot(b.x-base.x,b.z-base.z));
+  for(const q of adjacent)if(acceptable(q))return q;
   let attempts=0;
   for(let z=0;z<=maxZ;z+=step)for(let x=c;x<=maxX;x+=step){if(++attempts>20000)return {...base,x:-base.width};const candidate=clampItemToRoom({...base,x,z},p);if(acceptable(candidate))return candidate}
   return {...base,x:-base.width}
