@@ -76,6 +76,23 @@ export function canPlace(p:Project,candidate:JoineryItem,ignoreId?:string){
   return !p.items.some(i=>i.id!==ignoreId&&itemsCollide(candidate,i,p.rules.componentGap))
 }
 export function findFreePlacement(p:Project,item:JoineryItem){
+  if(item.type==="Backsplash"){
+    // Wall finishes must never fall back to the freestanding floor search.
+    const step=Math.max(25,p.rules.snap),walls:WallSide[]=item.wallSide?[item.wallSide,...(["back","left","front","right"] as WallSide[]).filter(w=>w!==item.wallSide)]:["back","left","front","right"];
+    let fallback=snapItemToWall(p,item,walls[0]);
+    for(const wall of walls){
+      const mounted=snapItemToWall(p,item,wall),fp=footprint(mounted),horizontal=wall==="back"||wall==="front";
+      const max=(horizontal?p.roomWidth-fp.width:p.roomDepth-fp.depth)-Math.max(0,p.rules.wallClearance);
+      for(let offset=Math.max(0,p.rules.wallClearance);offset<=max;offset+=step){
+        let q={...mounted,wallSide:wall,...(horizontal?{x:offset}:{z:offset})};
+        const supporting=p.items.filter(top=>top.type==="Worktop"&&isItemOnWall(p,top,wall,50)&&(()=>{const t=footprint(top);return horizontal?q.x<top.x+t.width&&q.x+fp.width>top.x:q.z<top.z+t.depth&&q.z+fp.depth>top.z})());
+        q={...q,y:Math.max(item.y,...supporting.map(top=>top.y+top.height+Math.max(0,p.rules.componentGap)))};
+        if(canPlace(p,q,item.id))return q;
+        fallback=q;
+      }
+    }
+    return fallback;
+  }
   const step=Math.max(25,p.rules.snap),c=Math.max(0,p.rules.wallClearance),base=clampItemToRoom(item,p),fp=footprint(base),maxX=Math.max(c,p.roomWidth-c-fp.width),maxZ=Math.max(0,p.roomDepth-fp.depth);
   for(let z=0;z<=maxZ;z+=step)for(let x=c;x<=maxX;x+=step){const candidate=clampItemToRoom({...base,x,z},p);if(canPlace(p,candidate,item.id))return candidate}
   return base

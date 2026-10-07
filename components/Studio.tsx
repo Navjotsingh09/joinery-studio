@@ -213,6 +213,11 @@ export default function Studio(){
 
   const add=(type:string,at?:{x:number;y:number;z:number})=>{
     let i=newItem(type);
+    if(type==="Backsplash"){
+      i=findFreePlacement(p,i);
+      if(!canPlace(p,i)){setNotice("No suitable wall space for a backsplash. Adjust the wall units or panel size.");return}
+      s.addItem(i);setNotice("Backsplash placed against the wall above the worktop.");return;
+    }
     if(at){
       i=clampItemToRoom({...i,x:at.x-i.width/2,y:Math.max(0,at.y-i.height/2),z:at.z-i.depth/2},p);
       i=autoFaceNearestWall(p,i);
