@@ -1,0 +1,65 @@
+{
+  "generator": "scripts/render-layout-previews.mjs",
+  "previews": [
+    {
+      "id": "l-shape",
+      "title": "L-shaped kitchen",
+      "width": 1280,
+      "height": 720,
+      "items": 19,
+      "roomMm": [
+        4200,
+        2400,
+        3400
+      ]
+    },
+    {
+      "id": "straight",
+      "title": "Straight kitchen",
+      "width": 1280,
+      "height": 720,
+      "items": 11,
+      "roomMm": [
+        4200,
+        2400,
+        3400
+      ]
+    },
+    {
+      "id": "island",
+      "title": "Kitchen + island",
+      "width": 1280,
+      "height": 720,
+      "items": 12,
+      "roomMm": [
+        4200,
+        2400,
+        3400
+      ]
+    },
+    {
+      "id": "galley",
+      "title": "Galley kitchen",
+      "width": 1280,
+      "height": 720,
+      "items": 16,
+      "roomMm": [
+        4200,
+        2400,
+        3400
+      ]
+    },
+    {
+      "id": "blank",
+      "title": "Start kitchen on your own",
+      "width": 1280,
+      "height": 720,
+      "items": 0,
+      "roomMm": [
+        4200,
+        2400,
+        3400
+      ]
+    }
+  ]
+}

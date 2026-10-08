@@ -1,9 +1,10 @@
+import {memo} from 'react';
 import {Project} from '@/types/model';
 import {footprint} from '@/lib/geometry';
 import {material} from '@/lib/materials';
 
 /** A live plan derived from saved objects, never a generic room illustration. */
-export function ProjectPreview({project}:{project:Project}){
+export const ProjectPreview=memo(function ProjectPreview({project}:{project:Project}){
   const scale=Math.min(330/Math.max(1,project.roomWidth),148/Math.max(1,project.roomDepth)),w=project.roomWidth*scale,d=project.roomDepth*scale,x=(400-w)/2,z=(190-d)/2;
   const items=project.items.filter(i=>i.visible!==false).sort((a,b)=>a.y-b.y);
   return <svg viewBox="0 0 400 190" role="img" aria-label={`Plan preview of ${project.name}, ${items.length} objects`}>
@@ -16,4 +17,4 @@ export function ProjectPreview({project}:{project:Project}){
     <text x="12" y="178" fontSize="8" fill="#454b3f" fontFamily="Arial">{project.roomWidth} × {project.roomDepth} mm · PLAN</text>
     {!items.length&&<text x="200" y="98" textAnchor="middle" fontSize="12" fill="#414739">Empty room · ready to design</text>}
   </svg>;
-}
+});

@@ -3,6 +3,7 @@ import {existsSync} from "node:fs";
 import {SPLASHBACK_MATERIALS} from "@/lib/splashbacks";
 import {material} from "@/lib/materials";
 import {newProject,newItem} from "@/lib/defaults";
+import {findFreePlacement,canPlace} from "@/lib/geometry";
 import {isProjectBackup} from "@/lib/backup";
 
 describe("supplier splashback catalogue",()=>{
@@ -12,3 +13,16 @@ describe("supplier splashback catalogue",()=>{
   it("offers distinct matt, metallic, sparkle, marble, patterned and mirror finishes",()=>{const finishes=new Set(SPLASHBACK_MATERIALS.map(m=>m.splashbackFinish));for(const name of ['Matt','Metallic','Sparkle','Marble','Patterned','Floral','Mirrored','Plain'])expect(finishes.has(name)).toBe(true)});
   it("preserves splashback selection through JSON backup",()=>{const p=newProject(),m=SPLASHBACK_MATERIALS[0];p.items=[{...newItem('Backsplash'),materialId:m.id,depth:m.thickness,finish:m.surfaceFinish??"Gloss"}];const restored=JSON.parse(JSON.stringify([p]));expect(isProjectBackup(restored)).toBe(true);expect(material(restored[0].items[0].materialId).name).toBe(m.name)});
 });
+
+ describe("backsplash wall placement",()=>{
+  it("places a new splashback above the worktop instead of in the aisle",()=>{
+   const p=newProject();p.items=[{...newItem("Worktop"),x:20,z:0,y:870,width:3000,height:38,depth:625}];
+   const splash=findFreePlacement(p,newItem("Backsplash"));
+   expect(splash.z).toBe(0);expect(splash.wallSide).toBe("back");expect(splash.y).toBe(910);expect(canPlace(p,splash)).toBe(true);
+  });
+  it("never puts a wall finish in the middle when all walls are occupied",()=>{
+   const p=newProject();p.rules.wallClearance=0;p.items=[{...newItem("Wall segment"),x:0,z:0,y:0,width:p.roomWidth,height:p.roomHeight,depth:p.roomDepth}];
+   const splash=findFreePlacement(p,newItem("Backsplash"));
+   expect(canPlace(p,splash)).toBe(false);expect(splash.wallSide).toBeDefined();
+  });
+ });

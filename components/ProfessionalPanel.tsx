@@ -1,4 +1,10 @@
 "use client";
+import {MeasureInput} from "./MeasureInput";
+import {useProjectDialogs} from "./ProjectDialogs";
+import {generateWorktops} from "@/lib/worktops";
+import {CadPlanPanel} from "./CadPlanPanel";
+import {DrawingReferencePanel} from "./DrawingReferencePanel";
+import {newId} from "@/lib/id";
 import {useEffect,useMemo,useState} from "react";
 import {Project,JoineryItem} from "@/types/model";
 import {useStudio} from "@/lib/store";
@@ -10,8 +16,10 @@ const wardrobeTypes=new Set(["Wardrobe","Sliding wardrobe"]);
 const baseTypes=new Set(["Base cabinet","Drawer unit","Sink base","Hob base","Corner cabinet","Dishwasher","Washing machine","Filler panel","End panel"]);
 
 export function ProfessionalPanel({project}:{project:Project}){
+  const {confirm}=useProjectDialogs();
   const s=useStudio();
   const [ids,setIds]=useState<string[]>([]);
+  const [overhang,setOverhang]=useState(30),[thickness,setThickness]=useState(38);
   const [message,setMessage]=useState("");
   useEffect(()=>{setIds(v=>v.filter(id=>project.items.some(i=>i.id===id)))},[project.id,project.items.length]);
   useEffect(()=>{if(s.selectedId&&project.items.some(i=>i.id===s.selectedId))setIds(v=>v.includes(s.selectedId!)?v:[s.selectedId!])},[s.selectedId,project.id]);
@@ -38,7 +46,7 @@ export function ProfessionalPanel({project}:{project:Project}){
     if(canPlace(project,q,primary.id)){s.updateItem(primary.id,q);setMessage("Mirrored "+primary.name+".")}
     else setMessage("Mirror blocked by another object.");
   };
-  const group=()=>{if(picked.length<2)return setMessage("Select at least two items.");const groupId=crypto.randomUUID();apply(()=>({groupId}));setMessage("Grouped "+picked.length+" items.");};
+  const group=()=>{if(picked.length<2)return setMessage("Select at least two items.");const groupId=newId();apply(()=>({groupId}));setMessage("Grouped "+picked.length+" items.");};
   const distribute=()=>{
     if(picked.length<3)return setMessage("Select at least three items to distribute.");
     const ordered=[...picked].sort((a,b)=>a.x-b.x),first=ordered[0],last=ordered[ordered.length-1],span=last.x-first.x;
@@ -50,7 +58,7 @@ export function ProfessionalPanel({project}:{project:Project}){
     if(!primary)return;
     const step=footprint(primary).width+Math.max(project.rules.componentGap,project.rules.snap),temp={...project,items:[...project.items]},made:JoineryItem[]=[];
     for(let n=1;n<=12;n++){
-      const q=clampItemToRoom({...primary,id:crypto.randomUUID(),name:primary.name+" "+(n+1),x:primary.x+step*n,groupId:primary.groupId},temp);
+      const q=clampItemToRoom({...primary,id:newId(),name:primary.name+" "+(n+1),x:primary.x+step*n,groupId:primary.groupId},temp);
       if(q.x<=primary.x||temp.items.some(x=>x.id!==primary.id&&x.x===q.x&&x.z===q.z))break;
       if(!canPlace(temp,q))break;
       temp.items.push(q);made.push(q);
@@ -59,67 +67,25 @@ export function ProfessionalPanel({project}:{project:Project}){
     setMessage(made.length?"Added "+made.length+" copies along the wall.":"No clear space for another copy.");
   };
   const makeWorktop=()=>{
-    const bases=project.items.filter(i=>baseTypes.has(i.type)&&i.visible!==false);
-    if(!bases.length)return setMessage("No kitchen base cabinets found.");
-    const wallFor=(i:JoineryItem):WallSide|null=>{
-      if(i.wallSide)return i.wallSide;
-      const c=wallClearances(project,i),pairs:[WallSide,number][]=[["back",c.back],["front",c.front],["left",c.left],["right",c.right]];
-      pairs.sort((a,b)=>a[1]-b[1]);
-      return pairs[0][1]<=180?pairs[0][0]:null;
-    };
-    const groups=new Map<WallSide,JoineryItem[]>();
-    for(const i of bases){const wall=wallFor(i);if(!wall)continue;groups.set(wall,[...(groups.get(wall)??[]),i])}
-    if(!groups.size)return setMessage("Move the base cabinets close to a wall before generating worktops.");
-
-    const runDepth=(wall:WallSide,items:JoineryItem[])=>{
-      const horizontal=wall==="back"||wall==="front";
-      return Math.max(...items.map(i=>horizontal?footprint(i).depth:footprint(i).width))+40;
-    };
-    const existing=project.items.filter(i=>i.type==="Worktop"&&i.name.startsWith("Auto worktop · "));
-    const keep=new Set<string>(),created:string[]=[];
-
-    for(const [wall,items] of groups){
-      const horizontal=wall==="back"||wall==="front";
-      let min=horizontal?Math.min(...items.map(i=>i.x)):Math.min(...items.map(i=>i.z));
-      let max=horizontal?Math.max(...items.map(i=>i.x+footprint(i).width)):Math.max(...items.map(i=>i.z+footprint(i).depth));
-      const across=runDepth(wall,items);
-
-      // Horizontal runs own the room corners. Perpendicular side runs are trimmed
-      // to meet them cleanly, preventing duplicate worktop geometry and Z-fighting.
-      if(!horizontal){
-        const backItems=groups.get("back");
-        if(backItems?.length){
-          const backDepth=runDepth("back",backItems);
-          if(min<backDepth)min=backDepth;
-        }
-        const frontItems=groups.get("front");
-        if(frontItems?.length){
-          const frontDepth=runDepth("front",frontItems),frontStart=project.roomDepth-frontDepth;
-          if(max>frontStart)max=frontStart;
-        }
-      }
-
-      const span=max-min;
-      if(span<100)continue;
-      const top=Math.max(...items.map(i=>i.y+i.height)),name="Auto worktop · "+wall;
-      const found=existing.find(i=>i.name===name),q={...newItem("Worktop"),id:found?.id??crypto.randomUUID(),name,y:top,width:span,height:38,depth:across,materialId:found?.materialId??"stone-light",worktopMaterialId:found?.worktopMaterialId??found?.materialId??"stone-light",layer:"Joinery" as const,rotation:horizontal?(wall==="front"?180:0):90,wallSide:wall,x:horizontal?min:(wall==="left"?0:Math.max(0,project.roomWidth-across)),z:horizontal?(wall==="back"?0:Math.max(0,project.roomDepth-across)):min};
-      keep.add(q.id);created.push(wall);
-      found?s.updateItem(found.id,q):s.addItem(q);
-    }
-    for(const old of existing)if(!keep.has(old.id))s.deleteItem(old.id);
-    setMessage(created.length?"Generated clean worktop runs for "+created.join(", ")+" wall"+(created.length>1?"s":"")+".":"No valid worktop run could be generated.");
+    const tops=generateWorktops(project,overhang,thickness);
+    if(!tops.length)return setMessage("Add base cabinets or an island first.");
+    const items=[...project.items.filter(i=>i.type!=="Worktop"),...tops];
+    const proposed={...project,items};
+    if(tops.some(t=>!canPlace(proposed,t,t.id)))return setMessage("A worktop intersects another object. Adjust the run or overhang.");
+    s.updateProject({items,autoWorktops:true,autoWorktopOverhang:overhang});setMessage("Generated "+tops.length+" connected worktop section(s), with automatic sink and hob cutouts. Undo restores the previous tops.");
   };
   const addWardrobeInternals=()=>{
     if(!primary||!wardrobeTypes.has(primary.type))return setMessage("Select a wardrobe first.");
     if(normalizeRotation(primary.rotation)%180!==0)return setMessage("Rotate the wardrobe to 0° or 180° before auto-fitting internals.");
-    const groupId=crypto.randomUUID(),pad=50,innerW=Math.max(300,primary.width-pad*2);
-    const rail={...newItem("Hanging rail"),id:crypto.randomUUID(),name:primary.name+" hanging rail",x:primary.x+pad,y:primary.y+Math.min(primary.height-350,1450),z:primary.z+Math.max(40,primary.depth*.42),width:innerW,groupId};
-    const drawers={...newItem("Internal drawers"),id:crypto.randomUUID(),name:primary.name+" internal drawers",x:primary.x+pad,y:primary.y+100,z:primary.z+60,width:Math.min(innerW,800),depth:Math.max(300,primary.depth-120),groupId};
-    const loft={...newItem("Loft box"),id:crypto.randomUUID(),name:primary.name+" loft box",x:primary.x+pad,y:primary.y+Math.max(1200,primary.height-480),z:primary.z+50,width:innerW,height:380,depth:Math.max(300,primary.depth-100),groupId};
+    const groupId=newId(),pad=50,innerW=Math.max(300,primary.width-pad*2);
+    const rail={...newItem("Hanging rail"),id:newId(),name:primary.name+" hanging rail",x:primary.x+pad,y:primary.y+Math.min(primary.height-350,1450),z:primary.z+Math.max(40,primary.depth*.42),width:innerW,groupId};
+    const drawers={...newItem("Internal drawers"),id:newId(),name:primary.name+" internal drawers",x:primary.x+pad,y:primary.y+100,z:primary.z+60,width:Math.min(innerW,800),depth:Math.max(300,primary.depth-120),groupId};
+    const loft={...newItem("Loft box"),id:newId(),name:primary.name+" loft box",x:primary.x+pad,y:primary.y+Math.max(1200,primary.height-480),z:primary.z+50,width:innerW,height:380,depth:Math.max(300,primary.depth-100),groupId};
     [rail,drawers,loft].forEach(i=>s.addItem(clampItemToRoom(i,project)));
     setMessage("Added hanging rail, internal drawers and loft storage.");
   };
-  return <section className="proPanel">
+  return <section className="proPanel"><CadPlanPanel key={project.id} onChange={drawingReference=>s.updateProject({drawingReference})} onPlan={()=>s.setView("top")}/><DrawingReferencePanel project={project} onChange={drawingReference=>s.updateProject({drawingReference})} onPlan={()=>s.setView("top")}/>
+    <details className="workflowHelp"><summary>Workflow & keyboard shortcuts</summary><p>Room → Floor → Wall → Door → Window → Kitchen units. Then Base → Wall → Larder → Island → Worktop → Backsplash.</p><dl><dt>Top</dt><dd>2D floor planner</dd><dt>Shift + click (3D)</dt><dd>Select the surface beneath the pointer</dd><dt>Alt + click (3D) / Alt + drag (2D)</dt><dd>Duplicate the unit</dd><dt>Ctrl / Cmd + D</dt><dd>Duplicate selection</dd><dt>R / Shift + R</dt><dd>Rotate 90° / −90°</dd><dt>Arrow keys</dt><dd>Move by the snap grid</dd><dt>Ctrl / Cmd + Z</dt><dd>Undo · Shift for redo</dd></dl></details>
     <div className="proIntro"><b>Professional edit</b><p>Select one or more objects, then use real-world placement and batch tools.</p></div>
     <details open><summary>Selection <span>{picked.length}</span></summary>
       <div className="proObjectList">{project.items.map(i=><label key={i.id} className={(ids.includes(i.id)?"picked ":"")+(i.visible===false?"hiddenItem":"")}><input type="checkbox" checked={ids.includes(i.id)} onChange={()=>toggle(i.id)}/><span><b>{i.name}</b><small>{i.layer??"Joinery"} · {i.visible===false?"Hidden":"Visible"}{i.locked?" · Locked":""}</small></span></label>)}</div>
@@ -134,10 +100,10 @@ export function ProfessionalPanel({project}:{project:Project}){
     </details>
     <details><summary>Batch edit</summary>
       <div className="proButtonGrid"><button onClick={()=>apply(i=>({x:picked[0]?.x??i.x}))}>Align X</button><button onClick={()=>apply(i=>({z:picked[0]?.z??i.z}))}>Align Z</button><button onClick={distribute}>Distribute X</button><button onClick={group}>Group</button><button onClick={()=>apply(()=>({groupId:undefined}))}>Ungroup</button><button onClick={()=>apply(()=>({locked:true}))}>Lock</button><button onClick={()=>apply(()=>({locked:false}))}>Unlock</button><button onClick={()=>apply(()=>({visible:false}))}>Hide</button><button onClick={()=>apply(()=>({visible:true}))}>Show</button><button onClick={()=>{s.copyItems(picked.map(i=>i.id));setMessage("Copied "+picked.length+" item"+(picked.length===1?"":"s")+" to the project clipboard.")}}>Copy</button><button onClick={()=>{s.pasteItems();setMessage("Pasted clipboard items into this project.")}}>Paste</button></div>
-      <button className="proDanger" onClick={()=>{if(picked.length&&confirm("Delete "+picked.length+" selected item"+(picked.length===1?"":"s")+"?")){s.deleteItems(picked.map(i=>i.id));setIds([])}}}>Delete selected</button>
+      <button className="proDanger" onClick={async()=>{if(picked.length&&await confirm("Delete "+picked.length+" selected item"+(picked.length===1?"":"s")+"?")){s.deleteItems(picked.map(i=>i.id));setIds([])}}}>Delete selected</button>
     </details>
     <details open><summary>Joinery intelligence</summary>
-      <button className="proWide" onClick={makeWorktop}>Generate continuous kitchen worktop</button>
+      <label className="autoWorktopToggle"><input type="checkbox" checked={project.autoWorktops??false} onChange={e=>{if(e.target.checked)makeWorktop();else s.updateProject({autoWorktops:false})}}/> Keep worktops connected as units change</label><p className="surfaceHelp">Rebuild all worktop sections from the current units. Existing tops are replaced; Undo restores them.</p><div className="fieldGrid2"><label>Front overhang (mm)<MeasureInput min={0} max={300} value={overhang} onCommit={setOverhang}/></label><label>Thickness (mm)<MeasureInput min={6} max={100} value={thickness} onCommit={setThickness}/></label></div><button className="proWide" onClick={makeWorktop}>Regenerate kitchen worktops</button>
       <button className="proWide" onClick={addWardrobeInternals}>Auto-fit selected wardrobe internals</button>
       {stairs&&<div className={"stairMetrics "+(stairs.review?"needsReview":"")}><b>Stair geometry</b><div><span>Risers<strong>{stairs.risers}</strong></span><span>Rise<strong>{stairs.rise} mm</strong></span><span>Going<strong>{stairs.going} mm</strong></span><span>Pitch<strong>{stairs.pitch}°</strong></span></div><small>{stairs.review?"Review these proportions before manufacture.":"Proportions look workable."} Planning aid only — verify site dimensions and applicable regulations.</small></div>}
     </details>
