@@ -8,3 +8,6 @@ out/
 tmp/
 
 /public/pdf-assets/
+
+/public/cad-assets/dist/
+/public/cad-assets/wasm/

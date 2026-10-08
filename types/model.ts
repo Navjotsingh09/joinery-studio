@@ -18,7 +18,7 @@ export type JoineryItem={
   edgeBanding:string;rotation:number;visible?:boolean;layer?:ItemLayer;groupId?:string;
   carcassMaterialId?:string;doorMaterialId?:string;sideMaterialId?:string;
   leftSideMaterialId?:string;rightSideMaterialId?:string;plinthMaterialId?:string;worktopMaterialId?:string;
-  plinthStyle?:PlinthStyle;plinthRecess?:number;wallSide?:WallSide;
+  plinthSides?:("front"|"back"|"left"|"right")[];plinthStyle?:PlinthStyle;plinthRecess?:number;wallSide?:WallSide;
   worktopEdge?:"square"|"rounded";productStyle?:string;colourVariant?:string;openAmount?:number;plinthHeight?:number;wardrobeLayout?:"shelves"|"hanging"|"mixed";stairRisers?:number;stairRailHeight?:number;stairRailing?:"both"|"left"|"right"|"none";treadMaterialId?:string;riserMaterialId?:string;railingMaterialId?:string
 };
 export type DesignRules={wallClearance:number;componentGap:number;snap:number;serviceClearance?:number};

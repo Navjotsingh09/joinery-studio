@@ -1,0 +1,5 @@
+DWG decoder: @mlightcad/libredwg-web 0.7.15 / LibreDWG, GPL-3.0.
+Source: https://github.com/mlightcad/libredwg-web
+Runtime scripts and WASM are served without modification from the npm package.
+License: /cad-assets/COPYING
+Joinery Studio integration source: https://github.com/Navjotsingh09/joinery-studio/tree/feat/showroom-ready

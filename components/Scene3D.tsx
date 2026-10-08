@@ -345,8 +345,8 @@ function Handle({x,y,z,height,hardware,orientation="vertical",finish="Brushed st
   </group>;
 }
 
-function Plinth({w,d,h,colour,materialId,style="recessed",recessMm=65}:{w:number;d:number;h:number;colour:string;materialId?:string;style?:"recessed"|"flush"|"legs"|"none";recessMm?:number}){
-  if(style==="none")return null;
+function Plinth({w,d,h,colour,materialId,style="recessed",recessMm=65,sides=["front"]}:{w:number;d:number;h:number;colour:string;materialId?:string;style?:"recessed"|"flush"|"legs"|"none";recessMm?:number;sides?:("front"|"back"|"left"|"right")[]}){
+  if(style==="none"||h<=0)return null;
   if(style==="legs")return <group>{[-1,1].flatMap(x=>[-1,1].map(z=><group key={`${x}-${z}`} position={[x*Math.max(.03,w/2-.07),h/2,z*Math.max(.03,d/2-.07)]}><mesh castShadow><cylinderGeometry args={[.024,.036,Math.max(.001,h),24]}/><meshStandardMaterial color={colour} roughness={.4}/></mesh><mesh position={[0,-h/2+.004,0]}><cylinderGeometry args={[.037,.037,.008,24]}/><meshStandardMaterial color="#333" roughness={.5}/></mesh></group>))}</group>;
   const recess=style==="flush"?0:Math.min(mm(Math.max(0,recessMm)),d*.3);
   const frontZ=d/2-recess-.012;
@@ -357,12 +357,14 @@ function Plinth({w,d,h,colour,materialId,style="recessed",recessMm=65}:{w:number
         <mesh castShadow><cylinderGeometry args={[.024,.031,h*.72,20]}/><meshStandardMaterial color="#232323" roughness={.45}/></mesh>
         <mesh position={[0,-h*.36,0]}><cylinderGeometry args={[.042,.042,.012,24]}/><meshStandardMaterial color="#151515" roughness={.6}/></mesh>
       </group>)}
-      <Panel position={[0,h*.55,frontZ+.05]} size={[Math.max(.05,w-.04),h*.9,.018]} colour={colour} materialId={materialId} part="plinth" front/>
+      {sides.includes("front")&&<Panel position={[0,h*.55,frontZ+.05]} size={[Math.max(.05,w-.04),h*.9,.018]} colour={colour} materialId={materialId} part="plinth" front/>}
     </group>
   }
+  const sideX=Math.max(.01,w/2-.009),backZ=-d/2+.009;
   return <group>
-    <Panel position={[0,h/2,-recess/2]} size={[Math.max(.05,w-.05),h,Math.max(.04,d-recess)]} colour={colour} materialId={materialId} part="plinth"/>
-    <Panel position={[0,h-.009,d/2-.035]} size={[Math.max(.05,w-.04),.018,.05]} colour={colour} materialId={materialId} part="plinth"/>
+    {sides.includes("front")&&<Panel position={[0,h/2,frontZ]} size={[w,h,.018]} colour={colour} materialId={materialId} part="plinth" front/>}
+    {sides.includes("back")&&<Panel position={[0,h/2,backZ]} size={[w,h,.018]} colour={colour} materialId={materialId} part="plinth"/>}
+    {(["left","right"] as const).filter(side=>sides.includes(side)).map(side=><Panel key={side} position={[side==="left"?-sideX:sideX,h/2,(frontZ+backZ)/2]} size={[.018,h,Math.max(.018,frontZ-backZ)]} colour={colour} materialId={materialId} part="plinth"/>)}
   </group>;
 }
 function Carcass({i,w,h,d,colour,shelves=0,openBack=false}:{i:JoineryItem;w:number;h:number;d:number;colour:string;shelves?:number;openBack?:boolean}){
@@ -451,7 +453,7 @@ function WardrobeInternals({i,w,h,d}:{i:JoineryItem;w:number;h:number;d:number})
 function Wardrobe({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
   const plinth=i.plinthStyle==="none"?0:Math.min(mm(i.plinthHeight??80),h*.25),bodyH=Math.max(.01,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
   return <group>
-    <group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
+    <group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess} sides={i.plinthSides??(i.type==="Kitchen island"?["front","back","left","right"]:["front"])}/></group>
     <group position={[0,bodyY,-mm(BOARD)/2]}>
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={i.wardrobeLayout==="shelves"?Math.max(1,i.shelves):0}/>
       <WardrobeInternals i={i} w={w} h={bodyH} d={bodyD}/>
@@ -463,7 +465,7 @@ function Wardrobe({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string
 function BaseCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
   const plinth=i.plinthStyle==="none"?0:Math.min(mm(i.plinthHeight??100),h*.25),top=Math.min(.025,h*.08),bodyH=Math.max(.03,h-plinth-top),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD),explode=activeExplodedPanels;
   return <group>
-    <group position={[0,explode?-.055:0,explode?.035:0]}><group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group></group>
+    <group position={[0,explode?-.055:0,explode?.035:0]}><group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess} sides={i.plinthSides??(i.type==="Kitchen island"?["front","back","left","right"]:["front"])}/></group></group>
     <group position={[0,bodyY,-mm(BOARD)/2+(explode?-.045:0)]}>
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={Math.max(0,i.shelves)}/>
       {i.doors>0&&<DoorFronts i={i} w={w} h={bodyH} d={bodyD} colour={c}/>}
@@ -484,8 +486,8 @@ function CornerCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:s
   const shelfLevels=Math.max(1,i.shelves||1);
   return <group>
     <group position={[0,explode?-.055:0,explode?.035:0]}>
-      <group position={[0,-h/2,0]}><Plinth w={w} d={legD} h={plinth} colour={sceneMaterial(i.plinthMaterialId??carcassId).colour} materialId={i.plinthMaterialId??carcassId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
-      <group position={[-w/2+legW/2,0,legD/2]}><group position={[0,-h/2,0]}><Plinth w={legW} d={Math.max(.08,d-legD)} h={plinth} colour={sceneMaterial(i.plinthMaterialId??carcassId).colour} materialId={i.plinthMaterialId??carcassId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group></group>
+      <group position={[0,-h/2,0]}><Plinth w={w} d={legD} h={plinth} colour={sceneMaterial(i.plinthMaterialId??carcassId).colour} materialId={i.plinthMaterialId??carcassId} style={i.plinthStyle} recessMm={i.plinthRecess} sides={i.plinthSides??(i.type==="Kitchen island"?["front","back","left","right"]:["front"])}/></group>
+      <group position={[-w/2+legW/2,0,legD/2]}><group position={[0,-h/2,0]}><Plinth w={legW} d={Math.max(.08,d-legD)} h={plinth} colour={sceneMaterial(i.plinthMaterialId??carcassId).colour} materialId={i.plinthMaterialId??carcassId} style={i.plinthStyle} recessMm={i.plinthRecess} sides={i.plinthSides??(i.type==="Kitchen island"?["front","back","left","right"]:["front"])}/></group></group>
     </group>
     <group position={[0,bodyY,0]}>
       <Panel position={[0,0,rearZ]} size={[w,bodyH,legD]} colour={carcassColour} materialId={carcassId} part="carcass"/>
@@ -513,7 +515,7 @@ function CornerCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:s
 function TallCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
   const plinth=i.plinthStyle==="none"?0:Math.min(mm(i.plinthHeight??100),h*.25),bodyH=Math.max(.03,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD),explode=activeExplodedPanels;
   return <group>
-    <group position={[0,explode?-.06:0,explode?.04:0]}><group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group></group>
+    <group position={[0,explode?-.06:0,explode?.04:0]}><group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess} sides={i.plinthSides??(i.type==="Kitchen island"?["front","back","left","right"]:["front"])}/></group></group>
     <group position={[0,bodyY+(explode?.025:0),-mm(BOARD)/2+(explode?-.05:0)]}>
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={(i.larderLayout??"shelves")==="shelves"?Math.max(2,i.shelves):0}/>
       {(i.larderLayout??"shelves")==="shelves"?<><KitchenShelfProps w={w} h={bodyH} d={bodyD} levels={Math.min(4,Math.max(2,i.shelves))}/>{i.doors>0&&<DoorFronts i={i} w={w} h={bodyH} d={bodyD} colour={c}/>}</>:<group position={[0,0,i.larderLayout==="pull-out"?Math.max(activeConstructionView?.35:0,(i.openAmount??0)/100*.45):0]}>
@@ -543,7 +545,7 @@ function WallCabinet({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:str
 function DrawerUnit({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
   const plinth=i.plinthStyle==="none"?0:Math.min(mm(i.plinthHeight??100),h*.25),bodyH=Math.max(.03,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD),explode=activeExplodedPanels;
   return <group>
-    <group position={[0,explode?-.055:0,explode?.035:0]}><group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group></group>
+    <group position={[0,explode?-.055:0,explode?.035:0]}><group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess} sides={i.plinthSides??(i.type==="Kitchen island"?["front","back","left","right"]:["front"])}/></group></group>
     <group position={[0,bodyY,-mm(BOARD)/2+(explode?-.045:0)]}>
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c}/>
       <DrawerFronts i={i} w={w} h={bodyH} d={bodyD} colour={c}/>
@@ -554,7 +556,7 @@ function DrawerUnit({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:stri
 function MediaUnit({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
   const plinth=.07,bodyH=Math.max(.22,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD);
   return <group>
-    <group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
+    <group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess} sides={i.plinthSides??(i.type==="Kitchen island"?["front","back","left","right"]:["front"])}/></group>
     <group position={[0,bodyY,-mm(BOARD)/2]}>
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c}/>
       <DrawerFronts i={i} w={w} h={bodyH} d={bodyD} colour={c}/>
@@ -789,7 +791,7 @@ function Bed({w,h,d,c}:{w:number;h:number;d:number;c:string}){
 function KitchenIsland({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
   const plinth=i.plinthStyle==="none"?0:Math.min(mm(i.plinthHeight??90),h*.2),bodyH=Math.max(.03,h-plinth-mm(i.topThickness??32)),bodyY=-h/2+plinth+bodyH/2;
   return <group>
-    <group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
+    <group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess} sides={i.plinthSides??(i.type==="Kitchen island"?["front","back","left","right"]:["front"])}/></group>
     <group position={[0,bodyY,0]}><Carcass i={i} w={w} h={bodyH} d={d-.04} colour={c}/>{i.islandFront==="doors"?<DoorFronts i={i} w={w} h={bodyH} d={d-.04} colour={c}/>:<DrawerFronts i={{...i,doors:Math.max(2,i.doors)}} w={w} h={bodyH} d={d-.04} colour={c}/>}</group>
     {islandAppliance(i)==="sink"&&<><Sink i={{...i,productStyle:i.islandSinkStyle??"Inset stainless",colourVariant:i.islandSinkFinish??"Stainless steel"}} w={w} d={d} y={h/2+.002}/><group position={[0,h/2+.18,-d*.28]}><TapObject i={{...i,productStyle:i.islandTapStyle??"Arc mixer",colourVariant:i.islandTapFinish??"Chrome"}} w={.16} h={.36} d={.22}/></group></>}
     {["hob","grill"].includes(islandAppliance(i))&&<Hob i={{...i,hobStyle:islandAppliance(i)==="grill"?"grill":i.hobStyle}} w={w} d={d} y={h/2+.009}/>}
@@ -815,7 +817,7 @@ function OvenTower({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:strin
   const ovenH=Math.min(.62,bodyH*.3),lowerH=bodyH*.29,topH=Math.max(.015,bodyH-ovenH-lowerH-Math.min(.035,bodyH*.05));
   const lowerY=-bodyH/2+lowerH/2,ovenY=lowerY+lowerH/2+ovenH/2+.012,topY=bodyH/2-topH/2;
   return <group>
-    <group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
+    <group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess} sides={i.plinthSides??(i.type==="Kitchen island"?["front","back","left","right"]:["front"])}/></group>
     <group position={[0,bodyY,-mm(BOARD)/2]}>
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={activeConstructionView?3:0}/>
       <group position={[0,lowerY,0]}><DoorFronts i={{...i,doors:1}} w={w} h={lowerH-.012} d={bodyD} colour={c}/></group>
@@ -844,7 +846,7 @@ function FridgeHousing({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:s
   const plinth=i.plinthStyle==="none"?0:Math.min(mm(i.plinthHeight??100),h*.25),bodyH=Math.max(.03,h-plinth),bodyY=-h/2+plinth+bodyH/2,bodyD=d-mm(BOARD),split=.42;
   const lowerH=bodyH*split,upperH=bodyH-lowerH-.012,lowerY=-bodyH/2+lowerH/2,upperY=bodyH/2-upperH/2;
   return <group>
-    <group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group>
+    <group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={sceneMaterial(i.plinthMaterialId??i.carcassMaterialId??i.materialId).colour} materialId={i.plinthMaterialId??i.carcassMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess} sides={i.plinthSides??(i.type==="Kitchen island"?["front","back","left","right"]:["front"])}/></group>
     <group position={[0,bodyY,-mm(BOARD)/2]}>
       <Carcass i={i} w={w} h={bodyH} d={bodyD} colour={c} shelves={activeConstructionView?2:0}/>
       <mesh position={[0,0,bodyD*.03]} castShadow><boxGeometry args={[Math.max(.2,w-.09),Math.max(.5,bodyH-.08),Math.max(.22,bodyD*.7)]}/><meshStandardMaterial color="#4d5153" metalness={.14} roughness={.42}/></mesh>
@@ -967,7 +969,7 @@ function Cornice({w,h,d,c}:{w:number;h:number;d:number;c:string}){
 }
 function WineRack({i,w,h,d,c}:{i:JoineryItem;w:number;h:number;d:number;c:string}){
   const plinth=Math.min(.1,h*.2),bodyH=h-plinth,levels=Math.max(1,Math.min(12,i.shelves));
-  return <group><group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={c} materialId={i.plinthMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess}/></group><group position={[0,plinth/2,-.009]}><Carcass i={i} w={w} h={bodyH} d={d-.018} colour={c} shelves={levels}/>
+  return <group><group position={[0,-h/2,0]}><Plinth w={w} d={d} h={plinth} colour={c} materialId={i.plinthMaterialId??i.materialId} style={i.plinthStyle} recessMm={i.plinthRecess} sides={i.plinthSides??(i.type==="Kitchen island"?["front","back","left","right"]:["front"])}/></group><group position={[0,plinth/2,-.009]}><Carcass i={i} w={w} h={bodyH} d={d-.018} colour={c} shelves={levels}/>
     {Array.from({length:levels},(_,n)=>{const y=-bodyH/2+bodyH*(n+.5)/(levels+1);return <group key={n} position={[0,y,d*.06]} rotation={[Math.PI/2,0,0]}><mesh castShadow><cylinderGeometry args={[Math.min(.033,w*.2),Math.min(.033,w*.2),d*.48,20]}/><meshPhysicalMaterial color={n%2?"#3e5134":"#634037"} roughness={.23} metalness={.05}/></mesh><mesh position={[0,d*.28,0]} castShadow><cylinderGeometry args={[.012,.017,d*.12,14]}/><meshPhysicalMaterial color="#34442b" roughness={.2}/></mesh></group>})}
   </group></group>;
 }

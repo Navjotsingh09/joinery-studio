@@ -13,16 +13,16 @@ function segment(a:CadPoint&{bulge?:number},b:CadPoint){
  const offset=chord*(1-bulge*bulge)/(4*bulge),cx=(a.x+b.x)/2-dy/chord*offset,cy=(a.y+b.y)/2+dx/chord*offset,r=Math.hypot(a.x-cx,a.y-cy),start=Math.atan2(a.y-cy,a.x-cx),angle=4*Math.atan(bulge),steps=Math.min(96,Math.max(2,Math.ceil(Math.abs(angle)/(Math.PI/24))));
  return Array.from({length:steps},(_,k)=>({x:cx+r*Math.cos(start+angle*(k+1)/steps),y:cy+r*Math.sin(start+angle*(k+1)/steps)}));
 }
-export function parseCadPlan(source:string):CadPlan{
+export function parseCadPlan(source:string,includeHiddenLayers=false):CadPlan{
  if(source.length>8000000||source.split('\n').length>500000)throw new Error('Choose a DXF under 8 MB with fewer than 250,000 groups.');
- if(source.startsWith('AutoCAD Binary DXF')||!source.trimEnd().endsWith('EOF'))throw new Error('Export an ASCII DXF drawing with an EOF marker. Binary DXF and DWG are not supported.');
+ if(source.startsWith('AutoCAD Binary DXF')||!source.trimEnd().endsWith('EOF'))throw new Error('Export an ASCII DXF drawing with an EOF marker. Binary DXF is not supported. Use the DWG upload for native DWG files.');
  const parsed=new DxfParser().parseSync(source);if(!parsed)throw new Error('This DXF could not be read.');const doc=parsed;
  const strokes:CadStroke[]=[];let ignored=0,visited=0;
  function walk(entities:Entity[],matrix:Matrix,inherit='0',depth=0){
   if(depth>8)throw new Error('Nested CAD blocks exceed eight levels.');
   for(const e of entities){if(++visited>50000)throw new Error('This drawing has too many entities. Export the kitchen plan only.');
    const layer=e.layer&&e.layer!=='0'?e.layer:inherit;
-   if(doc.tables?.layer?.layers[layer]?.visible===false)continue;
+   if(!includeHiddenLayers&&doc.tables?.layer?.layers[layer]?.visible===false)continue;
    if(e.type==='INSERT'){
     const block=doc.blocks?.[e.name??''];if(!block){ignored++;continue}
     const angle=(e.rotation??0)*Math.PI/180,c=Math.cos(angle),s=Math.sin(angle),sx=e.xScale??1,sy=e.yScale??1,origin=block.position??{x:0,y:0};
