@@ -26,14 +26,14 @@ const floatingTypes=new Set(["Wall cabinet","Microwave","Extractor hood","Window
 export const isWallMounted=(i:JoineryItem)=>floatingTypes.has(i.type);
 export function clampItemToRoom(i:JoineryItem,p:Project,snapPosition=true):JoineryItem{
   const rotation=normalizeRotation(i.rotation??0),candidate={...i,rotation},fp=footprint(candidate),step=Math.max(1,p.rules.snap),c=Math.max(0,p.rules.wallClearance);
-  const place=(n:number)=>snapPosition?snap(n,step):n;
+  const place=(n:number)=>snapPosition&&p.rules.snapEnabled!==false?snap(n,step):n;
   return{...candidate,x:clamp(place(candidate.x),c,Math.max(c,p.roomWidth-c-fp.width)),y:clamp(candidate.y,0,Math.max(0,p.roomHeight-candidate.height)),z:clamp(place(candidate.z),0,Math.max(0,p.roomDepth-fp.depth))}
 }
 // Snap only the axes being dragged, using the measured origin rather than the
 // rendered centre. Untouched coordinates retain their exact stored values.
 export function moveItemOnAxes(i:JoineryItem,p:Project,position:Pick<JoineryItem,"x"|"y"|"z">,axes:readonly ("x"|"y"|"z")[]):JoineryItem{
   const candidate={...i},step=p.rules.snap;
-  for(const axis of axes)candidate[axis]=Math.round(snap(position[axis],step)*1000)/1000;
+  for(const axis of axes)candidate[axis]=Math.round((p.rules.snapEnabled===false?position[axis]:snap(position[axis],step))*1000)/1000;
   const bounded=clampItemToRoom(candidate,p,false);
   for(const axis of axes)candidate[axis]=bounded[axis];
   return candidate;

@@ -120,7 +120,7 @@ export function ScenarioStart({onCreate,onContinue,continueName,initialKind,proj
 
   return <main className="designHome">
     <header className="designHomeTop">
-      <div className="homeBrand"><span className="brandMark">JS</span><div><b>Joinery Studio</b><small>Precision interior design</small></div></div>
+      <div className="homeBrand"><span className="brandMark">JS</span><div><b>Joinery Studio</b><small>Your design workspace</small></div></div>
       <div className="homeMeta"><span>Millimetre precision</span><i/><span>2D + 3D</span><i/><span>Drawing export</span></div>
       {onContinue&&<button className="resumeTop" onClick={onContinue}>Open current design <Icon name="chevron-right" size={16}/></button>}
     </header>
@@ -132,7 +132,7 @@ export function ScenarioStart({onCreate,onContinue,continueName,initialKind,proj
 
       {!kind&&<>
         <section className="studioHomeHero">
-          <div className="heroCopy"><p className="eyebrow"><span/> YOUR DESIGN WORKSPACE</p><h1>Beautiful spaces.<br/><span>Built around you.</span></h1><p>From your first idea to the final drawing. Create fitted kitchens, considered bedrooms and bespoke stairs — one detail at a time.</p><div className="heroActions"><button className="heroPrimary" onClick={()=>document.getElementById("choose-space")?.scrollIntoView({behavior:"smooth",block:"start"})}>Start a new design <Icon name="chevron-right" size={18}/></button>{onContinue&&<button className="heroSecondary" onClick={onContinue}>Resume your design <Icon name="chevron-right" size={16}/></button>}</div><div className="heroBenefits"><span><Icon name="check" size={14}/> Real dimensions</span><span><Icon name="check" size={14}/> Materials by part</span><span><Icon name="check" size={14}/> 2D & 3D views</span></div></div>
+          <div className="heroCopy"><p className="eyebrow"><span/> YOUR DESIGN WORKSPACE</p><h1>From measured room.<br/><span>To considered detail.</span></h1><p>A focused workspace for fitted kitchens, bedrooms and stairs. Start with your survey, develop the specification, and issue a proposal you can review.</p><div className="heroActions"><button className="heroPrimary" onClick={()=>document.getElementById("choose-space")?.scrollIntoView({behavior:"smooth",block:"start"})}>Start a new design <Icon name="chevron-right" size={18}/></button>{onContinue&&<button className="heroSecondary" onClick={onContinue}>Resume your design <Icon name="chevron-right" size={16}/></button>}</div><div className="heroBenefits"><span><Icon name="check" size={14}/> Real dimensions</span><span><Icon name="check" size={14}/> Materials by part</span><span><Icon name="check" size={14}/> 2D & 3D views</span></div></div>
           <div className="heroScene"><div className="heroSceneLabel"><span className="liveDot"/> SPACE TO CREATE <span>01 / KITCHEN</span></div><DesignPreview kind="kitchen"/><div className="heroSceneCard"><span className="sceneCardMark">JS</span><div><small>THE REFERENCE COLLECTION</small><b>Oak. Stone. Possibility.</b><span>An editable L-shaped starting point</span></div><button aria-label="Start the reference kitchen" onClick={()=>{resetForKind("kitchen");setScenario("l-shape")}}><Icon name="chevron-right" size={20}/></button></div><span className="heroSceneCaption">Illustrated layout inspiration</span></div>
         </section>
         <button className="blankKitchenStart" onClick={()=>{resetForKind("kitchen");setScenario("blank")}}>Start a blank kitchen <Icon name="plus" size={16}/></button>

@@ -30,6 +30,8 @@ import {KitchenOptions} from "./KitchenOptions";
 import {FRONT_STYLES,HANDLE_STYLES} from "@/lib/kitchenConfig";
 import {WorktopOptions} from "./WorktopOptions";
 import {KitchenWorkflow} from "./KitchenWorkflow";
+import {StudioCommands} from "./StudioCommands";
+import {DesignReview} from "./DesignReview";
 import {ProfessionalPanel} from "./ProfessionalPanel";
 
 function ComponentIcon({type}:{type:string}){const cls=type.toLowerCase().replaceAll(" ","-");return <span className={"cabIcon "+cls}><i/><i/><i/><i/></span>}
@@ -87,8 +89,9 @@ function StudioContent(){
   const p=s.projects.find(x=>x.id===s.activeId)??s.projects[0];
   useEffect(()=>{if(p?.items.some(i=>!i.unitNumber))s.updateProject(numberItems(p))},[p?.id,p?.items,s.updateProject]);
   const item=p?.items.find(i=>i.id===s.selectedId);
-  const [tab,setTab]=useState<"components"|"items"|"materials"|"revisions"|"professional">("components");
+  const [tab,setTab]=useState<"components"|"items"|"materials"|"revisions"|"professional"|"review">("components");
   const [search,setSearch]=useState("");
+  const [commandsOpen,setCommandsOpen]=useState(false);
   const [menu,setMenu]=useState<{x:number;y:number;id:string}|null>(null);
   const [auth,setAuth]=useState({email:"",password:""});
   const [user,setUser]=useState<string|null>(null);
@@ -194,7 +197,8 @@ function StudioContent(){
 
   useEffect(()=>{
     const key=async(e:KeyboardEvent)=>{
-      if(document.querySelector(".projectDialog[open]"))return;
+      if(!presentationMode&&(e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();setCommandsOpen(v=>!v);return}
+      if(document.querySelector("dialog[open]"))return;
       if(presentationMode){if(e.key==="Escape"){setPresentationMode(false);setLeftOpen(true)}return}
       const tag=(e.target as HTMLElement)?.tagName;
       if(["INPUT","TEXTAREA","SELECT"].includes(tag))return;
@@ -202,18 +206,19 @@ function StudioContent(){
       else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="z"){e.preventDefault();e.shiftKey?s.redo():s.undo()}
       else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="y"){e.preventDefault();s.redo()}
       else if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="d"&&item){e.preventDefault();s.duplicateItem(item.id)}
+      else if(item&&["x","y","z","v"].includes(e.key.toLowerCase())&&!e.ctrlKey&&!e.metaKey&&!e.altKey){e.preventDefault();setMoveAxis(e.key.toLowerCase()==="v"?"xz":e.key.toLowerCase() as "x"|"y"|"z");setTransformMode("translate")}
       else if(e.key.toLowerCase()==="r"&&item){e.preventDefault();rotateSelected(e.shiftKey?-90:90)}
       else if((e.key==="Delete"||e.key==="Backspace")&&item){e.preventDefault();if(await confirm("Delete "+item.name+"?"))s.deleteItem(item.id)}
       else if(item&&e.key.startsWith("Arrow")){
         e.preventDefault();
         const st=e.shiftKey?100:p.rules.snap,dx=e.key==="ArrowLeft"?-st:e.key==="ArrowRight"?st:0,d=e.key==="ArrowDown"?-st:e.key==="ArrowUp"?st:0;
-        const q=clampItemToRoom({...item,x:item.x+dx,y:s.view==="top"?item.y:item.y+d,z:s.view==="top"?item.z+d:item.z},p);
+        const q=clampItemToRoom({...item,x:item.x+(moveAxis==="xz"||moveAxis==="x"?dx:0),y:item.y+(moveAxis==="y"||moveAxis==="xz"&&s.view!=="top"?d:0),z:item.z+(moveAxis==="z"||moveAxis==="xz"&&s.view==="top"?d:0)},p,false);
         if(canPlace(p,q,item.id))s.updateItem(item.id,{x:q.x,y:q.y,z:q.z});
       }
       else if(e.key==="Escape")s.select(null);
     };
     window.addEventListener("keydown",key); return()=>window.removeEventListener("keydown",key)
-  },[s,item,p,user,presentationMode]);
+  },[s,item,p,user,presentationMode,moveAxis]);
 
   const add=(type:string,at?:{x:number;y:number;z:number})=>{
     let i=newItem(type);
@@ -224,7 +229,7 @@ function StudioContent(){
     }
     if(at){
       i=clampItemToRoom({...i,x:at.x-i.width/2,y:Math.max(0,at.y-i.height/2),z:at.z-i.depth/2},p);
-      i=autoFaceNearestWall(p,i);
+      if(p.rules.snapEnabled!==false&&p.rules.autoRotateSnap!==false)i=autoFaceNearestWall(p,i);
       if(!canPlace(p,i)){
         const free=findFreePlacement(p,i);
         if(!canPlace(p,free)){setNotice("No clear space for that unit. Placement cancelled.");return}
@@ -256,7 +261,7 @@ function StudioContent(){
     const state=useStudio.getState(),p=state.projects.find(q=>q.id===state.activeId)!;
     const current=p.items.find(v=>v.id===id);if(!current||current.locked)return false;
     let candidate=clampItemToRoom({...current,x,y,z},p,false);
-    if(faceWall){candidate=autoFaceNearestWall(p,candidate);candidate=adjacentUnitSnap(p,candidate)}
+    if(faceWall&&p.rules.snapEnabled!==false){if(p.rules.autoRotateSnap!==false)candidate=autoFaceNearestWall(p,candidate);candidate=adjacentUnitSnap(p,candidate)}
     if(current.groupId){s.moveItem(id,candidate);const accepted=!useStudio.getState().editError;if(accepted)setNotice(current=>current.startsWith("Placement blocked")?"":current);return accepted}
     if(canPlace(p,candidate,id)){s.moveItem(id,candidate);if(useStudio.getState().editError)return false;setNotice(current=>current.startsWith("Placement blocked")?"":current);return true}
     else {setNotice("Placement blocked — that unit would overlap another object or leave the room.");return false}
@@ -403,6 +408,7 @@ function StudioContent(){
           useStudio.getState().configureActive({
             name:plan.name,
             designKind:plan.kind,
+            autoWorktops:plan.kind==="kitchen"&&plan.scenario==="blank",
             drawingReference:undefined,
             roomWidth:plan.roomWidth,
             roomHeight:plan.roomHeight,
@@ -415,6 +421,7 @@ function StudioContent(){
           s.configureActive({
             name:plan.name,
             designKind:plan.kind,
+            autoWorktops:plan.kind==="kitchen"&&plan.scenario==="blank",
             drawingReference:undefined,
             roomWidth:plan.roomWidth,
             roomHeight:plan.roomHeight,
@@ -432,11 +439,11 @@ function StudioContent(){
   return <main className={"studio "+(presentationMode?"presentationMode ":"")+(!leftOpen?"libraryClosed ":"")+(!rightOpen||!item?"inspectorClosed ":"")} onClick={()=>setMenu(null)}>
     {notice&&<div className="studioNotice" role="status">{notice}<button aria-label="Dismiss notification" onClick={()=>setNotice("")}>×</button></div>}
     <header className="topbar">
-      <button className="studioBrand" onClick={()=>setShowLauncher(true)} title="Design home"><span className="studioBrandMark">JS</span><span><b>Joinery Studio</b><small>{designKind[0].toUpperCase()+designKind.slice(1)} · 6 Oct update</small></span></button>
+      <button className="studioBrand" onClick={()=>setShowLauncher(true)} title="Design home"><span className="studioBrandMark">JS</span><span><b>Joinery Studio</b><small>{designKind[0].toUpperCase()+designKind.slice(1)} · Design workspace</small></span></button>
       <button className="projectButton projectPill" onClick={e=>{e.stopPropagation();setProjectOpen(v=>!v)}}>
         <span><b>{p.name}</b><small>{p.reference} · Rev {p.revision}</small></span><Icon name="settings" size={15}/>
       </button>
-      <div className="topActions">
+      <div className="topActions">{!presentationMode&&<button className="commandTrigger" onClick={()=>setCommandsOpen(true)} title="Find tools (Ctrl or Command + K)"><Icon name="search" size={15}/><span>Find tools</span><kbd>⌘ K</kbd></button>}
         <button className={"presentationToggle "+(presentationMode?"active":"")} title="Client presentation view" onClick={()=>{const next=!presentationMode;setPresentationMode(next);if(next){s.setView("3d");setLeftOpen(false);setRightOpen(false)}else{setLeftOpen(true)}}}><Icon name="box" size={16}/><span>{presentationMode?"Exit presentation":"Present"}</span></button>
         {!presentationMode&&<><button className="iconBtn topIcon" title="Undo" onClick={s.undo}><Icon name="undo" size={17}/></button>
         <button className="iconBtn topIcon" title="Redo" onClick={s.redo}><Icon name="redo" size={17}/></button>
@@ -453,22 +460,26 @@ function StudioContent(){
       </div>
     </header>
 
-    <nav className="toolRail">
+    {!presentationMode&&<nav className="workflowBar" aria-label="Design stages"><div><span className="sectionEyebrow">YOUR WORKSPACE</span><b>{p.roomWidth} × {p.roomDepth} <small>mm</small></b></div><button onClick={()=>setProjectOpen(true)}><span>01</span> Room & survey</button><button aria-current={tab==="components"?"step":undefined} onClick={()=>{setTab("components");setLeftOpen(true);s.setView("top")}}><span>02</span> Build layout</button><button aria-current={tab==="materials"?"step":undefined} onClick={()=>{setTab("materials");setLeftOpen(true)}}><span>03</span> Specify finishes</button><button aria-current={tab==="review"?"step":undefined} onClick={()=>{setTab("review");setLeftOpen(true)}}><span>04</span> Review & issue</button><div className="workflowMeta">{p.items.length} objects · Rev {p.revision}</div></nav>}
+    <nav className="toolRail" aria-label="Studio tools">
       <button className={tab==="components"&&leftOpen?"active":""} title="Add" onClick={()=>{setTab("components");setLeftOpen(true)}}><Icon name="plus" size={19}/><small>Add</small></button>
       <button className={tab==="items"&&leftOpen?"active":""} title="Items" onClick={()=>{setTab("items");setLeftOpen(true)}}><Icon name="layers" size={18}/><small>Items</small></button>
       <button className={tab==="materials"&&leftOpen?"active":""} title="Materials" onClick={()=>{setTab("materials");setLeftOpen(true)}}><Icon name="swatch" size={18}/><small>Material</small></button>
       <button className={tab==="revisions"&&leftOpen?"active":""} title="History" onClick={()=>{setTab("revisions");setLeftOpen(true)}}><Icon name="history" size={18}/><small>History</small></button>
       <button className={tab==="professional"&&leftOpen?"active":""} title="Drawing and placement tools" onClick={()=>{setTab("professional");setLeftOpen(true)}}><Icon name="settings" size={18}/><small>Tools</small></button>
+      <button className={tab==="review"&&leftOpen?"active":""} title="Review proposal" onClick={()=>{setTab("review");setLeftOpen(true)}}><Icon name="check" size={18}/><small>Review</small></button>
       <div className="railSpacer"/>
       <button title={leftOpen?"Hide library":"Show library"} onClick={()=>setLeftOpen(v=>!v)}>{leftOpen?<Icon name="chevron-left" size={18}/>:<Icon name="chevron-right" size={18}/>}</button>
     </nav>
 
     <aside className="libraryPanel">
       <div className="panelHead">
-        <div><b>{tab==="components"?"Add joinery":tab==="items"?"Items":tab==="materials"?"Materials":tab==="revisions"?"History":"Drawing & placement"}</b><small>{tab==="components"?"Drag to canvas":tab==="items"?p.items.length+" objects":tab==="materials"?(item?"Apply to selection":"Select an object"):tab==="revisions"?"Saved snapshots":"Placement, batch editing and design rules"}</small></div>
+        <div><b>{tab==="components"?"Add joinery":tab==="items"?"Items":tab==="materials"?"Materials":tab==="revisions"?"History":tab==="review"?"Proposal review":"Drawing & placement"}</b><small>{tab==="components"?"Drag to canvas":tab==="items"?p.items.length+" objects":tab==="materials"?(item?"Apply to selection":"Select an object"):tab==="revisions"?"Saved snapshots":tab==="review"?"Check, present and issue":"Placement, batch editing and design rules"}</small></div>
         <button className="iconBtn" onClick={()=>setLeftOpen(false)}><Icon name="x" size={16}/></button>
       </div>
       <div className="panelBody">
+        {tab==="review"&&<DesignReview project={p} issues={issues} onRoom={()=>setProjectOpen(true)} onUnits={()=>{setTab("items");s.setView("top")}} onMaterials={()=>setTab("materials")} onTools={()=>setTab("professional")} onDrawing={()=>s.setView("front")} onPresent={()=>{setPresentationMode(true);s.setView("3d");setLeftOpen(false);setRightOpen(false)}} onBackup={exportJson} onRevision={s.saveRevision}/>}
+
         {tab==="components"&&<>
           {designKind==="kitchen"&&<KitchenWorkflow onChoose={type=>{setProjectOpen(false);s.setView("top");setSearch(type)}} onFloor={()=>{setProjectOpen(false);setTab("materials")}} onRoom={()=>setProjectOpen(true)}/>}
           <input className="searchInput" placeholder="Search components" value={search} onChange={e=>setSearch(e.target.value)}/>
@@ -485,6 +496,18 @@ function StudioContent(){
       </div>
     </aside>
 
+    <StudioCommands open={commandsOpen} onClose={()=>setCommandsOpen(false)} commands={[
+      {id:"room",label:"Room settings",detail:"Dimensions, survey and project details",run:()=>setProjectOpen(true)},
+      {id:"plan",label:"Top plan",detail:"Measured 2D layout",run:()=>s.setView("top")},
+      {id:"elevation",label:"Wall elevations",detail:"Live dimensions and mounting heights",run:()=>s.setView("front")},
+      {id:"3d",label:"3D preview",detail:"Orbit and inspect your design",run:()=>s.setView("3d")},
+      {id:"materials",label:"Materials and floor",detail:"Finishes, custom textures and collections",run:()=>{setTab("materials");setLeftOpen(true)}},
+      {id:"import",label:"Import DWG / DXF / PDF",detail:"Measured drawing reference and calibration",run:()=>{setTab("professional");setLeftOpen(true);s.setView("top")}},
+      {id:"review",label:"Review proposal",detail:"Specification checks and delivery",run:()=>{setTab("review");setLeftOpen(true)}},
+      {id:"pdf",label:"Export PDF drawing pack",detail:"Plans, elevations and schedules",run:()=>exportPdf(p)},
+      {id:"backup",label:"Export project backup",detail:"Save editable JSON recovery file",run:exportJson},
+      ...componentGroups.flatMap(g=>g.items.map(type=>({id:"add-"+type,label:"Add "+type,detail:g.title,run:()=>add(type)})))
+    ]}/>
     <section className="workspace">
       {!p.items.length&&!presentationMode&&<div className="blankCanvasGuide"><b>Your blank {designKind} canvas</b><span>1. Add a unit from the library. 2. Set its size in the inspector. 3. Position it in plan view.</span><button onClick={()=>{setLeftOpen(true);setTab("components");s.setView("top")}}>Add your first unit</button></div>}<div className="stage">{(sceneVisited||s.view==="3d")&&<div className="persistentScene" style={{display:s.view==="3d"?"block":"none"}}><SceneBoundary onUsePlan={()=>{setPresentationMode(false);setLeftOpen(true);s.setView("top")}}><Scene3D key={p.id} active={s.view==="3d"} project={p} onProjectChange={s.updateProject} presentationOnly={presentationMode} selected={s.selectedId} selectedPart={selectedPart} transformMode={transformMode} moveAxis={moveAxis} onSelect={id=>{s.select(id);if(id!==s.selectedId)setSelectedPart(null)}} onDuplicate={id=>{s.duplicateItem(id)}} onSelectPart={(id,part)=>{if(id!==s.selectedId)partSelectionItem.current=id;s.select(id);setSelectedPart(part)}} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onMove={(id,x,y,z)=>moveSafely(id,x,y,z,moveAxis==="xz")} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint} onMoveEnd={s.endEdit}/></SceneBoundary></div>}{s.view!=="3d"&&<Drawing2D moveAxis={moveAxis} onDuplicate={s.duplicateItem} project={p} view={s.view} wallSide={s.view==="front"?elevationWall:s.view==="side"?"left":undefined} selected={s.selectedId} onSelect={s.select} onMove={(id,x,y,z)=>moveSafely(id,x,y,z,moveAxis==="xz")} onResize={(id,patch)=>s.moveItem(id,patch)} onRotate={(id,rotation)=>rotateItem(id,rotation,true)} onMoveStart={s.checkpoint} onMoveEnd={s.endEdit} onDropType={(type,x,y,z)=>add(type,{x,y,z})} onContext={(e,id)=>{s.select(id);setMenu({x:e.clientX,y:e.clientY,id})}}/>}</div>
 
@@ -497,7 +520,7 @@ function StudioContent(){
       </div>}
 
       {showDesignIssues&&issues.length>0&&<div className="designIssuePopover" role="region" aria-label="Design checks"><b>Design checks</b><button aria-label="Close design checks" onClick={()=>setShowDesignIssues(false)}>×</button>{issues.map((issue,n)=><p key={n}>{issue}</p>)}<small>Select the named unit to correct its position or size. A blocked drag keeps its last valid position.</small></div>}
-      <div className="statusChip"><span className={issues.length?"statusDot warn":"statusDot live"}/>{issues.length?<button className="issueSummary" aria-expanded={showDesignIssues} onClick={()=>setShowDesignIssues(v=>!v)}>{issues.length} issue{issues.length>1?"s":""} — view details</button>:<span>Design valid</span>}<span className="dotSep">·</span><span className="statusMode">{designKind[0].toUpperCase()+designKind.slice(1)}</span><span className="dotSep">·</span><span role="status">{localSave==="error"?<button onClick={exportJson}>Local save failed — export backup</button>:user?(cloudReady?(cloudSync==="error"?<button onClick={cloudSave}>Cloud save failed — retry</button>:cloudSync==="saving"?"Saving to cloud…":cloudSync==="saved"&&cloudSavedVersion===p.id+p.updatedAt?"Saved to cloud":"Changes waiting to sync"):(cloudSync==="error"?<button onClick={()=>window.location.reload()}>Cloud connection failed — reload</button>:"Cloud connecting")):(localSave==="saved"?"Saved locally":"Local autosave")}</span></div>
+      <div className="statusChip"><label className="snapQuick"><input type="checkbox" checked={p.rules.snapEnabled!==false} onChange={e=>s.updateProject({rules:{...p.rules,snapEnabled:e.target.checked}})}/> Snap</label><label className="snapQuick"><input type="checkbox" checked={p.rules.autoRotateSnap!==false} disabled={p.rules.snapEnabled===false} onChange={e=>s.updateProject({rules:{...p.rules,autoRotateSnap:e.target.checked}})}/> Auto-rotate</label><span className="dotSep">·</span><span className={issues.length?"statusDot warn":"statusDot live"}/>{issues.length?<button className="issueSummary" aria-expanded={showDesignIssues} onClick={()=>setShowDesignIssues(v=>!v)}>{issues.length} issue{issues.length>1?"s":""} — view details</button>:<span>Design valid</span>}<span className="dotSep">·</span><span className="statusMode">{designKind[0].toUpperCase()+designKind.slice(1)}</span><span className="dotSep">·</span><span role="status">{localSave==="error"?<button onClick={exportJson}>Local save failed — export backup</button>:user?(cloudReady?(cloudSync==="error"?<button onClick={cloudSave}>Cloud save failed — retry</button>:cloudSync==="saving"?"Saving to cloud…":cloudSync==="saved"&&cloudSavedVersion===p.id+p.updatedAt?"Saved to cloud":"Changes waiting to sync"):(cloudSync==="error"?<button onClick={()=>window.location.reload()}>Cloud connection failed — reload</button>:"Cloud connecting")):(localSave==="saved"?"Saved locally":"Local autosave")}</span></div>
     </section>
 
     {item&&<aside className="inspector">

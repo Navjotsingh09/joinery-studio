@@ -100,7 +100,7 @@ export function Drawing2D({
       if(view==="side")candidate={...candidate,y:i.y-dy,z:i.z+(elevation&&wallSide==="left"?-dx:dx)};
       candidate=moveItemOnAxes(i,project,candidate,view==="top"?["x","z"]:view==="side"||elevation&&(wallSide==="left"||wallSide==="right")?["y","z"]:["x","y"]);
       let r=rectFor(candidate);
-      const others=project.items.filter(o=>o.id!==i.id&&o.visible!==false&&o.type!=="Worktop"&&Math.abs(o.y-i.y)<5);
+      const others=project.rules.snapEnabled===false?[]:project.items.filter(o=>o.id!==i.id&&o.visible!==false&&o.type!=="Worktop"&&Math.abs(o.y-i.y)<5);
       let gx:number|undefined,gy:number|undefined,label:string|undefined;
       const threshold=Math.max(50,project.rules.snap);
       let bestX=threshold+1,bestY=threshold+1,deltaX=0,deltaY=0;
