@@ -1,1 +1,1 @@
-import "./globals.css";export const metadata={title:"Joinery Studio",description:"Bespoke joinery design studio"};export default function RootLayout({children}:{children:React.ReactNode}){return <html lang="en"><body>{children}</body></html>}
+import "./globals.css";import "./reference-theme.css";export const metadata={title:"Joinery Studio",description:"Bespoke joinery design studio"};export default function RootLayout({children}:{children:React.ReactNode}){return <html lang="en"><body>{children}</body></html>}
