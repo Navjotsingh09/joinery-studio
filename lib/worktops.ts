@@ -14,6 +14,18 @@ export function generateWorktops(p:Project,overhang=30,thickness=38):JoineryItem
     const pad=Math.max(0,Math.min(300,overhang)),c=p.rules.wallClearance;
     let x=Math.min(...run.map(i=>i.x)),z=Math.min(...run.map(i=>i.z)),right=Math.max(...run.map(i=>i.x+footprint(i).width)),front=Math.max(...run.map(i=>i.z+footprint(i).depth));
     if(start.type!=='Kitchen island'&&rot===0)front+=pad;else if(start.type!=='Kitchen island'&&rot===180)z-=pad;else if(start.type!=='Kitchen island'&&rot===90)right+=pad;else if(start.type!=='Kitchen island')x-=pad;
+    // Cap the overhang at a neighbouring cabinet row rather than generating
+    // intersecting slabs when the designer places units back to back.
+    for(const other of bases.filter(i=>!run.some(j=>j.id===i.id)&&Math.abs(i.y+i.height-start.y-start.height)<=5)){
+      const f=footprint(other),gap=Math.max(0,p.rules.componentGap);
+      if(horizontal&&other.x<right&&other.x+f.width>x){
+        if(rot===0&&other.z>=front-pad-.01&&other.z<front)front=Math.min(front,other.z-gap);
+        if(rot===180&&other.z+f.depth<=z+pad+.01&&other.z+f.depth>z)z=Math.max(z,other.z+f.depth+gap);
+      }else if(!horizontal&&other.z<front&&other.z+f.depth>z){
+        if(rot===90&&other.x>=right-pad-.01&&other.x<right)right=Math.min(right,other.x-gap);
+        if(rot===270&&other.x+f.width<=x+pad+.01&&other.x+f.width>x)x=Math.max(x,other.x+f.width+gap);
+      }
+    }
     if(start.type==='Kitchen island'){x-=pad;z-=pad;right+=pad;front+=pad}
     x=Math.max(c,x);z=Math.max(0,z);right=Math.min(p.roomWidth-c,right);front=Math.min(p.roomDepth,front);
     const sourceUnitIds=run.map(i=>i.id).sort(),old=p.items.find(i=>i.type==='Worktop'&&i.sourceUnitIds?.slice().sort().join('|')===sourceUnitIds.join('|'))??p.items.find(i=>i.type==='Worktop'&&!usedPrevious.has(i.id)&&i.sourceUnitIds?.some(id=>sourceUnitIds.includes(id)))??p.items.find(i=>i.type==='Worktop'&&!i.sourceUnitIds&&normalizeRotation(i.rotation)===rot&&Math.abs(i.y-start.y-start.height)<5&&i.x<=x+10&&i.z<=z+10);

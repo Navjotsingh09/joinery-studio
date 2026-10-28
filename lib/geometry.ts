@@ -123,6 +123,15 @@ export function findFreePlacement(p:Project,item:JoineryItem){
   }
   const step=Math.max(25,p.rules.snap),c=Math.max(0,p.rules.wallClearance),base=clampItemToRoom(item,p),fp=footprint(base),maxX=Math.max(c,p.roomWidth-c-fp.width),maxZ=Math.max(0,p.roomDepth-fp.depth);
   const acceptable=(q:JoineryItem)=>canPlace(p,q,item.id)&&(q.type!=="Kitchen island"||islandAisleSatisfied(p,q));
+  // Library additions extend an existing cabinet run before trying a closer
+  // front/back slot. Keep the run orientation, including side-wall kitchens.
+  if(baseKitchen.has(item.type)&&item.type!=="Kitchen island"){
+    for(const other of live.filter(i=>baseKitchen.has(i.type)&&i.type!=="Kitchen island"&&Math.abs(i.y-item.y)<5)){
+      const aligned={...item,rotation:other.rotation,wallSide:other.wallSide},f=footprint(aligned),g=footprint(other),gap=p.rules.componentGap;
+      const proposals=normalizeRotation(other.rotation)%180===0?[{...aligned,x:other.x+g.width+gap,z:other.z},{...aligned,x:other.x-f.width-gap,z:other.z}]:[{...aligned,x:other.x,z:other.z+g.depth+gap},{...aligned,x:other.x,z:other.z-f.depth-gap}];
+      for(const q of proposals)if(acceptable(q))return q;
+    }
+  }
   if(acceptable(base))return base;
   const gap=base.type==='Kitchen island'?900:p.rules.componentGap;
   const adjacent=live.filter(i=>i.type!=='Worktop'&&i.type!=='Backsplash'&&Math.abs(i.y-base.y)<5).flatMap(i=>{const f=footprint(i);return [{...base,x:i.x+f.width+gap,z:i.z},{...base,x:i.x-fp.width-gap,z:i.z},{...base,x:i.x,z:i.z+f.depth+gap},{...base,x:i.x,z:i.z-fp.depth-gap}]});

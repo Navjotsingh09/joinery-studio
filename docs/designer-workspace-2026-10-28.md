@@ -36,4 +36,6 @@ These cannot honestly be marked completed by source changes: physical tablet int
 
 ## Validation
 
-239 tests across 40 files passed and production build passed before the final UI refinements. Final build and deployment evidence are recorded in the release response. No physical tablet or GPU-quality sign-off is inferred from tests.
+241 tests across 40 files passed and production build passed including live-discovered cabinet placement and neighbouring slab overhang regressions. Live command placement, measured blank-room setup, wall-unit Y defaults and snap controls were exercised on production. Final deployment evidence is recorded in the release response. No physical tablet or GPU-quality sign-off is inferred from tests.
+
+Live testing found a front/back placement preference that could generate overlapping worktop overhangs. Library additions now extend matching cabinet runs first; generated overhangs stop at neighbouring cabinet rows. Two regression cases cover these conditions.
