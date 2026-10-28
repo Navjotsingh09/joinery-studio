@@ -19,10 +19,9 @@ const decodeMeta=(value:string|undefined|null,marker:string)=>{
 };
 
 export async function signIn(email:string,password:string){return supabase().auth.signInWithPassword({email,password})}
-export async function signUp(email:string,password:string){return supabase().auth.signUp({email,password})}
-export async function signOut(){return supabase().auth.signOut()}
+export async function signOut(){clearCloudSession();return supabase().auth.signOut({scope:"local"})}
 export async function currentUser(){if(!hasSupabase())return null;return (await supabase().auth.getUser()).data.user}
-export function onAuthChange(cb:(email:string|null)=>void){const {data}=supabase().auth.onAuthStateChange((_event,session)=>cb(session?.user?.email??null));return()=>data.subscription.unsubscribe()}
+export function onAuthChange(cb:(user:{id:string;email?:string}|null)=>void){const {data}=supabase().auth.onAuthStateChange((_event,session)=>cb(session?.user??null));return()=>data.subscription.unsubscribe()}
 
 const toItem=(i:any):JoineryItem=>{
   const legacy=decodeFinish(i.finish??""),decoded=decodeMeta(i.notes,ITEM_META),m=decoded.meta??{};
@@ -32,8 +31,8 @@ const toItem=(i:any):JoineryItem=>{
     hardware:i.hardware,edgeBanding:i.edge_banding,rotation:normalizeRotation(i.rotation??legacy.rotation??0),
     visible:i.visible??true,layer:(i.layer??"Joinery") as ItemLayer,groupId:i.group_id??undefined,
     carcassMaterialId:m.carcassMaterialId,doorMaterialId:m.doorMaterialId,sideMaterialId:m.sideMaterialId,
-    leftSideMaterialId:m.leftSideMaterialId,rightSideMaterialId:m.rightSideMaterialId,plinthMaterialId:m.plinthMaterialId,worktopMaterialId:m.worktopMaterialId,
-    plinthStyle:m.plinthStyle,plinthRecess:m.plinthRecess,wallSide:m.wallSide,
+    leftSideMaterialId:m.leftSideMaterialId,rightSideMaterialId:m.rightSideMaterialId,plinthMaterialId:m.plinthMaterialId,worktopMaterialId:m.worktopMaterialId,worktopEdge:m.worktopEdge,
+    handleFinish:m.handleFinish,handleLength:m.handleLength,larderLayout:m.larderLayout,hobStyle:m.hobStyle,hobZones:m.hobZones,islandStyle:m.islandStyle,islandAppliance:m.islandAppliance,islandFront:m.islandFront,topThickness:m.topThickness,topOverhang:m.topOverhang,seatingOverhang:m.seatingOverhang,counterExtension:m.counterExtension,islandSinkStyle:m.islandSinkStyle,islandSinkFinish:m.islandSinkFinish,islandTapStyle:m.islandTapStyle,islandTapFinish:m.islandTapFinish,frontStyle:m.frontStyle,sourceUnitIds:m.sourceUnitIds,unitNumber:m.unitNumber,worktopFinishedEdges:m.worktopFinishedEdges,plinthStyle:m.plinthStyle,plinthRecess:m.plinthRecess,wallSide:m.wallSide,
     plinthHeight:m.plinthHeight,wardrobeLayout:m.wardrobeLayout,stairRisers:m.stairRisers,stairRailHeight:m.stairRailHeight,stairRailing:m.stairRailing,treadMaterialId:m.treadMaterialId,riserMaterialId:m.riserMaterialId,railingMaterialId:m.railingMaterialId,productStyle:m.productStyle,colourVariant:m.colourVariant,openAmount:m.openAmount
   };
 };
@@ -44,6 +43,8 @@ export async function loadCloud():Promise<Project[]>{
   if(error)throw error;
   const out:Project[]=[];
   for(const p of ps??[]){
+    if(p.design_snapshot){versions.set(p.id,p.save_version??0);out.push({...p.design_snapshot,id:p.id,cloudVersion:p.save_version??0});continue}
+    versions.set(p.id,p.save_version??0);
     const [itemsResult,revsResult]=await Promise.all([
       db.from("project_items").select("*").eq("project_id",p.id),
       db.from("project_revisions").select("*").eq("project_id",p.id).order("revision")
@@ -57,7 +58,7 @@ export async function loadCloud():Promise<Project[]>{
       rules:{wallClearance:p.wall_clearance,componentGap:p.component_gap,snap:p.snap,serviceClearance:p.service_clearance??50},
       address:p.address??"",notes:projectDecoded.plain,archived:p.archived??false,
       customMaterials:projectMeta.customMaterials??[],floorMaterialId:projectMeta.floorMaterialId,
-      createdAt:p.created_at,updatedAt:p.updated_at,
+      createdAt:p.created_at,updatedAt:p.updated_at,cloudVersion:p.save_version??0,
       items:(itemsResult.data??[]).map(toItem),
       revisions:(revsResult.data??[]).map(r=>({id:r.id,revision:r.revision,createdAt:r.created_at,snapshot:r.snapshot}))
     });
@@ -65,56 +66,33 @@ export async function loadCloud():Promise<Project[]>{
   return out;
 }
 
-export async function saveCloud(p:Project){
-  const db=supabase();
-  const u=(await db.auth.getUser()).data.user;
-  if(!u)throw new Error("Sign in first");
-  const legacyRow={
-    id:p.id,user_id:u.id,name:p.name,customer:p.customer,reference:p.reference,status:p.status,revision:p.revision,
-    room_width:p.roomWidth,room_height:p.roomHeight,room_depth:p.roomDepth,
-    wall_clearance:p.rules.wallClearance,component_gap:p.rules.componentGap,snap:p.rules.snap,updated_at:new Date().toISOString()
-  };
-  const projectNotes=encodeMeta(p.notes??"",PROJECT_META,{customMaterials:p.customMaterials??[],floorMaterialId:p.floorMaterialId});
-  const modernRow={...legacyRow,address:p.address??"",project_notes:projectNotes,archived:p.archived??false,service_clearance:p.rules.serviceClearance??50};
-  let e=(await db.from("projects").upsert(modernRow)).error;
-  if(e)e=(await db.from("projects").upsert(legacyRow)).error;
-  if(e)throw e;
-
-  if(p.items.length){
-    const modernRows=p.items.map(i=>({
-      id:i.id,project_id:p.id,name:i.name,type:i.type,x:i.x,y:i.y,z:i.z,width:i.width,height:i.height,depth:i.depth,
-      shelves:i.shelves,doors:i.doors,material_id:i.materialId,finish:i.finish,
-      notes:encodeMeta(i.notes??"",ITEM_META,{carcassMaterialId:i.carcassMaterialId,doorMaterialId:i.doorMaterialId,sideMaterialId:i.sideMaterialId,leftSideMaterialId:i.leftSideMaterialId,rightSideMaterialId:i.rightSideMaterialId,plinthMaterialId:i.plinthMaterialId,worktopMaterialId:i.worktopMaterialId,plinthStyle:i.plinthStyle,plinthRecess:i.plinthRecess,wallSide:i.wallSide,plinthHeight:i.plinthHeight,wardrobeLayout:i.wardrobeLayout,stairRisers:i.stairRisers,stairRailHeight:i.stairRailHeight,stairRailing:i.stairRailing,treadMaterialId:i.treadMaterialId,riserMaterialId:i.riserMaterialId,railingMaterialId:i.railingMaterialId,productStyle:i.productStyle,colourVariant:i.colourVariant,openAmount:i.openAmount}),
-      locked:i.locked,hardware:i.hardware,edge_banding:i.edgeBanding,rotation:normalizeRotation(i.rotation??0),
-      visible:i.visible!==false,layer:i.layer??"Joinery",group_id:i.groupId??null
-    }));
-    e=(await db.from("project_items").upsert(modernRows)).error;
-    if(e){
-      const compatibilityRows=modernRows.map(({visible,layer,group_id,...r})=>r);
-      e=(await db.from("project_items").upsert(compatibilityRows)).error;
-      if(e&&/rotation/i.test(e.message??"")){
-        const legacyRows=compatibilityRows.map(({rotation,...r},index)=>({...r,finish:encodeLegacyFinish(p.items[index].finish,rotation)}));
-        e=(await db.from("project_items").upsert(legacyRows)).error;
-      }
-    }
-    if(e)throw e;
-
-    const existing=await db.from("project_items").select("id").eq("project_id",p.id);
-    if(existing.error)throw existing.error;
-    const keep=new Set(p.items.map(i=>i.id)),stale=(existing.data??[]).map(x=>x.id).filter(id=>!keep.has(id));
-    if(stale.length){
-      e=(await db.from("project_items").delete().eq("project_id",p.id).in("id",stale)).error;
-      if(e)throw e;
-    }
-  }else{
-    e=(await db.from("project_items").delete().eq("project_id",p.id)).error;
-    if(e)throw e;
-  }
-
-  for(const r of p.revisions){
-    e=(await db.from("project_revisions").upsert({id:r.id,project_id:p.id,revision:r.revision,snapshot:r.snapshot,created_at:r.createdAt})).error;
-    if(e)throw e;
-  }
+const versions=new Map<string,number>();
+let saveQueue:Promise<unknown>=Promise.resolve();
+let sessionOwner:string|null=null;
+let sessionGeneration=0;
+export function saveCloud(p:Project){
+  const snapshot=structuredClone(p),owner=sessionOwner,generation=sessionGeneration;
+  const run=saveQueue.catch(()=>{}).then(async()=>{
+    const db=supabase(),u=(await db.auth.getUser()).data.user;
+    if(!u||u.id!==owner||generation!==sessionGeneration)throw new Error("Account changed. This save was cancelled.");
+    const expected=versions.get(snapshot.id)??0;
+    const {data,error}=await db.rpc("save_design",{design:snapshot,expected_version:expected});
+    if(error)throw new Error(/conflict/i.test(error.message)?"This project changed in another tab. Export a backup, then reload to review the latest saved design.":error.message+". Check that the latest database migration is installed.");
+    if(generation===sessionGeneration)versions.set(snapshot.id,Number(data));
+    return {id:snapshot.id,version:Number(data),updatedAt:snapshot.updatedAt};
+  });
+  saveQueue=run;return run;
 }
-export async function saveAllCloud(projects:Project[]){for(const p of projects)await saveCloud(p)}
-export async function deleteCloud(id:string){const {error}=await supabase().from("projects").delete().eq("id",id);if(error)throw error}
+export function clearCloudSession(owner:string|null=null){sessionGeneration++;sessionOwner=owner;versions.clear()}
+export async function requestPasswordReset(email:string){return supabase().auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+"/reset-password"})}
+export async function updatePassword(password:string){return supabase().auth.updateUser({password})}
+export async function saveAllCloud(projects:Project[]){const out=[];for(const p of projects)out.push(await saveCloud(p));return out}
+export function deleteCloud(id:string){
+  const owner=sessionOwner,generation=sessionGeneration;
+  const run=saveQueue.catch(()=>{}).then(async()=>{
+    const db=supabase(),u=(await db.auth.getUser()).data.user;
+    if(!u||u.id!==owner||generation!==sessionGeneration)throw new Error("Account changed. Deletion cancelled.");
+    const {error}=await db.from("projects").delete().eq("id",id);if(error)throw error;
+    // Retain the version so undo cannot silently recreate a deleted cloud project.
+  });saveQueue=run;return run;
+}

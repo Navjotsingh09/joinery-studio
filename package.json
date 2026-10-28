@@ -1,35 +1,45 @@
 {
-  "name":"joinery-studio",
-  "version":"1.0.0",
-  "private":true,
-  "scripts":{
-    "dev":"next dev",
-    "build":"npm run typecheck && npm test && next build",
-    "start":"next start",
-    "typecheck":"tsc --noEmit",
-    "test":"vitest run",
-    "test:watch":"vitest",
-    "check":"npm run build"
+  "name": "joinery-studio",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "npm run typecheck && npm test && next build",
+    "start": "node scripts/start.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/test.mjs run",
+    "test:watch": "node scripts/test.mjs",
+    "check": "npm run build",
+    "postinstall": "node scripts/prepare-pdf.mjs",
+    "render:customer": "node scripts/render-customer.mjs"
   },
-  "dependencies":{
-    "@react-three/drei":"^9.114.3",
-    "@react-three/fiber":"^8.17.10",
-    "@supabase/ssr":"^0.5.2",
-    "@supabase/supabase-js":"^2.45.4",
-    "jspdf":"^2.5.2",
-    "next":"^14.2.15",
-    "react":"^18.3.1",
-    "react-dom":"^18.3.1",
-    "three":"^0.169.0",
-    "zustand":"^5.0.0"
+  "dependencies": {
+    "@mlightcad/libredwg-web": "0.7.15",
+    "@react-three/drei": "^9.114.3",
+    "@react-three/fiber": "^8.17.10",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.45.4",
+    "dxf-parser": "1.1.2",
+    "jspdf": "^2.5.2",
+    "next": "^14.2.15",
+    "pdfjs-dist": "^4.10.38",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.169.0",
+    "zustand": "^5.0.0"
   },
-  "devDependencies":{
-    "@types/node":"^22.7.4",
-    "@types/react":"^18.3.10",
-    "@types/react-dom":"^18.3.0",
-    "@types/three":"^0.169.0",
-    "typescript":"^5.6.2",
-    "vitest":"^2.1.2",
-    "@vitejs/plugin-react":"^4.3.2"
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@napi-rs/canvas": "0.1.100",
+    "@react-three/test-renderer": "8.2.4",
+    "@types/node": "^22.7.4",
+    "@types/react": "^18.3.10",
+    "@types/react-dom": "^18.3.0",
+    "@types/three": "^0.169.0",
+    "@vitejs/plugin-react": "^4.3.2",
+    "fflate": "0.8.3",
+    "typescript": "^5.6.2",
+    "vite-node": "2.1.9",
+    "vitest": "^2.1.2"
   }
 }

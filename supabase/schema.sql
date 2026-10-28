@@ -18,3 +18,53 @@ alter table public.projects add column if not exists service_clearance integer n
 alter table public.project_items add column if not exists visible boolean not null default true;
 alter table public.project_items add column if not exists layer text not null default 'Joinery';
 alter table public.project_items add column if not exists group_id uuid;
+
+-- Complete design snapshots are saved atomically with optimistic concurrency.
+alter table public.projects add column if not exists design_snapshot jsonb;
+alter table public.projects add column if not exists save_version bigint not null default 0;
+create or replace function public.save_design(design jsonb, expected_version bigint)
+returns bigint language plpgsql security invoker set search_path = public as $$
+declare existing public.projects; next_version bigint; project_id uuid := (design->>'id')::uuid;
+begin
+  if auth.uid() is null then raise exception 'Sign in first'; end if;
+  -- Serialize project creation and updates, including concurrent first saves.
+  perform pg_advisory_xact_lock(hashtextextended(auth.uid()::text, 1));
+  perform pg_advisory_xact_lock(hashtextextended(project_id::text, 0));
+  select * into existing from public.projects where id=project_id for update;
+  if found then
+    if existing.user_id <> auth.uid() then raise exception 'Access denied'; end if;
+    if existing.save_version <> expected_version then raise exception 'Save conflict'; end if;
+    next_version := existing.save_version+1;
+    update public.projects set name=design->>'name', customer=coalesce(design->>'customer',''),
+      reference=design->>'reference', status=design->>'status', revision=(design->>'revision')::integer,
+      room_width=(design->>'roomWidth')::integer,room_height=(design->>'roomHeight')::integer,
+      room_depth=(design->>'roomDepth')::integer,design_snapshot=design,save_version=next_version
+      where id=project_id;
+  else
+    if expected_version <> 0 then raise exception 'Save conflict: project deleted'; end if;
+    if (select count(*) from public.projects where user_id=auth.uid()) >= 2 then
+      raise exception 'Basic plan allows two projects. Export or delete a project first.';
+    end if;
+    next_version := 1;
+    insert into public.projects(id,user_id,name,customer,reference,status,revision,room_width,room_height,room_depth,design_snapshot,save_version)
+    values(project_id,auth.uid(),design->>'name',coalesce(design->>'customer',''),design->>'reference',design->>'status',
+      (design->>'revision')::integer,(design->>'roomWidth')::integer,(design->>'roomHeight')::integer,
+      (design->>'roomDepth')::integer,design,next_version);
+  end if;
+  return next_version;
+end $$;
+revoke all on function public.save_design(jsonb,bigint) from public;
+grant execute on function public.save_design(jsonb,bigint) to authenticated;
+
+-- Keep the Basic limit enforced even for direct REST inserts.
+create or replace function public.enforce_basic_project_limit() returns trigger
+language plpgsql security invoker set search_path=public as $$
+begin
+  perform pg_advisory_xact_lock(hashtextextended(new.user_id::text,1));
+  if (select count(*) from public.projects where user_id=new.user_id)>=2 then
+    raise exception 'Basic plan allows two projects';
+  end if;
+  return new;
+end $$;
+drop trigger if exists projects_basic_limit on public.projects;
+create trigger projects_basic_limit before insert on public.projects for each row execute function public.enforce_basic_project_limit();

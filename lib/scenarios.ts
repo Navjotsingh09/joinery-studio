@@ -1,15 +1,17 @@
-import {DesignRules,JoineryItem} from "@/types/model";
+import {DesignRules,JoineryItem,LightingSettings} from "@/types/model";
 import {newItem} from "./defaults";
 
 export type DesignKind="kitchen"|"bedroom"|"stairs";
-export type ScenarioPlan={kind:DesignKind;scenario:string;name:string;roomWidth:number;roomHeight:number;roomDepth:number;rules:DesignRules;items:JoineryItem[]};
+export type ScenarioPlan={kind:DesignKind;scenario:string;name:string;roomWidth:number;roomHeight:number;roomDepth:number;rules:DesignRules;lighting?:LightingSettings;items:JoineryItem[]};
 
 export const DESIGN_KINDS=[
   {id:"kitchen" as const,title:"Kitchen",description:"Cabinet runs, appliances, worktops, islands and storage",scenarios:[
-    {id:"l-shape",title:"L-shaped kitchen",description:"Reference-quality fitted kitchen with two connected runs"},
+    {id:"showroom",title:"Sage & oak showroom",description:"Shaker kitchen, oak island, window daylight and pendant lighting"},
+    {id:"l-shape",title:"L-shaped kitchen",description:"Fitted kitchen with two connected cabinet runs"},
     {id:"straight",title:"Straight kitchen",description:"Single-wall fitted kitchen"},
     {id:"island",title:"Kitchen + island",description:"Wall run with central island"},
-    {id:"galley",title:"Galley kitchen",description:"Two facing cabinet runs"}
+    {id:"galley",title:"Galley kitchen",description:"Two facing cabinet runs"},
+    {id:"blank",title:"Start kitchen on your own",description:"An empty measured room. Add and configure each unit yourself."}
   ]},
   {id:"bedroom" as const,title:"Bedroom",description:"Wardrobes, bed walls, dressing areas and storage",scenarios:[
     {id:"hinged",title:"Hinged wardrobe wall",description:"Full-height fitted wardrobes"},
@@ -27,6 +29,28 @@ export const DESIGN_KINDS=[
 const item=(type:string,name:string,patch:Partial<JoineryItem>)=>({...newItem(type),name,...patch});
 
 function kitchen(kind:string,w:number,h:number,d:number):JoineryItem[]{
+  if(kind==="showroom"){
+    const fitted=kitchen("l-shape",w,h,d).filter(i=>i.name!=="Wall unit 2").map(i=>{
+      if(i.type==="Worktop")return {...i,height:20,materialId:"stone-light",worktopMaterialId:"stone-light",finish:"Semi-gloss",worktopEdge:"square" as const};
+      if(i.type==="Backsplash")return {...i,y:890,height:130};
+      if(i.type.endsWith(" tap"))return {...i,type:"Square neck tap",name:"Square neck mixer",productStyle:"Square neck",y:888,width:100,height:300,depth:276};
+      if(["Base cabinet","Drawer unit","Corner cabinet","Sink base","Hob base","Wall cabinet","Oven tower","Fridge housing"].includes(i.type))return {...i,materialId:"palette-17",doorMaterialId:"palette-17",carcassMaterialId:"w1000",leftSideMaterialId:"palette-17",rightSideMaterialId:"palette-17",plinthMaterialId:"palette-17",frontStyle:"shaker" as const,hardware:"Bar handle",...(i.type==="Hob base"?{hobStyle:"gas" as const,hobZones:4 as const}:{})};
+      return i;
+    });
+    const sink=fitted.find(i=>i.type==="Sink base")!;
+    fitted.push(item("Window","Sink window",{x:sink.x,y:1120,z:0,width:sink.width,height:980,depth:80,doors:0,shelves:0,hardware:"None",wallSide:"back"}));
+    if(w>=4000&&d>=3300){
+      const x=1600,z=1850,iw=Math.min(1800,w-x-100);
+      fitted.push(item("Kitchen island","Oak island",{x,y:0,z,width:iw,height:920,depth:800,doors:3,shelves:0,materialId:"h1180",doorMaterialId:"h1180",carcassMaterialId:"w1000",leftSideMaterialId:"h1180",rightSideMaterialId:"h1180",plinthMaterialId:"h1180",worktopMaterialId:"stone-light",hardware:"Handleless",plinthRecess:70}));
+      fitted.push(item("Kitchen accessory","Ceramic mug",{x:x+iw*.65,y:920,z:z+200,width:150,height:125,depth:120,doors:0,shelves:0,productStyle:"Ceramic mug"}));
+      for(const n of [0,1]){
+        const cx=x+iw*(n?.7:.25);
+        fitted.push(item("Pendant light","Island pendant "+(n+1),{x:cx,y:h-620,z:z+250,width:240,height:600,depth:240,doors:0,shelves:0,hardware:"None"}));
+        fitted.push(item("Bar stool","Oak stool "+(n+1),{x:cx-70,y:0,z:z+880,width:420,height:750,depth:420,doors:0,shelves:0,materialId:"h1180",hardware:"None"}));
+      }
+    }
+    return fitted;
+  }
   const run=Math.max(3000,Math.min(w,4800));
   const m=Math.floor(Math.min(700,run/5)/50)*50;
   const start=Math.max(0,(w-m*5)/2);
@@ -152,10 +176,12 @@ function stairs(kind:string,w:number,h:number,d:number):JoineryItem[]{
 }
 
 export function createScenarioPlan(kind:DesignKind,scenario:string,roomWidth:number,roomHeight:number,roomDepth:number):ScenarioPlan{
-  const w=Math.max(2600,roomWidth),h=Math.max(2200,roomHeight),d=Math.max(2200,roomDepth);
-  const items=kind==="kitchen"?kitchen(scenario,w,h,d):kind==="bedroom"?bedroom(scenario,w,h,d):stairs(scenario,w,h,d);
+  if([roomWidth,roomHeight,roomDepth].some(v=>!Number.isFinite(v)||v<100))throw new Error("Room dimensions must be at least 100 mm.");
+  const w=roomWidth,h=roomHeight,d=roomDepth;
+  const customEmptyRoom=scenario!=="blank"&&(w<2600||h<2200||d<2200);
+  const items=scenario==="blank"||customEmptyRoom?[]:kind==="kitchen"?kitchen(scenario,w,h,d):kind==="bedroom"?bedroom(scenario,w,h,d):stairs(scenario,w,h,d);
   const label=DESIGN_KINDS.find(x=>x.id===kind)?.scenarios.find(x=>x.id===scenario)?.title??scenario;
-  return {kind,scenario,name:label,roomWidth:w,roomHeight:h,roomDepth:d,rules:{wallClearance:0,componentGap:0,snap:50,serviceClearance:50},items};
+  return {kind,scenario:customEmptyRoom?"blank":scenario,...(kind==="kitchen"?{lighting:{exposure:.9,daylight:scenario==="showroom"?1.7:1.3,warmLights:true,ceiling:true}}:{}),name:customEmptyRoom?"Custom room":label,roomWidth:w,roomHeight:h,roomDepth:d,rules:{wallClearance:0,componentGap:0,snap:50,serviceClearance:50},items};
 }
 
 export function inferDesignKind(items:JoineryItem[]):DesignKind{
@@ -168,11 +194,11 @@ export function inferDesignKind(items:JoineryItem[]):DesignKind{
 
 export const COMPONENT_GROUPS_BY_KIND:Record<DesignKind,{title:string;items:string[]}[]>={
   kitchen:[
-    {title:"Cabinetry",items:["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Corner cabinet","Filler panel","End panel","Worktop","Kitchen island","Shelving"]},
+    {title:"Cabinetry",items:["Base cabinet","Drawer unit","Wall cabinet","Tall cabinet","Corner cabinet","Filler panel","End panel","Cornice","Wine rack","Worktop","Kitchen island","Shelving"]},
     {title:"Appliances",items:["Sink base","Hob base","Oven tower","Fridge housing","Dishwasher","Washing machine","Microwave","Extractor hood","Freestanding fridge","Single oven","Range cooker"]},
-    {title:"Sinks, taps & wall finishes",items:["Tap","Arc mixer tap","Pull-out tap","Bridge tap","Square neck tap","Backsplash"]},
+    {title:"Sinks, taps & wall finishes",items:["Tap","Arc mixer tap","Pull-out tap","Bridge tap","Square neck tap","Cross-handle tap","Backsplash"]},
     {title:"Room architecture",items:["Wall segment","Door opening","Window","Chimney breast","Column","Ceiling bulkhead"]},
-    {title:"Services & context",items:["Radiator","Socket","Switch","Ceiling light","Pendant light"]}
+    {title:"Services & context",items:["Bar stool","Kitchen accessory","Radiator","Socket","Switch","Ceiling light","Pendant light"]}
   ],
   bedroom:[
     {title:"Fitted furniture",items:["Wardrobe","Sliding wardrobe","Drawer unit","Wall cabinet","Shelving","Media unit"]},

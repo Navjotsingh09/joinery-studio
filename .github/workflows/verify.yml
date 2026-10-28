@@ -3,6 +3,8 @@ name: Verify Build
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -16,12 +18,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Use Node.js 20
+      - name: Use Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+          cache: npm
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Typecheck
         run: npm run typecheck
@@ -31,6 +34,3 @@ jobs:
 
       - name: Production build
         run: npx next build
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: https://yudzfpuizzejpnkoxidx.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_ocqbsvwCTPrnw335PZLjfA_HQj9KJ7M
